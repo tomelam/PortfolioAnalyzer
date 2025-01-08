@@ -1,0 +1,67 @@
+# Byte-compiled files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Virtual environment
+venv/
+env/
+
+# Distribution / packaging
+*.egg
+*.egg-info/
+dist/
+build/
+pip-wheel-metadata/
+
+# Logs
+*.log
+*.out
+*.err
+
+# Temporary files
+*.swp
+*.swo
+*.~ 
+*.bak
+*.tmp
+.DS_Store
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# System-specific
+Thumbs.db
+Desktop.ini
+
+# IDE specific files
+.vscode/
+.idea/
+*.iml
+
+# Test coverage files
+.coverage
+*.cover
+.coverage.*
+.cache
+.nox/
+
+# Pytest cache
+.pytest_cache/
+
+# Environment variables
+.env
+.env.*
+
+# Generated files
+*.sqlite3
+*.db
+
+# Anaconda
+*.conda
+*.ipynb
+
+# AWS credentials or similar sensitive files
+*.key
+*.pem
