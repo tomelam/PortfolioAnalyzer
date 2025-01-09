@@ -144,15 +144,59 @@ def file_modified_within(file_path, hours):
 @log_function_details("fn_logger")
 def load_portfolio_details(toml_file_path):
     """
-    Load portfolio details from a TOML file.
-
+    Load portfolio details from a TOML file with validation.
+    
     Parameters:
         toml_file_path (str): Path to the TOML file.
-
+    
     Returns:
         dict: Parsed portfolio details.
+    
+    Raises:
+        ValueError: If the TOML data is invalid or missing required fields.
+        FileNotFoundError: If the TOML file does not exist.
     """
-    return toml.load(toml_file_path)
+    try:
+        # Load the TOML file
+        portfolio_details = toml.load(toml_file_path)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"File not found: {toml_file_path}")
+    except toml.TomlDecodeError as e:
+        raise ValueError(f"Invalid TOML format: {e}")
+
+    # Validate the top-level keys
+    required_top_level_keys = ["label", "funds"]
+    for key in required_top_level_keys:
+        if key not in portfolio_details:
+            raise ValueError(f"Missing required top-level key: '{key}'")
+
+    # Validate "funds" section
+    if not isinstance(portfolio_details["funds"], list) or len(portfolio_details["funds"]) == 0:
+        raise ValueError("'funds' must be a non-empty list")
+
+    for fund in portfolio_details["funds"]:
+        # Validate required keys in each fund
+        required_fund_keys = ["name", "url", "allocation", "asset_allocation"]
+        for key in required_fund_keys:
+            if key not in fund:
+                raise ValueError(f"Missing required key in fund: '{key}'")
+        
+        # Validate "allocation"
+        if not isinstance(fund["allocation"], (float, int)) or not (0 <= fund["allocation"] <= 1):
+            raise ValueError(f"Invalid allocation value for fund '{fund.get('name', '<unknown>')}': Must be between 0 and 1")
+
+        # Validate "asset_allocation"
+        if not isinstance(fund["asset_allocation"], dict):
+            raise ValueError(f"'asset_allocation' must be a dictionary for fund '{fund.get('name', '<unknown>')}'")
+
+        required_asset_keys = ["equity", "debt", "real_estate", "commodities", "cash"]
+        for key in required_asset_keys:
+            if key not in fund["asset_allocation"]:
+                raise ValueError(f"Missing key in 'asset_allocation' for fund '{fund.get('name', '<unknown>')}': '{key}'")
+            if not isinstance(fund["asset_allocation"][key], (float, int)) or fund["asset_allocation"][key] < 0:
+                raise ValueError(f"Invalid value for '{key}' in 'asset_allocation' of fund '{fund.get('name', '<unknown>')}': Must be a non-negative number")
+    
+    return portfolio_details
 
 # Parse the equity, debt, and cash allocations of the funds in a portfolio
 @log_function_details("fn_logger")
