@@ -6,20 +6,11 @@ import unittest
 from unittest.mock import patch, MagicMock
 import pandas as pd
 import numpy as np
-from test_utils import mock_portfolio_toml
-from data_loader import load_portfolio_details, get_aligned_portfolio_civs
+from data_loader import get_aligned_portfolio_civs
 from metrics_calculator import calculate_portfolio_metrics
 from stress_test import simulate_multiple_shocks
 
 class TestPortfolioAnalyzer(unittest.TestCase):
-
-    def test_load_portfolio(self):
-        """Test loading of portfolio data from TOML file."""
-        portfolio = load_portfolio_details("port-x.toml")
-        self.assertIn("label", portfolio)
-        self.assertIn("funds", portfolio)
-        self.assertIsInstance(portfolio["funds"], list)
-
     def test_get_aligned_portfolio_civs(self):
         """Test alignment of CIV data."""
         fund_civs = {

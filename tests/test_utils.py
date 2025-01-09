@@ -2,7 +2,7 @@
 import pandas as pd
 
 # Mock data mimicking the structure of the TOML data
-mock_portfolio_toml = {
+mock_valid_toml = {
     "label": "Portfolio X: 60% NIFTY50 + 40% Bluechip",
     "funds": [
         {
