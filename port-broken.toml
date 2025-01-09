@@ -1,0 +1,9 @@
+label = "Portfolio Broken: Purposely Broken Portfolio-Details File"
+
+[[funds]]
+name = "ICICI_Nifty_50_Index_Fund"
+allocation = 0.60
+asset_allocation = {equity = 99.89, debt = 0.00, real_estate = 0.00, commodities = 0.00, cash = 0.11}
+
+[[funds]]
+name = "ICICI_Prudential_Bluechip_Fund"

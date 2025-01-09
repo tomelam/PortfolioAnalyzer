@@ -12,7 +12,7 @@
 #    - fetch_and_standardize_risk_free_rates
 #    - align_dynamic_risk_free_rates
 #    - extract_fund_allocations
-#    - fetch_navs_of_fund
+#    - fetch_navs_of_mutual_fund
 #    - load_ppf_interest_rates
 #    - extract_fom_values
 #    - align_fund_data
@@ -45,9 +45,9 @@ def get_aligned_portfolio_civs(portfolio):
         pd.DataFrame: Aligned NAV data for all funds in the portfolio.
     """
 
-    # TODO: Check fund type type and only call fetch_nav_data for mutual funds.
+    # TODO: Check fund type type and only call fetch_navs_of_mutual_fund for mutual funds.
     # Produce a dictionary with NAV data like { "Fund A": ..., "Fund B": ... }. Are the values Series?
-    portfolio_civs = {fund["name"]: fetch_navs_of_fund(fund["url"]) for fund in portfolio["funds"]}
+    portfolio_civs = {fund["name"]: fetch_navs_of_mutual_fund(fund["url"]) for fund in portfolio["funds"]}
     aligned_civs = align_portfolio_civs(portfolio_civs)
     abs_civs_filled = aligned_civs.ffill()
     return abs_civs_filled
@@ -225,7 +225,7 @@ def extract_fund_allocations(portfolio):
 
 # Fetch NAV data
 @log_function_details("fn_logger")
-def fetch_navs_of_fund(url, retries=3, timeout=10):
+def fetch_navs_of_mutual_fund(url, retries=3, timeout=10):
     """
     Fetch NAV data for a fund from the given API URL.
 
