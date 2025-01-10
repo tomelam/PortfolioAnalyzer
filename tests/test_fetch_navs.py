@@ -1,10 +1,12 @@
+import pytest
 import unittest
-import pandas as pd
 from unittest.mock import patch
+import pandas as pd
 from test_utils import mock_nav_data  # Import the mocked DataFrame
 from data_loader import fetch_navs_of_mutual_fund
 
 class TestFetchNavs(unittest.TestCase):
+    @pytest.mark.order(5)
     @patch('requests.get')
     def test_fetch_navs_of_mutual_fund(self, mock_get):
         """Test fetching NAV data."""

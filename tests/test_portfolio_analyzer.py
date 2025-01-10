@@ -1,3 +1,4 @@
+import pytest
 import sys
 import os
 import requests
@@ -11,6 +12,7 @@ from metrics_calculator import calculate_portfolio_metrics
 from stress_test import simulate_multiple_shocks
 
 class TestPortfolioAnalyzer(unittest.TestCase):
+    @pytest.mark.order(6)
     def test_get_aligned_portfolio_civs(self):
         """Test alignment of CIV data."""
         fund_civs = {
@@ -20,6 +22,7 @@ class TestPortfolioAnalyzer(unittest.TestCase):
         aligned = get_aligned_portfolio_civs(portfolio)
         self.assertEqual(aligned.shape, (2, 2))
 
+    @pytest.mark.order(7)
     def test_calculate_portfolio_metrics(self):
         """Test calculation of portfolio metrics."""
         portfolio_returns = pd.Series([0.01, -0.02, 0.03], index=pd.to_datetime(["2023-01-01", "2023-01-03", "2023-01-04"]))
@@ -28,6 +31,7 @@ class TestPortfolioAnalyzer(unittest.TestCase):
         self.assertIn("Annualized Return", metrics)
         self.assertIn("Sharpe Ratio", metrics)
 
+    @pytest.mark.order(8)
     def test_simulate_multiple_shocks(self):
         """Test shock scenario simulation."""
         shock_scenarios = [
