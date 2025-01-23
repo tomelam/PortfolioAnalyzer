@@ -13,6 +13,7 @@ from data_loader import (
     extract_fund_allocations,
 )
 from metrics_calculator import (
+    calculate_benchmark_cumulative,
     calculate_portfolio_metrics,
     calculate_gain_daily_portfolio_series,
     calculate_gains_cumulative,
@@ -29,8 +30,6 @@ def main():
 
     configure_logging()
 
-    top_logger.debug("Entering main")
-
     args = parse_arguments()
     toml_file_path = args.toml_file
     benchmark_ticker = args.benchmark_ticker
@@ -46,47 +45,29 @@ def main():
     gain_daily_portfolio_series = calculate_gain_daily_portfolio_series(
         portfolio, aligned_portfolio_civs
     )
-    print(
-        f"*** AFTER CALCULATE_GAIN_DAILY_PORTFOLIO Type of gain_daily_portfolio_series: {type(gain_daily_portfolio_series)}"
-    )
-    print(
-        f"*** AFTER CALC'D GAIN DAILY gain_daily_portfolio_series.head(3): {gain_daily_portfolio_series.head(3)}"
-    )
 
     # TODO: Maybe change this to risk_free_rates.
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(
         args.risk_free_rates_file
     )
-    top_logger.debug(f"type(risk_free_rate_series): {type(risk_free_rate_series)}")
     benchmark_returns = get_benchmark_navs(args.benchmark_ticker)
 
     # interpolate risk-free rate to match portfolio dates
     risk_free_rates = align_dynamic_risk_free_rates(
         gain_daily_portfolio_series, risk_free_rate_series
     )
-    print(
-        f"AFTER FUNCTION ***************** type(risk_free_rates): {type(risk_free_rates)}"
-    )
-
-    top_logger.debug(
-        f"BEFORE .mean()****************** type(risk_free_rates): {type(risk_free_rates)}"
-    )
-    top_logger.debug(
-        f"BEFORE .mean()****************** risk_free_rates: {risk_free_rates}"
-    )
 
     risk_free_rate = risk_free_rates.mean()
-    top_logger.debug(
-        f"AFTER .mean()****************** type(risk_free_rate): {type(risk_free_rate)}"
-    )
-    metrics_logger.debug(
-        f"AFTER .mean()************************** risk_free_rate: {risk_free_rate}"
-    )
 
     # Calculate metrics
-    print(
-        f"*** CALC METRICS type(risk_free_rate): {type(risk_free_rate)}, gain_daily_portfolio_series.head(3): {gain_daily_portfolio_series.head(3)}"
+    earliest_date_of_portfolio = gain_daily_portfolio_series.index.min()
+    benchmark_cumulative = calculate_benchmark_cumulative(
+        benchmark_returns, earliest_date_of_portfolio
     )
+    ### FIXME: benchmark_cumulative is wrong here, as evidenced by Beta being
+    ### wrong.
+    ### What's the difference between this benchmark_cumulative and
+    ### cumulative_benchmark?
     metrics, max_drawdowns = calculate_portfolio_metrics(
         gain_daily_portfolio_series, risk_free_rate, benchmark_returns
     )
@@ -94,16 +75,9 @@ def main():
 
     # Log portfolio metrics
     print("\nPortfolio Metrics Before Stress Test:")
-    metrics_logger.debug(
-        f"************************** type(risk_free_rate): {type(risk_free_rate)}"
-    )
-    metrics_logger.debug(f"************************** risk_free_rate: {risk_free_rate}")
     print(f"Mean Risk-Free Rate: {risk_free_rate * 100:.4f}%")
     print(f"Annualized Return: {metrics['Annualized Return'] * 100:.4f}%")
     print(f"Volatility: {metrics['Volatility'] * 100:.4f}%")
-    metrics_logger.debug(
-        f"type(metrics['Sharpe Ratio']): {type(metrics['Sharpe Ratio'])}"
-    )
     print(f"Sharpe Ratio: {metrics['Sharpe Ratio']:.4f}")
     print(f"Sortino Ratio: {metrics['Sortino Ratio']:.4f}")
     if "Alpha" in metrics and "Beta" in metrics:
@@ -131,15 +105,10 @@ def main():
     ]
 
     latest_portfolio_value = gain_daily_portfolio_series.iloc[-1]
-    print(f"latest_portfolio_value: {latest_portfolio_value}")
     # cumulative_historical = (1 + gain_daily_portfolio_series).cumprod() - 1
     cumulative_historical, cumulative_benchmark = calculate_gains_cumulative(
         gain_daily_portfolio_series, benchmark_returns
     )
-    print(f"Type of gain_daily_portfolio_series: {type(gain_daily_portfolio_series)}")
-    print(f"Type of benchmark_returns: {type(benchmark_returns)}")
-    print(f"Type of cumulative_historical: {type(cumulative_historical)}")
-    print(f"Type of cumulative_benchmark: {type(cumulative_benchmark)}")
     fund_allocations = extract_fund_allocations(portfolio)
     portfolio_allocations = calculate_portfolio_allocations(portfolio, fund_allocations)
 
@@ -152,15 +121,6 @@ def main():
         shock_scenarios,
         args.no_growth_period,
     )
-
-    print("Returned from simulate_multiple_shocks")
-    print(f"Describe cumulative_historical: {cumulative_historical.describe()}")
-    for scenario_name, (plot_color, cumulative_historical) in shock_results.items():
-        print(f"scenario_name: {scenario_name}")
-        print(
-            f"Type & length of cumulative_historical: {type(cumulative_historical)}, {len(cumulative_historical)}"
-        )
-        print(f"Head: {cumulative_historical.head()}")
 
     # Generate visualizations
     # Plot results with benchmark

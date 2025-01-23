@@ -32,6 +32,7 @@ import os
 import yfinance as yf
 from datetime import timedelta, datetime
 
+
 # TODO: Change the name to something like get_portfolio_civs or get_portfolio_civs_df.
 @log_function_details("fn_logger")
 def get_aligned_portfolio_civs(portfolio):
@@ -45,38 +46,51 @@ def get_aligned_portfolio_civs(portfolio):
         pd.DataFrame: Aligned NAV data for all funds in the portfolio.
     """
 
-    # TODO: Check fund type type and only call fetch_navs_of_mutual_fund for mutual funds.
-    # Produce a dictionary with NAV data like { "Fund A": ..., "Fund B": ... }. Are the values Series?
-    portfolio_civs = {fund["name"]: fetch_navs_of_mutual_fund(fund["url"]) for fund in portfolio["funds"]}
+    portfolio_civs = fetch_portfolio_civs(portfolio)
     aligned_civs = align_portfolio_civs(portfolio_civs)
     abs_civs_filled = aligned_civs.ffill()
     return abs_civs_filled
 
+
+# Get portfolio CIVs
+@log_function_details("fn_logger")
+def fetch_portfolio_civs(portfolio):
+    portfolio_civs = {
+        fund["name"]: fetch_navs_of_mutual_fund(fund["url"])
+        for fund in portfolio["funds"]
+    }
+    return portfolio_civs
+
+
 # Align and combine CIV data
 @log_function_details("fn_logger")
-def align_portfolio_civs(fund_civs):
+def align_portfolio_civs(portfolio_civs):
     """
     Align and combine CIV data for all funds to a common date range.
 
     Parameters:
-        fund_civs (dict): Dictionary of fund names to DataFrames containing CIV data.
+        portfolio_civs (dict): Dictionary of fund names to DataFrames containing CIV data.
 
     Returns:
         pd.DataFrame: Combined CIV data aligned to a common date range.
     """
-    loader_logger.debug(f"Type of fund_civs: {type(fund_civs)}")
+    # loader_logger.debug(f"Type of portfolio_civs: {type(portfolio_civs)}")
     # Determine the overlapping date range for all funds
-    common_start_date = max(civ.index.min() for civ in fund_civs.values())
-    common_end_date = min(civ.index.max() for civ in fund_civs.values())
+    common_start_date = max(civ.index.min() for civ in portfolio_civs.values())
+    common_end_date = min(civ.index.max() for civ in portfolio_civs.values())
 
     # Align each fund's CIV data to the common date range
-    aligned_civs = {name: civ.loc[common_start_date:common_end_date] for name, civ in fund_civs.items()}
+    aligned_civs = {
+        name: civ.loc[common_start_date:common_end_date]
+        for name, civ in portfolio_civs.items()
+    }
 
     # Combine aligned CIV data into a single DataFrame
     # Starts with a dictionary and ends with a DataFrame
     combined_civs = pd.concat({name: civ for name, civ in aligned_civs.items()}, axis=1)
     aligned_combined_civs = combined_civs.ffill()
     return aligned_combined_civs
+
 
 # TODO: Use a better word than "data".
 @log_function_details("fn_logger")
@@ -96,11 +110,14 @@ def get_benchmark_navs(ticker, refresh_hours=6, period="max"):
     # Ensure the index (dates) is treated as a datetime column
     benchmark_data.index = pd.to_datetime(benchmark_data.index, errors="coerce")
     # Normalize to tz-naive
-    benchmark_data["date"] = pd.to_datetime(benchmark_data["date"], errors="coerce").dt.tz_localize(None)
+    benchmark_data["date"] = pd.to_datetime(
+        benchmark_data["date"], errors="coerce"
+    ).dt.tz_localize(None)
     # Ensure 'date is the index
     benchmark_data.set_index("date", inplace=True)
     benchmark_data = benchmark_data["Close"].pct_change().dropna()
     return benchmark_data
+
 
 # Function to download data from a given URL and save it as a CSV file
 @log_function_details("fn_logger")
@@ -115,12 +132,15 @@ def download_csv(url, output_file):
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
-        with open(output_file, 'wb') as file:
+        with open(output_file, "wb") as file:
             file.write(response.content)
-        loader_logger.debug(f"Data successfully downloaded from {url} and saved to {output_file}")
+        loader_logger.debug(
+            f"Data successfully downloaded from {url} and saved to {output_file}"
+        )
     except requests.RequestException as e:
         loader_logger.debug(f"Failed to download data from {url}: {e}")
         raise
+
 
 # Check if the file was modified within a specific time frame
 @log_function_details("fn_logger")
@@ -140,18 +160,19 @@ def file_modified_within(file_path, hours):
         return (datetime.now() - modification_time).total_seconds() < hours * 3600
     return False
 
+
 # Load the TOML file
 @log_function_details("fn_logger")
 def load_portfolio_details(toml_file_path):
     """
     Load portfolio details from a TOML file with validation.
-    
+
     Parameters:
         toml_file_path (str): Path to the TOML file.
-    
+
     Returns:
         dict: Parsed portfolio details.
-    
+
     Raises:
         ValueError: If the TOML data is invalid or missing required fields.
         FileNotFoundError: If the TOML file does not exist.
@@ -171,7 +192,10 @@ def load_portfolio_details(toml_file_path):
             raise ValueError(f"Missing required top-level key: '{key}'")
 
     # Validate "funds" section
-    if not isinstance(portfolio_details["funds"], list) or len(portfolio_details["funds"]) == 0:
+    if (
+        not isinstance(portfolio_details["funds"], list)
+        or len(portfolio_details["funds"]) == 0
+    ):
         raise ValueError("'funds' must be a non-empty list")
 
     for fund in portfolio_details["funds"]:
@@ -180,23 +204,37 @@ def load_portfolio_details(toml_file_path):
         for key in required_fund_keys:
             if key not in fund:
                 raise ValueError(f"Missing required key in fund: '{key}'")
-        
+
         # Validate "allocation"
-        if not isinstance(fund["allocation"], (float, int)) or not (0 <= fund["allocation"] <= 1):
-            raise ValueError(f"Invalid allocation value for fund '{fund.get('name', '<unknown>')}': Must be between 0 and 1")
+        if not isinstance(fund["allocation"], (float, int)) or not (
+            0 <= fund["allocation"] <= 1
+        ):
+            raise ValueError(
+                f"Invalid allocation value for fund '{fund.get('name', '<unknown>')}': Must be between 0 and 1"
+            )
 
         # Validate "asset_allocation"
         if not isinstance(fund["asset_allocation"], dict):
-            raise ValueError(f"'asset_allocation' must be a dictionary for fund '{fund.get('name', '<unknown>')}'")
+            raise ValueError(
+                f"'asset_allocation' must be a dictionary for fund '{fund.get('name', '<unknown>')}'"
+            )
 
         required_asset_keys = ["equity", "debt", "real_estate", "commodities", "cash"]
         for key in required_asset_keys:
             if key not in fund["asset_allocation"]:
-                raise ValueError(f"Missing key in 'asset_allocation' for fund '{fund.get('name', '<unknown>')}': '{key}'")
-            if not isinstance(fund["asset_allocation"][key], (float, int)) or fund["asset_allocation"][key] < 0:
-                raise ValueError(f"Invalid value for '{key}' in 'asset_allocation' of fund '{fund.get('name', '<unknown>')}': Must be a non-negative number")
-    
+                raise ValueError(
+                    f"Missing key in 'asset_allocation' for fund '{fund.get('name', '<unknown>')}': '{key}'"
+                )
+            if (
+                not isinstance(fund["asset_allocation"][key], (float, int))
+                or fund["asset_allocation"][key] < 0
+            ):
+                raise ValueError(
+                    f"Invalid value for '{key}' in 'asset_allocation' of fund '{fund.get('name', '<unknown>')}': Must be a non-negative number"
+                )
+
     return portfolio_details
+
 
 # Parse the equity, debt, and cash allocations of the funds in a portfolio
 @log_function_details("fn_logger")
@@ -212,16 +250,19 @@ def extract_fund_allocations(portfolio):
     """
     fund_allocations = []
     for fund in portfolio["funds"]:
-        fund_allocations.append({
-            "name": fund["name"],
-            "allocation": fund["allocation"],
-            "equity": fund["asset_allocation"]["equity"],
-            "debt": fund["asset_allocation"]["debt"],
-            "real_estate": fund["asset_allocation"]["real_estate"],
-            "commodities": fund["asset_allocation"]["commodities"],
-            "cash": fund["asset_allocation"]["cash"],
-        })
+        fund_allocations.append(
+            {
+                "name": fund["name"],
+                "allocation": fund["allocation"],
+                "equity": fund["asset_allocation"]["equity"],
+                "debt": fund["asset_allocation"]["debt"],
+                "real_estate": fund["asset_allocation"]["real_estate"],
+                "commodities": fund["asset_allocation"]["commodities"],
+                "cash": fund["asset_allocation"]["cash"],
+            }
+        )
     return fund_allocations
+
 
 # Fetch NAV data
 @log_function_details("fn_logger")
@@ -243,16 +284,25 @@ def fetch_navs_of_mutual_fund(url, retries=3, timeout=10):
             response.raise_for_status()
             data = response.json()
             if "data" not in data or not data["data"]:
-                raise KeyError(f"'data' key missing or empty in API response from {url}")
+                raise KeyError(
+                    f"'data' key missing or empty in API response from {url}"
+                )
             nav_data = pd.DataFrame(data["data"])
-            nav_data["date"] = pd.to_datetime(nav_data["date"], dayfirst=True, errors="coerce")
+            nav_data["date"] = pd.to_datetime(
+                nav_data["date"], dayfirst=True, errors="coerce"
+            )
             nav_data["nav"] = nav_data["nav"].astype(float)
             return nav_data.set_index("date").sort_index()
         except requests.RequestException as e:
-            loader_logger.debug(f"[Error] Request failed for {url} (Attempt {attempt + 1}/{retries}): {e}")
+            loader_logger.debug(
+                f"[Error] Request failed for {url} (Attempt {attempt + 1}/{retries}): {e}"
+            )
         except (ValueError, KeyError) as e:
-            loader_logger.debug(f"[Error] Data processing error for {url} (Attempt {attempt + 1}/{retries}): {e}")
+            loader_logger.debug(
+                f"[Error] Data processing error for {url} (Attempt {attempt + 1}/{retries}): {e}"
+            )
     raise RuntimeError(f"Failed to fetch NAV data from {url} after {retries} retries")
+
 
 # Load the PPF interest rates from a CSV file
 @log_function_details("fn_logger")
@@ -263,37 +313,41 @@ def load_ppf_interest_rates(csv_file_path="ppf_interest_rates.csv"):
 
     Returns:
         pd.DataFrame: A DataFrame with columns "rate" and "date", indexed by "date" and sorted.
-"""
+    """
     try:
         if csv_file_path is None:
             csv_file_path = "ppf_interest_rates.csv"
-            
+
         # Read the CSV file into a DataFrame
         ppf_data = pd.read_csv(csv_file_path)
-        
+
         # Ensure the required columns are present
-        if 'date' not in ppf_data.columns or 'rate' not in ppf_data.columns:
+        if "date" not in ppf_data.columns or "rate" not in ppf_data.columns:
             raise ValueError("CSV file must contain 'date' and 'rate' columns.")
-    
+
         # Convert "date" to datetime and set it as the index
-        ppf_data['date'] = pd.to_datetime(ppf_data['date'], format='%Y-%m-%d', errors='coerce')
-        ppf_data.dropna(subset=['date'], inplace=True)  # Drop rows with invalid dates
-        ppf_data.set_index('date', inplace=True)
-        
+        ppf_data["date"] = pd.to_datetime(
+            ppf_data["date"], format="%Y-%m-%d", errors="coerce"
+        )
+        ppf_data.dropna(subset=["date"], inplace=True)  # Drop rows with invalid dates
+        ppf_data.set_index("date", inplace=True)
+
         # Ensure "rate" column is numeric
-        ppf_data['rate'] = pd.to_numeric(ppf_data['rate'], errors='coerce')
-        ppf_data.dropna(subset=['rate'], inplace=True)  # Drop rows with invalid rates
-        
+        ppf_data["rate"] = pd.to_numeric(ppf_data["rate"], errors="coerce")
+        ppf_data.dropna(subset=["rate"], inplace=True)  # Drop rows with invalid rates
+
         # Sort the DataFrame by the date index
         ppf_data.sort_index(inplace=True)
-        
+
         return ppf_data
-        
+
     except Exception as e:
         loader_logger.debug(f"Error loading PPF interest rates: {e}")
         raise
 
+
 # TODO: Replace the word "relative" with "normalized" or "gain" in the variable name.
+
 
 # Extract first-of-the-month (FOM) values
 @log_function_details("fn_logger")
@@ -309,6 +363,7 @@ def extract_fom_values(nav_data):
     """
     fom_values = nav_data.loc[nav_data.index.is_month_start]
     return fom_values
+
 
 # Fetch Yahoo Finance data
 @log_function_details("fn_logger")
@@ -327,20 +382,25 @@ def fetch_yahoo_finance_data(ticker, refresh_hours=6, period="max"):
 
     file_path = f"{ticker.replace('^', '').replace('/', '_')}.csv"
     if not file_modified_within(file_path, refresh_hours):
-        loader_logger.debug(f"The data for {ticker} is outdated or missing. Fetching it using yfinance...")
+        loader_logger.debug(
+            f"The data for {ticker} is outdated or missing. Fetching it using yfinance..."
+        )
         yf_ticker = yf.Ticker(ticker)
         raw = yf_ticker.history(period=period)
         loader_logger.debug(f"Data downloaded successfully and saved to {file_path}.")
         raw.to_csv(file_path)
     else:
         raw = pd.read_csv(file_path)
-        
+
     data = massage_yahoo_data(raw)
     loader_logger.debug("fetch_yahoo_finance_data columns:", data.columns)
     # Convert the index to a datetime column
     data["date"] = pd.to_datetime(data.index, errors="coerce")
-    data.reset_index(drop=True, inplace=True)  # Drop the old index    if "Date" not in data.columns:
+    data.reset_index(
+        drop=True, inplace=True
+    )  # Drop the old index    if "Date" not in data.columns:
     return data
+
 
 @log_function_details("fn_logger")
 def massage_yahoo_data(data):
@@ -354,6 +414,7 @@ def massage_yahoo_data(data):
         data["date"] = pd.to_datetime(data["date"], errors="coerce")
         data.set_index("date", inplace=True)
     return data
+
 
 # Load risk-free rate data
 @log_function_details("fn_logger")
@@ -369,17 +430,28 @@ def fetch_and_standardize_risk_free_rates(file_path, url=None):
         pd.DataFrame: Risk-free rate data indexed by date.
     """
     if url and not file_modified_within(file_path, 24):
-        loader_logger.debug("The risk-free-rate data is outdated or missing. Fetching it from the web...")
+        loader_logger.debug(
+            "The risk-free-rate data is outdated or missing. Fetching it from the web..."
+        )
         download_csv(url, file_path)
     else:
-        loader_logger.debug("The risk-free-rate data is fresh. No need to download it again now.")
+        loader_logger.debug(
+            "The risk-free-rate data is fresh. No need to download it again now."
+        )
 
     risk_free_data = pd.read_csv(file_path)
-    risk_free_data.rename(columns={"observation_date": "date", "INDIRLTLT01STM": "rate"}, inplace=True)
-    risk_free_data["date"] = pd.to_datetime(risk_free_data["date"], format="%Y-%m-%d", errors="coerce")
-    risk_free_data["rate"] = risk_free_data["rate"].astype(float) / 100  # Convert to annualized decimal
+    risk_free_data.rename(
+        columns={"observation_date": "date", "INDIRLTLT01STM": "rate"}, inplace=True
+    )
+    risk_free_data["date"] = pd.to_datetime(
+        risk_free_data["date"], format="%Y-%m-%d", errors="coerce"
+    )
+    risk_free_data["rate"] = (
+        risk_free_data["rate"].astype(float) / 100
+    )  # Convert to annualized decimal
     risk_free_data.set_index("date", inplace=True)
     return risk_free_data
+
 
 # Interpolate risk-free rates to match portfolio dates
 @log_function_details("fn_logger")
@@ -395,32 +467,9 @@ def align_dynamic_risk_free_rates(portfolio_returns, risk_free_data):
         pd.Series: Interpolated risk-free rates.
     """
     loader_logger.debug(f"type(risk_free_data): {type(risk_free_data)}")
-    aligned_rates = risk_free_data.reindex(portfolio_returns.index).interpolate(method='time')
+    aligned_rates = risk_free_data.reindex(portfolio_returns.index).interpolate(
+        method="time"
+    )
     filled_rates = aligned_rates["rate"].ffill().bfill()
-    #return filled_rates.mean()
+    # return filled_rates.mean()
     return filled_rates
-
-# Parse the equity, debt, and cash allocations of the funds in a portfolio
-@log_function_details("fn_logger")
-def extract_fund_allocations(portfolio):
-    """
-    Extract individual fund allocations (equity, debt, cash) from a portfolio object.
-
-    Parameters:
-        portfolio (dict): The portfolio data loaded from the TOML file.
-
-    Returns:
-        list of dict: A list where each item represents a fund and its asset allocations.
-    """
-    fund_allocations = []
-    for fund in portfolio["funds"]:
-        fund_allocations.append({
-            "name": fund["name"],
-            "allocation": fund["allocation"],
-            "equity": fund["asset_allocation"]["equity"],
-            "debt": fund["asset_allocation"]["debt"],
-            "real_estate": fund["asset_allocation"]["real_estate"],
-            "commodities": fund["asset_allocation"]["commodities"],
-            "cash": fund["asset_allocation"]["cash"],
-        })
-    return fund_allocations
