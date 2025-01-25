@@ -1,9 +1,3 @@
-from dev_support import (
-    configure_logging,
-    set_aspect_logging,
-    log_function_entry,
-    log_function_details,
-)
 from data_loader import (
     load_portfolio_details,
     get_aligned_portfolio_civs,  # fetch_nav_data,    ???
@@ -24,12 +18,7 @@ from visualizer import plot_cumulative_returns
 import argparse
 
 
-@log_function_details("fn_logger")
 def main():
-    junkx = 0
-
-    configure_logging()
-
     args = parse_arguments()
     toml_file_path = args.toml_file
     benchmark_ticker = args.benchmark_ticker
@@ -109,8 +98,23 @@ def main():
     cumulative_historical, cumulative_benchmark = calculate_gains_cumulative(
         gain_daily_portfolio_series, benchmark_returns
     )
+
+    # Print significant max drawdowns
+    if max_drawdowns:
+        print(
+            f"\nNumber of maximum drawdowns with full retracements: {len(max_drawdowns)}"
+        )
+        print("\nMaximum Drawdowns with Full Retracements:")
+        for drawdown in max_drawdowns:
+            print(
+                f"Start: {drawdown['start_date']}, "
+                f"Trough: {drawdown['trough_date']}, "
+                f"End: {drawdown['end_date']}, "
+                f"Drawdown: {drawdown['drawdown']:.2f}%"
+            )
+
     fund_allocations = extract_fund_allocations(portfolio)
-    portfolio_allocations = calculate_portfolio_allocations(portfolio, fund_allocations)
+    portfolio_allocations = calculate_portfolio_allocations(fund_allocations)
 
     # Simulate shocks
     shock_results = simulate_multiple_shocks(
@@ -119,7 +123,6 @@ def main():
         annualized_return,
         portfolio_allocations,
         shock_scenarios,
-        args.no_growth_period,
     )
 
     # Generate visualizations
@@ -140,7 +143,6 @@ def main():
     # generate_plots(portfolio_data, metrics, shock_results, benchmark_returns)
 
 
-@log_function_details("fn_loggern")
 def parse_arguments():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(

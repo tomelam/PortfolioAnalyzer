@@ -1,9 +1,7 @@
-from dev_support import log_function_details, type_shape_length, head_description
 import numpy as np
 import pandas as pd
 
 
-@log_function_details("fn_logger")
 def calculate_max_drawdowns(gain_daily_returns, threshold=0.05):
     """
     Calculate maximum drawdowns with full retracements, printing debug info for key calculations only.
@@ -63,7 +61,6 @@ def calculate_max_drawdowns(gain_daily_returns, threshold=0.05):
 
 
 # Calculate annualized metrics
-@log_function_details("fn_logger")
 def calculate_annualized_metrics(portfolio_returns):
     """
     Calculate annualized return and volatility.
@@ -74,30 +71,13 @@ def calculate_annualized_metrics(portfolio_returns):
     Returns:
         tuple: Annualized return and volatility.
     """
-    """
-    metrics_logger.debug(f"Type of portfolio_returns: {type(portfolio_returns)}")
-    if isinstance(portfolio_returns, pd.DataFrame):
-        metrics_logger.debug(f"Shape of portfolio_returns DataFrame: {portfolio_returns.shape}")
-    elif isinstance(portfolio_returns, pd.Series):
-        metrics_logger.debug(f"Length of portfolio_returns Series: {len(portfolio_returns)}")
-    #metrics_logger.debug(f"Type of portfolio_returns: {type(portfolio_returns)}")
-    #metrics_logger.debug(f"First few rows of portfolio_returns:\n{portfolio_returns.head()}")
-    #metrics_logger.debug(f"Summary statistics of portfolio_returns:\n{portfolio_returns.describe()}")
-    """
     annualized_return = portfolio_returns.mean() * 252
-    # metrics_logger.debug(f"portfolio_returns.std(): {portfolio_returns.std()}")
+
     volatility = portfolio_returns.std() * (252**0.5)
-    """
-    metrics_logger.debug(f"type(volatility): {type(volatility)}")
-    metrics_logger.debug(f"volatility: {volatility}")
-    """
-    # assert isinstance(volatility, (int, float)), \
-    #    f"volatility must be a scalar (int or float). Got: {type(volatility)}"
     return annualized_return, volatility
 
 
 # Calculate risk-adjusted metrics
-@log_function_details("fn_logger")
 def calculate_risk_adjusted_metrics(
     annualized_return, volatility, downside_risk, risk_free_rate
 ):
@@ -113,10 +93,6 @@ def calculate_risk_adjusted_metrics(
     Returns:
         tuple: Sharpe ratio and Sortino ratio.
     """
-    # Assert that volatility is a scalar
-    # assert isinstance(volatility, (int, float)), \
-    #    f"volatility must be a scalar (int or float). Got: {type(volatility)}"
-    # metrics_logger.debug(f"************** annualized_return: {annualized_return}, risk_free_rate: {risk_free_rate}, volatility: {volatility}")
     sharpe_ratio = (
         (annualized_return - risk_free_rate) / volatility if volatility else np.nan
     )
@@ -129,7 +105,6 @@ def calculate_risk_adjusted_metrics(
 
 
 # Calculate Alpha and Beta
-@log_function_details("fn_logger")
 def calculate_alpha_beta(
     portfolio_returns, benchmark_returns, annualized_return, risk_free_rate
 ):
@@ -160,7 +135,6 @@ def calculate_alpha_beta(
 
 
 # Calculate downside risk
-@log_function_details("fn_logger")
 def calculate_downside_risk(portfolio_returns):
     """
     Calculate downside risk of the portfolio.
@@ -175,7 +149,6 @@ def calculate_downside_risk(portfolio_returns):
     return downside_returns.std() * (252**0.5)
 
 
-@log_function_details("fn_logger")
 def calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs):
     gain_daily_returns = aligned_portfolio_civs.pct_change().dropna()
     # Calculate portfolio daily returns based on allocations
@@ -183,30 +156,18 @@ def calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs):
         gain_daily_returns[fund["name"]] * fund["allocation"]
         for fund in portfolio["funds"]
     )
-    # TODO: Convert the data in gain_daily_portfolio_df to a Series?
-    """
-    metrics_logger.debug(f"Type of gain_daily_portfolio_df: {type(gain_daily_portfolio_df)}")
-    metrics_logger.debug(f"Columns in gain_daily_portfolio_df: {gain_daily_portfolio_df.columns}")
-    """
     gain_daily_portfolio_series = gain_daily_portfolio_df["nav"]
-    # metrics_logger.debug(f"Type of gain_daily_portfolio_series: {type(gain_daily_portfolio_series)}")
     return gain_daily_portfolio_series
 
 
-@log_function_details("fn_logger")
 def calculate_gains_cumulative(
     gain_daily_portfolio_series, gain_daily_benchmark_series
 ):
-    """
-    print(f"*** Type & length of gain_daily_portfolio_series: {type(gain_daily_portfolio_series)}, {len(gain_daily_portfolio_series)}")
-    print("gain_daily_portfolio_series.head(3):", gain_daily_portfolio_series.head(3))
-    """
-    cumulative_historical = gain_daily_portfolio_series.cumprod() - 1
+    cumulative_historical = (1 + gain_daily_portfolio_series).cumprod() - 1
     cumulative_benchmark = gain_daily_benchmark_series.cumprod() - 1
     return cumulative_historical, cumulative_benchmark
 
 
-# @log_function_details("fn_logger")
 def calculate_benchmark_cumulative(benchmark_returns, earliest_datetime):
     benchmark_cumulative = (1 + benchmark_returns).cumprod() - 1
     benchmark_cumulative -= benchmark_cumulative.loc[earliest_datetime]
@@ -214,7 +175,6 @@ def calculate_benchmark_cumulative(benchmark_returns, earliest_datetime):
 
 
 # Calculate all metrics
-@log_function_details("fn_logger")
 def calculate_portfolio_metrics(
     gain_daily_portfolio_series,
     risk_free_rate,
@@ -231,12 +191,6 @@ def calculate_portfolio_metrics(
 
     Returns:
         dict: Portfolio performance metrics.
-    """
-    """
-    metrics_logger.debug(f"Type of gain_daily_portfolio_series: {type(gain_daily_portfolio_series)}")
-    #metrics_logger.debug(f"First few rows of portfolio_returns:\n{portfolio_returns.head()}")
-    #metrics_logger.debug(f"Summary statistics of portfolio_returns:\n{portfolio_returns.describe()}")
-    metrics_logger.debug(f"************ Type of risk_free_rate: {type(risk_free_rate)}")
     """
     annualized_return, volatility = calculate_annualized_metrics(
         gain_daily_portfolio_series
@@ -294,8 +248,8 @@ def calculate_portfolio_metrics(
     return metrics, max_drawdowns
 
 
-@log_function_details("fn_logger")
-def calculate_portfolio_allocations(portfolio, fund_allocations):
+# def calculate_portfolio_allocations(portfolio, fund_allocations):
+def calculate_portfolio_allocations(fund_allocations):
     """
     Calculate the portfolio's aggregate equity, debt, and cash allocations.
 
@@ -331,7 +285,6 @@ def calculate_portfolio_allocations(portfolio, fund_allocations):
     }
 
 
-@log_function_details("fn_logger")
 def calculate_ppf_relative_civ(ppf_interest_rates):
     """
     Calculate the monthly current investment value (CIV) gain for PPF, accruing monthly interest and crediting annually.

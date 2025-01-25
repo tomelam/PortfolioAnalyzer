@@ -23,8 +23,6 @@
 #    - download_csv
 #    - file_modified_within
 
-import dev_support
-from dev_support import log_function_details
 import pandas as pd
 import requests
 import toml
@@ -34,7 +32,6 @@ from datetime import timedelta, datetime
 
 
 # TODO: Change the name to something like get_portfolio_civs or get_portfolio_civs_df.
-@log_function_details("fn_logger")
 def get_aligned_portfolio_civs(portfolio):
     """
     Load and align portfolio data from a TOML file.
@@ -53,7 +50,6 @@ def get_aligned_portfolio_civs(portfolio):
 
 
 # Get portfolio CIVs
-@log_function_details("fn_logger")
 def fetch_portfolio_civs(portfolio):
     portfolio_civs = {
         fund["name"]: fetch_navs_of_mutual_fund(fund["url"])
@@ -63,7 +59,6 @@ def fetch_portfolio_civs(portfolio):
 
 
 # Align and combine CIV data
-@log_function_details("fn_logger")
 def align_portfolio_civs(portfolio_civs):
     """
     Align and combine CIV data for all funds to a common date range.
@@ -74,7 +69,6 @@ def align_portfolio_civs(portfolio_civs):
     Returns:
         pd.DataFrame: Combined CIV data aligned to a common date range.
     """
-    # loader_logger.debug(f"Type of portfolio_civs: {type(portfolio_civs)}")
     # Determine the overlapping date range for all funds
     common_start_date = max(civ.index.min() for civ in portfolio_civs.values())
     common_end_date = min(civ.index.max() for civ in portfolio_civs.values())
@@ -93,7 +87,6 @@ def align_portfolio_civs(portfolio_civs):
 
 
 # TODO: Use a better word than "data".
-@log_function_details("fn_logger")
 def get_benchmark_navs(ticker, refresh_hours=6, period="max"):
     """
     Load benchmark historical data using Yahoo Finance.
@@ -120,7 +113,6 @@ def get_benchmark_navs(ticker, refresh_hours=6, period="max"):
 
 
 # Function to download data from a given URL and save it as a CSV file
-@log_function_details("fn_logger")
 def download_csv(url, output_file):
     """
     Download a CSV file from a given URL and save it locally.
@@ -134,16 +126,11 @@ def download_csv(url, output_file):
         response.raise_for_status()
         with open(output_file, "wb") as file:
             file.write(response.content)
-        loader_logger.debug(
-            f"Data successfully downloaded from {url} and saved to {output_file}"
-        )
     except requests.RequestException as e:
-        loader_logger.debug(f"Failed to download data from {url}: {e}")
-        raise
+        raise RequestException(f"Failed to download data from {url}: {e}")
 
 
 # Check if the file was modified within a specific time frame
-@log_function_details("fn_logger")
 def file_modified_within(file_path, hours):
     """
     Check if a file was modified within the last specified hours.
@@ -162,7 +149,6 @@ def file_modified_within(file_path, hours):
 
 
 # Load the TOML file
-@log_function_details("fn_logger")
 def load_portfolio_details(toml_file_path):
     """
     Load portfolio details from a TOML file with validation.
@@ -237,7 +223,6 @@ def load_portfolio_details(toml_file_path):
 
 
 # Parse the equity, debt, and cash allocations of the funds in a portfolio
-@log_function_details("fn_logger")
 def extract_fund_allocations(portfolio):
     """
     Extract individual fund allocations (equity, debt, cash) from a portfolio object.
@@ -265,8 +250,7 @@ def extract_fund_allocations(portfolio):
 
 
 # Fetch NAV data
-@log_function_details("fn_logger")
-def fetch_navs_of_mutual_fund(url, retries=3, timeout=10):
+def fetch_navs_of_mutual_fund(url, retries=10, timeout=20):
     """
     Fetch NAV data for a fund from the given API URL.
 
@@ -294,18 +278,17 @@ def fetch_navs_of_mutual_fund(url, retries=3, timeout=10):
             nav_data["nav"] = nav_data["nav"].astype(float)
             return nav_data.set_index("date").sort_index()
         except requests.RequestException as e:
-            loader_logger.debug(
+            print(
                 f"[Error] Request failed for {url} (Attempt {attempt + 1}/{retries}): {e}"
             )
         except (ValueError, KeyError) as e:
-            loader_logger.debug(
+            print(
                 f"[Error] Data processing error for {url} (Attempt {attempt + 1}/{retries}): {e}"
             )
     raise RuntimeError(f"Failed to fetch NAV data from {url} after {retries} retries")
 
 
 # Load the PPF interest rates from a CSV file
-@log_function_details("fn_logger")
 def load_ppf_interest_rates(csv_file_path="ppf_interest_rates.csv"):
     """
     Parameters:
@@ -342,15 +325,13 @@ def load_ppf_interest_rates(csv_file_path="ppf_interest_rates.csv"):
         return ppf_data
 
     except Exception as e:
-        loader_logger.debug(f"Error loading PPF interest rates: {e}")
-        raise
+        raise FileNotFoundError
 
 
 # TODO: Replace the word "relative" with "normalized" or "gain" in the variable name.
 
 
 # Extract first-of-the-month (FOM) values
-@log_function_details("fn_logger")
 def extract_fom_values(nav_data):
     """
     Extract the first-of-the-month (FOM) values from CIV data.
@@ -366,7 +347,6 @@ def extract_fom_values(nav_data):
 
 
 # Fetch Yahoo Finance data
-@log_function_details("fn_logger")
 def fetch_yahoo_finance_data(ticker, refresh_hours=6, period="max"):
     """
     Fetch historical data from Yahoo Finance for a given ticker symbol.
@@ -382,18 +362,16 @@ def fetch_yahoo_finance_data(ticker, refresh_hours=6, period="max"):
 
     file_path = f"{ticker.replace('^', '').replace('/', '_')}.csv"
     if not file_modified_within(file_path, refresh_hours):
-        loader_logger.debug(
+        print(
             f"The data for {ticker} is outdated or missing. Fetching it using yfinance..."
         )
         yf_ticker = yf.Ticker(ticker)
         raw = yf_ticker.history(period=period)
-        loader_logger.debug(f"Data downloaded successfully and saved to {file_path}.")
         raw.to_csv(file_path)
     else:
         raw = pd.read_csv(file_path)
 
     data = massage_yahoo_data(raw)
-    loader_logger.debug("fetch_yahoo_finance_data columns:", data.columns)
     # Convert the index to a datetime column
     data["date"] = pd.to_datetime(data.index, errors="coerce")
     data.reset_index(
@@ -402,7 +380,6 @@ def fetch_yahoo_finance_data(ticker, refresh_hours=6, period="max"):
     return data
 
 
-@log_function_details("fn_logger")
 def massage_yahoo_data(data):
     # Ensure the index is properly set to 'date' or 'Datetime'
     if "Datetime" in data.columns:
@@ -417,7 +394,6 @@ def massage_yahoo_data(data):
 
 
 # Load risk-free rate data
-@log_function_details("fn_logger")
 def fetch_and_standardize_risk_free_rates(file_path, url=None):
     """
     Load risk-free rate data from a CSV file, downloading it if a URL is provided.
@@ -430,14 +406,12 @@ def fetch_and_standardize_risk_free_rates(file_path, url=None):
         pd.DataFrame: Risk-free rate data indexed by date.
     """
     if url and not file_modified_within(file_path, 24):
-        loader_logger.debug(
+        print(
             "The risk-free-rate data is outdated or missing. Fetching it from the web..."
         )
         download_csv(url, file_path)
     else:
-        loader_logger.debug(
-            "The risk-free-rate data is fresh. No need to download it again now."
-        )
+        print("The risk-free-rate data is fresh. No need to download it again now.")
 
     risk_free_data = pd.read_csv(file_path)
     risk_free_data.rename(
@@ -454,7 +428,6 @@ def fetch_and_standardize_risk_free_rates(file_path, url=None):
 
 
 # Interpolate risk-free rates to match portfolio dates
-@log_function_details("fn_logger")
 def align_dynamic_risk_free_rates(portfolio_returns, risk_free_data):
     """
     Align and interpolate risk-free rates to match portfolio return dates.
@@ -466,7 +439,6 @@ def align_dynamic_risk_free_rates(portfolio_returns, risk_free_data):
     Returns:
         pd.Series: Interpolated risk-free rates.
     """
-    loader_logger.debug(f"type(risk_free_data): {type(risk_free_data)}")
     aligned_rates = risk_free_data.reindex(portfolio_returns.index).interpolate(
         method="time"
     )
