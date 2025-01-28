@@ -12,13 +12,9 @@ def test_get_aligned_portfolio_civs():
     # Load mock data from Pickle file for an argument
     mock_argument_data = toml.load("tests/data/port-x.toml")
     expected_data = load_pickle("tests/data/aligned_portfolio_civs.pkl")
-    print(f"type(expected_data): {type(expected_data)}")
-    print(f"expected_data: {expected_data}")
 
     # Call the actual function-under-test with the mocked argument
     result = get_aligned_portfolio_civs(mock_argument_data)
-    print(f"type(result): {type(result)}")
-    print(f"result: {result}")
 
     # Compare only the first 1000 rows/items
     assert_identical(result.iloc[:1000], expected_data.iloc[:1000])
