@@ -9,7 +9,6 @@ def test_align_portfolio_civs(mocker):
 
     # Load Pickled test input data
     portfolio_civs = load_pickle("tests/data/portfolio_civs.pkl")
-    print(portfolio_civs)
 
     # Load Pickled expected result data
     expected_alignment = load_pickle("tests/data/aligned_civs.pkl")
