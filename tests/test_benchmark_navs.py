@@ -1,18 +1,17 @@
 import pytest
 import pandas as pd
-#from test_utils import mock_nav_data
-from data_loader import fetch_navs_of_mutual_fund
+from pandas.testing import assert_frame_equal
+from data_loader import align_portfolio_civs
+from metrics_calculator import calculate_portfolio_metrics
+from stress_test import simulate_multiple_shocks
+from test_utils import load_json
+import pickle
 
-@pytest.mark.order(5)  # test_fetch_navs_of_mutual_funds
-def test_fetch_navs_of_mutual_fund(mocker):
-    """Test fetching NAV data."""
+
+@pytest.mark.order(8)  # test_get_benchmark_navs(mocker)
+def test_get_benchmark_navs(mocker):
+    """Test getting of usefully indexed benchmark historical NAV using Yahoo Financ."""
     mock_get = mocker.patch('requests.get')
-
-    mock_nav_data = pd.DataFrame(
-        {"nav": [100.0, 101.0, 102.0]},
-        index=pd.to_datetime(["2023-01-01", "2023-01-02", "2023-01-03"]),
-    )
-    mock_nav_data.index.name = "date"
 
     mock_response_data = {
         "data": [
@@ -20,7 +19,6 @@ def test_fetch_navs_of_mutual_fund(mocker):
             for date, nav in mock_nav_data["nav"].items()
         ]
     }
-
     mock_response = mock_get.return_value
     mock_response.json.return_value = mock_response_data
     mock_response.status_code = 200

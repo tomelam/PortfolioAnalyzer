@@ -2,7 +2,7 @@ import pytest
 from metrics_calculator import calculate_portfolio_allocations
 
 
-@pytest.mark.order(4)
+@pytest.mark.order(4)  # test_calculate_portfolio_allocations(mocker)
 def test_calculate_portfolio_allocations(mocker):
     mock_fund_allocations = [
         {

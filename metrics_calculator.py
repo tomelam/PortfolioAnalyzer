@@ -156,8 +156,7 @@ def calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs):
         gain_daily_returns[fund["name"]] * fund["allocation"]
         for fund in portfolio["funds"]
     )
-    gain_daily_portfolio_series = gain_daily_portfolio_df["nav"]
-    return gain_daily_portfolio_series
+    return gain_daily_portfolio_df
 
 
 def calculate_gains_cumulative(

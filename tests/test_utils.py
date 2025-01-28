@@ -1,12 +1,7 @@
 # tests/test_utils.py
 import pandas as pd
 import json
-
-mock_nav_data = pd.DataFrame(
-    {"nav": [100.0, 101.0, 102.0]},
-    index=pd.to_datetime(["2023-01-01", "2023-01-02", "2023-01-03"]),
-)
-mock_nav_data.index.name = "date"
+import pickle
 
 def load_json(filepath):
     """
@@ -21,23 +16,19 @@ def load_json(filepath):
     with open(filepath, "r") as file:
         return json.load(file)
 
-'''
-def load_h5_to_dict(filepath):
+
+def load_pickle(filepath):
     """
-    Load data from an HDF5 file into a dictionary.
+    Load data from a Pickle file.
 
     Args:
-        filepath (str): Path to the .h5 file.
-
+        filepath (str): Path to the Pickle file.
     Returns:
-        dict: Dictionary with DataFrames stored under their respective keys.
+        a datum of any type or mixed and nested types
     """
-    data = {}
-    with pd.HDFStore(filepath, mode='r') as store:
-        for key in store.keys():
-            data[key.strip('/')] = store[key]
-    return data
-'''
+    with open(filepath, "rb") as file:
+        return pickle.load(file)
+
 
 def assert_identical(actual, expected):
     import pandas as pd

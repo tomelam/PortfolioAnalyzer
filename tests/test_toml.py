@@ -33,7 +33,7 @@ mock_valid_toml = {
 }
 
 
-@pytest.mark.order(1)
+@pytest.mark.order(1)  # test_valid_toml(mocker)
 def test_valid_toml(mocker):
     mocker.patch("toml.load", return_value=mock_valid_toml)
     portfolio = load_portfolio_details("port-x.toml")
@@ -42,7 +42,7 @@ def test_valid_toml(mocker):
     assert portfolio["label"] == "Portfolio X: 60% NIFTY50 + 40% Bluechip"
 
 
-@pytest.mark.order(2)
+@pytest.mark.order(2)  # test_invalid_toml_missing_top_level_key(mocker)
 def test_invalid_toml_missing_top_level_key(mocker):
     """Test loading a TOML file missing top-level keys."""
     mocker.patch("toml.load", return_value={"funds": mock_valid_toml["funds"]})
@@ -51,7 +51,7 @@ def test_invalid_toml_missing_top_level_key(mocker):
         load_portfolio_details("port-x.toml")
 
 
-@pytest.mark.order(3)
+@pytest.mark.order(3)  # test_invalid_toml_invalid_fund_allocation(mocker)
 def test_invalid_toml_invalid_fund_allocation(mocker):
     """Test loading a TOML file with an invalid fund allocation."""
     invalid_toml = {

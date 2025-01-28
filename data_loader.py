@@ -1,7 +1,8 @@
 # Data Loader Module
-# This module provides tools for loading and processing data related to financial portfolios,
-# including functions to fetch NAV data, risk-free rates, and benchmark indices,
-# align data to common ranges, and calculate fund allocations.
+# This module provides tools for loading and processing data related to
+# financial portfolios, including functions to fetch NAV data, risk-free rates,
+# and benchmark indices, align data to common ranges, and calculate fund
+# allocations.
 #
 # Function Table
 # 1. Top-Level Functions:
@@ -31,13 +32,13 @@ import yfinance as yf
 from datetime import timedelta, datetime
 
 
-# TODO: Change the name to something like get_portfolio_civs or get_portfolio_civs_df.
 def get_aligned_portfolio_civs(portfolio):
     """
-    Load and align portfolio data from a TOML file.
+    Load and align the CIVs from each fund in a portfolio.
 
     Parameters:
-        toml_file (str): Path to the portfolio TOML file.
+        portfolio: portfolio allocations to each component fund and
+            each fund's asset allocations
 
     Returns:
         pd.DataFrame: Aligned NAV data for all funds in the portfolio.
@@ -45,8 +46,9 @@ def get_aligned_portfolio_civs(portfolio):
 
     portfolio_civs = fetch_portfolio_civs(portfolio)
     aligned_civs = align_portfolio_civs(portfolio_civs)
-    abs_civs_filled = aligned_civs.ffill()
-    return abs_civs_filled
+    # Flatten the MultiIndex columns by removing the second level ('nav')
+    aligned_civs.columns = aligned_civs.columns.droplevel(1)
+    return aligned_civs
 
 
 # Get portfolio CIVs
@@ -79,17 +81,16 @@ def align_portfolio_civs(portfolio_civs):
         for name, civ in portfolio_civs.items()
     }
 
-    # Combine aligned CIV data into a single DataFrame
-    # Starts with a dictionary and ends with a DataFrame
+    # Combine aligned CIV data into a single DataFrame.
+    # Starts with a dictionary and ends with a DataFrame.
     combined_civs = pd.concat({name: civ for name, civ in aligned_civs.items()}, axis=1)
     aligned_combined_civs = combined_civs.ffill()
     return aligned_combined_civs
 
 
-# TODO: Use a better word than "data".
 def get_benchmark_navs(ticker, refresh_hours=6, period="max"):
     """
-    Load benchmark historical data using Yahoo Finance.
+    Get usefully indexed benchmark historical NAVs using Yahoo Finance.
 
     Parameters:
         ticker (str): Yahoo Finance ticker symbol for the benchmark (e.g., "^NSEI").
