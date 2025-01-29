@@ -3,6 +3,7 @@ import pandas as pd
 import json
 import pickle
 
+
 def load_json(filepath):
     """
     Load JSON data from a file.
@@ -43,3 +44,10 @@ def assert_identical(actual, expected):
         assert_array_equal(actual, expected)
     else:
         unittest.TestCase().assertEqual(actual, expected)
+
+
+def series_struct_info(series):
+    print("Data type:", series.dtype)
+    print("Index:", series.index)
+    print("Size:", series.size)
+    print("Shape:", series.shape)

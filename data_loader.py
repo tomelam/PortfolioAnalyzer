@@ -88,29 +88,34 @@ def align_portfolio_civs(portfolio_civs):
     return aligned_combined_civs
 
 
-def get_benchmark_navs(ticker, refresh_hours=6, period="max"):
+def get_benchmark_gain_daily(benchmark_data):
     """
     Get usefully indexed benchmark historical NAVs using Yahoo Finance.
 
     Parameters:
-        ticker (str): Yahoo Finance ticker symbol for the benchmark (e.g., "^NSEI").
+        benchmark_data: pd.DataFrame containing historical data indexed by date.
         refresh_hours (int): Number of hours before refreshing cached data (default: 6).
         period (str): Period to fetch data for (default: "max").
 
     Returns:
         pd.Series: Benchmark daily returns indexed by date.
     """
-    benchmark_data = fetch_yahoo_finance_data(ticker, refresh_hours, period)
+    print(f"benchmark_data: {benchmark_data}")
+    print(f"type(benchmark_data): {type(benchmark_data)}")
     # Ensure the index (dates) is treated as a datetime column
-    benchmark_data.index = pd.to_datetime(benchmark_data.index, errors="coerce")
+    benchmark_data.index = pd.to_datetime(
+        benchmark_data.index, errors="coerce"
+    ).tz_localize(None)
+    if "Close" in benchmark_data.columns:
+        benchmark_data.rename(columns={"Close": "Close"}, inplace=True)
     # Normalize to tz-naive
-    benchmark_data["date"] = pd.to_datetime(
-        benchmark_data["date"], errors="coerce"
-    ).dt.tz_localize(None)
-    # Ensure 'date is the index
-    benchmark_data.set_index("date", inplace=True)
-    benchmark_data = benchmark_data["Close"].pct_change().dropna()
-    return benchmark_data
+    benchmark_data["Date"] = benchmark_data.index  # Optional: Create a Date column
+
+    # Calculate daily returns
+    benchmark_gain_daily = benchmark_data["Close"].pct_change().dropna()
+    print(f"benchmark_gain_daily: {benchmark_gain_daily}")
+    print(f"type(benchmark_gain_daily): {type(benchmark_gain_daily)}")
+    return benchmark_gain_daily
 
 
 # Function to download data from a given URL and save it as a CSV file
@@ -369,29 +374,61 @@ def fetch_yahoo_finance_data(ticker, refresh_hours=6, period="max"):
         yf_ticker = yf.Ticker(ticker)
         raw = yf_ticker.history(period=period)
         raw.to_csv(file_path)
+        print(f"Data downloaded successfully and saved to {file_path}.")
     else:
         raw = pd.read_csv(file_path)
 
-    data = massage_yahoo_data(raw)
+    data = rename_yahoo_data_columns(raw)
+    """
     # Convert the index to a datetime column
     data["date"] = pd.to_datetime(data.index, errors="coerce")
     data.reset_index(
         drop=True, inplace=True
     )  # Drop the old index    if "Date" not in data.columns:
+    """
+    assert data.index.name == "Date", "Index name mismatch: expected 'Date'"
     return data
 
 
-def massage_yahoo_data(data):
+def rename_yahoo_data_columns(data):
+    """
+    Ensure proper renaming of columns and consistent index setting.
+    """
+    if "Datetime" in data.columns:
+        data.rename(columns={"Datetime": "Date"}, inplace=True)
+    elif "date" in data.columns:
+        data.rename(columns={"date": "Date"}, inplace=True)
+
+    if "Date" in data.columns:
+        data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
+        data.set_index("Date", inplace=True)
+
+    # Explicitly set the index name to "Date"
+    if data.index.name != "Date":
+        data.index.name = "Date"
+        print(f"Index name corrected to 'Date': {data.index.name}")
+    return data
+
+
+"""
+def rename_yahoo_data_columns(data):
+    print("Entering rename_yahoo_data_columns")
     # Ensure the index is properly set to 'date' or 'Datetime'
     if "Datetime" in data.columns:
-        data.rename(columns={"Datetime": "date"}, inplace=True)
-    elif "Date" in data.columns:
-        data.rename(columns={"Date": "date"}, inplace=True)
+        print("Found Datetime in data.columns")
+        data.rename(columns={"Datetime": "Date"}, inplace=True)
+    elif "date" in data.columns:
+        print("Found Date in data.columns")
+        data.rename(columns={"date": "Date"}, inplace=True)
+
     # Convert to datetime if necessary
-    if "date" in data.columns:
-        data["date"] = pd.to_datetime(data["date"], errors="coerce")
-        data.set_index("date", inplace=True)
+    if "Date" in data.columns:
+        print("Found date in data.columns")
+        data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
+        data.set_index("Date", inplace=True)
+
     return data
+"""
 
 
 # Load risk-free rate data

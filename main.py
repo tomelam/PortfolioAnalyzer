@@ -3,7 +3,8 @@ from data_loader import (
     get_aligned_portfolio_civs,  # fetch_nav_data,    ???
     fetch_and_standardize_risk_free_rates,  # get_standardized_risk_free_rates,
     align_dynamic_risk_free_rates,  # get_dynamic_risk_free_rate,
-    get_benchmark_navs,  # load_benchmark_data,
+    fetch_yahoo_finance_data,
+    get_benchmark_gain_daily,  # load_benchmark_data,
     extract_fund_allocations,
 )
 from metrics_calculator import (
@@ -39,7 +40,11 @@ def main():
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(
         args.risk_free_rates_file
     )
-    benchmark_returns = get_benchmark_navs(args.benchmark_ticker)
+    benchmark_data = fetch_yahoo_finance_data(
+        args.benchmark_ticker, refresh_hours=1, period="max"
+    )
+    assert benchmark_data.index.name == "Date", "Index name mismatch: expected 'Date'"
+    benchmark_returns = get_benchmark_gain_daily(benchmark_data)
 
     # interpolate risk-free rate to match portfolio dates
     risk_free_rates = align_dynamic_risk_free_rates(
