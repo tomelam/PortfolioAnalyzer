@@ -159,11 +159,27 @@ def calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs):
     return gain_daily_portfolio_df
 
 
+'''
 def calculate_gains_cumulative(
     gain_daily_portfolio_series, gain_daily_benchmark_series
 ):
     cumulative_historical = (1 + gain_daily_portfolio_series).cumprod() - 1
     cumulative_benchmark = gain_daily_benchmark_series.cumprod() - 1
+    return cumulative_historical, cumulative_benchmark
+'''
+def calculate_gains_cumulative(gain_daily_portfolio_series, gain_daily_benchmark_series):
+    # Calculate the portfolio's cumulative returns
+    cumulative_historical = (1 + gain_daily_portfolio_series).cumprod() - 1
+
+    # Calculate the benchmark's cumulative returns (note the addition of 1)
+    cumulative_benchmark = (1 + gain_daily_benchmark_series).cumprod() - 1
+
+    # Get the earliest date in the portfolio series
+    earliest_date = gain_daily_portfolio_series.index.min()
+
+    # Baseline the benchmark series so that its value at the portfolio's start is zero.
+    cumulative_benchmark -= cumulative_benchmark.loc[earliest_date]
+
     return cumulative_historical, cumulative_benchmark
 
 
