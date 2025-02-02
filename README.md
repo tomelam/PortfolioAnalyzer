@@ -8,7 +8,7 @@ This repository contains the Portfolio Analyzer application. It fetches historic
 
 - **Data Loading & Alignment:**  
   - Fetches NAV data for each fund via API calls.
-  - Loads risk-free rate data from CSV. The included file FRED--INDIRLTLT01STM.csv is one such file downloaded from fred.stlouisfed.org.
+  - Loads risk-free rate data from CSV. The included file FRED--INDIRLTLT01STM.csv is one such file downloaded from [fred.stlouisfed.org](https://fred.stlouisfed.org).
   - Retrieves benchmark historical data from Yahoo Finance.
   - Aligns data to a common date range across all data sources.
 
@@ -84,12 +84,12 @@ Contributions, suggestions, and bug reports are welcome. Please open an issue or
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the [MIT License](https://opensource.org/licenses/MIT).
 
 ---
 
 ## Acknowledgements
 
-Thanks to the creators and maintainers of the website _mfapi.in_, whoever they are. They have created and made available a wonderful free API that makes analysis of Indian mutual funds relatively easy.
+Thanks to the creators and maintainers of the website [mfapi.in](https://mfapi.in), whoever they are. They have created and made available a wonderful free API that makes analysis of Indian mutual funds relatively easy.
 
 Thanks to the developers of the open-source libraries used in this project. Their work makes projects like this possible.
