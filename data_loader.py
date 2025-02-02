@@ -100,8 +100,6 @@ def get_benchmark_gain_daily(benchmark_data):
     Returns:
         pd.Series: Benchmark daily returns indexed by date.
     """
-    print(f"benchmark_data: {benchmark_data}")
-    print(f"type(benchmark_data): {type(benchmark_data)}")
     # Ensure the index (dates) is treated as a datetime column
     benchmark_data.index = pd.to_datetime(
         benchmark_data.index, errors="coerce"
@@ -113,8 +111,6 @@ def get_benchmark_gain_daily(benchmark_data):
 
     # Calculate daily returns
     benchmark_gain_daily = benchmark_data["Close"].pct_change().dropna()
-    print(f"benchmark_gain_daily: {benchmark_gain_daily}")
-    print(f"type(benchmark_gain_daily): {type(benchmark_gain_daily)}")
     return benchmark_gain_daily
 
 
@@ -408,27 +404,6 @@ def rename_yahoo_data_columns(data):
         data.index.name = "Date"
         print(f"Index name corrected to 'Date': {data.index.name}")
     return data
-
-
-"""
-def rename_yahoo_data_columns(data):
-    print("Entering rename_yahoo_data_columns")
-    # Ensure the index is properly set to 'date' or 'Datetime'
-    if "Datetime" in data.columns:
-        print("Found Datetime in data.columns")
-        data.rename(columns={"Datetime": "Date"}, inplace=True)
-    elif "date" in data.columns:
-        print("Found Date in data.columns")
-        data.rename(columns={"date": "Date"}, inplace=True)
-
-    # Convert to datetime if necessary
-    if "Date" in data.columns:
-        print("Found date in data.columns")
-        data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
-        data.set_index("Date", inplace=True)
-
-    return data
-"""
 
 
 # Load risk-free rate data
