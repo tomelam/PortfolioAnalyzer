@@ -6,6 +6,7 @@ from data_loader import (
     fetch_yahoo_finance_data,
     get_benchmark_gain_daily,
     extract_fund_allocations,
+    load_ppf_interest_rates,
 )
 from metrics_calculator import (
     calculate_benchmark_cumulative,
@@ -15,7 +16,9 @@ from metrics_calculator import (
     calculate_portfolio_allocations,
 )
 from visualizer import plot_cumulative_returns
+from ppf_calculator import calculate_ppf_cumulative_gain
 import argparse
+import pandas as pd
 
 def main():
     args = parse_arguments()
@@ -24,26 +27,41 @@ def main():
     benchmark_name = args.benchmark_name
     drawdown_threshold = args.max_drawdown_threshold / 100
 
+    # Load portfolio details from the TOML file.
     portfolio = load_portfolio_details(toml_file_path)
     portfolio_label = portfolio["label"]
 
-    # Load and align portfolio data
+    # Load and align mutual fund CIV data.
     aligned_portfolio_civs = get_aligned_portfolio_civs(portfolio)
-    gain_daily_portfolio_series = calculate_gain_daily_portfolio_series(
-        portfolio, aligned_portfolio_civs
-    )
 
-    # Load risk-free rate data and benchmark data
+    # If a PPF section exists, compute its CIV series and add it as an input.
+    if "ppf" in portfolio:
+        ppf_file = portfolio["ppf"].get("ppf_interest_rates_file", "ppf_interest_rates.csv")
+        ppf_rates = load_ppf_interest_rates(ppf_file)
+        # Use the mutual funds' common start date as the portfolio start.
+        portfolio_start_date = aligned_portfolio_civs.index.min()
+        ppf_series = calculate_ppf_cumulative_gain(ppf_rates, portfolio_start_date)
+        # Align the PPF series to the mutual funds date range.
+        ppf_series = ppf_series.reindex(aligned_portfolio_civs.index, method="ffill")
+        # Add the PPF computed CIV as a new column.
+        aligned_portfolio_civs["PPF"] = ppf_series["ppf_value"]
+
+    # Calculate the portfolio daily returns (which now include the PPF input).
+    gain_daily_portfolio_series = calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs)
+
+    # Load risk-free rate data.
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(args.risk_free_rates_file)
+
+    # Load benchmark data from Yahoo Finance.
     benchmark_data = fetch_yahoo_finance_data(benchmark_ticker, refresh_hours=1, period="max")
     assert benchmark_data.index.name == "Date", "Index name mismatch: expected 'Date'"
     benchmark_returns = get_benchmark_gain_daily(benchmark_data)
 
-    # Align risk-free rates with portfolio dates
+    # Align risk-free rates with portfolio dates and compute the mean risk-free rate.
     risk_free_rates = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
     risk_free_rate = risk_free_rates.mean()
 
-    # Calculate portfolio metrics
+    # Calculate portfolio metrics, including the PPF component.
     metrics, max_drawdowns = calculate_portfolio_metrics(
         gain_daily_portfolio_series, risk_free_rate, benchmark_returns
     )
@@ -58,11 +76,6 @@ def main():
         print(f"Beta: {metrics['Beta']:.4f}")
         print(f"Alpha: {metrics['Alpha']:.4f}")
 
-    # Calculate cumulative returns for portfolio and benchmark
-    cumulative_historical, cumulative_benchmark = calculate_gains_cumulative(
-        gain_daily_portfolio_series, benchmark_returns
-    )
-
     if max_drawdowns:
         print(f"\nNumber of maximum drawdowns with full retracements: {len(max_drawdowns)}")
         print("\nMaximum Drawdowns:")
@@ -75,7 +88,12 @@ def main():
     fund_allocations = extract_fund_allocations(portfolio)
     portfolio_allocations = calculate_portfolio_allocations(fund_allocations)
 
-    # Plot historical performance with benchmark data
+    # Calculate cumulative returns for the portfolio and benchmark.
+    cumulative_historical, cumulative_benchmark = calculate_gains_cumulative(
+        gain_daily_portfolio_series, benchmark_returns
+    )
+
+    # Plot historical performance (the PPF is now part of the portfolio).
     plot_cumulative_returns(
         portfolio_label,
         cumulative_historical,

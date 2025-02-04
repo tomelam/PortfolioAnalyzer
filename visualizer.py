@@ -52,7 +52,7 @@ def plot_cumulative_returns(portfolio_label, cumulative_historical, title, bench
         for drawdown in max_drawdowns:
             plt.axvspan(drawdown['start_date'], drawdown['end_date'], color='red', alpha=0.1)
 
-    plt.title(f"{portfolio_label} under {title}")
+    plt.title(f"{title}: {portfolio_label}")
     plt.xlabel("Date")
     plt.ylabel("Cumulative Return (%)")
     plt.grid()

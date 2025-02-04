@@ -22,7 +22,7 @@ def test_get_benchmark_gain_daily():
 
     result = get_benchmark_gain_daily(mock_benchmark_data)
     print(f"result.index: {result.index}")
-    assert result.index.name == "Date", "Index name mismatch: expected 'Date'"
+    assert result.index.name == "date", "Index name mismatch: expected 'date'"
     print(f"result: {result}")
     print(f"type(result): {type(result)}")
 

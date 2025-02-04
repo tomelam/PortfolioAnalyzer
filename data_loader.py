@@ -94,23 +94,20 @@ def get_benchmark_gain_daily(benchmark_data):
 
     Parameters:
         benchmark_data: pd.DataFrame containing historical data indexed by date.
-        refresh_hours (int): Number of hours before refreshing cached data (default: 6).
-        period (str): Period to fetch data for (default: "max").
 
     Returns:
         pd.Series: Benchmark daily returns indexed by date.
     """
     # Ensure the index (dates) is treated as a datetime column
-    benchmark_data.index = pd.to_datetime(
-        benchmark_data.index, errors="coerce"
-    ).tz_localize(None)
+    benchmark_data.index = pd.to_datetime(benchmark_data.index, errors="coerce").tz_localize(None)
     if "Close" in benchmark_data.columns:
         benchmark_data.rename(columns={"Close": "Close"}, inplace=True)
-    # Normalize to tz-naive
-    benchmark_data["Date"] = benchmark_data.index  # Optional: Create a Date column
-
+    # Assign the index name to "date"
+    benchmark_data.index.name = "date"
     # Calculate daily returns
     benchmark_gain_daily = benchmark_data["Close"].pct_change().dropna()
+    # Set the index name to "date" so it matches expected_result
+    benchmark_gain_daily.index.name = "date"
     return benchmark_gain_daily
 
 

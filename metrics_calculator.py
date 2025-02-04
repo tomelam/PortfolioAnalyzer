@@ -150,23 +150,15 @@ def calculate_downside_risk(portfolio_returns):
 
 
 def calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs):
-    gain_daily_returns = aligned_portfolio_civs.pct_change().dropna()
-    # Calculate portfolio daily returns based on allocations
-    gain_daily_portfolio_df = sum(
-        gain_daily_returns[fund["name"]] * fund["allocation"]
-        for fund in portfolio["funds"]
-    )
-    return gain_daily_portfolio_df
+    # Compute daily returns for each mutual fund.
+    daily_returns = aligned_portfolio_civs.pct_change().dropna()
+    combined = sum(daily_returns[fund["name"]] * fund["allocation"] for fund in portfolio["funds"])
+    # Add the PPF daily returns using its allocation (if present).
+    if "ppf" in portfolio:
+        combined += daily_returns["PPF"] * portfolio["ppf"]["allocation"]
+    return combined
 
 
-'''
-def calculate_gains_cumulative(
-    gain_daily_portfolio_series, gain_daily_benchmark_series
-):
-    cumulative_historical = (1 + gain_daily_portfolio_series).cumprod() - 1
-    cumulative_benchmark = gain_daily_benchmark_series.cumprod() - 1
-    return cumulative_historical, cumulative_benchmark
-'''
 def calculate_gains_cumulative(gain_daily_portfolio_series, gain_daily_benchmark_series):
     # Calculate the portfolio's cumulative returns
     cumulative_historical = (1 + gain_daily_portfolio_series).cumprod() - 1
