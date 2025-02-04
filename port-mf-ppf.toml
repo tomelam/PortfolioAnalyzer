@@ -55,5 +55,6 @@ allocation = 0.05
 asset_allocation = {equity = 21.86, debt = 73.35, real_estate = 0.66, commodities = 0.00, cash = 4.13}
 
 [ppf]
+name = "Public Provident Fund"
 allocation = 0.15
 ppf_interest_rates_file = "ppf_interest_rates.csv"

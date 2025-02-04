@@ -224,27 +224,32 @@ def load_portfolio_details(toml_file_path):
 # Parse the equity, debt, and cash allocations of the funds in a portfolio
 def extract_fund_allocations(portfolio):
     """
-    Extract individual fund allocations (equity, debt, cash) from a portfolio object.
-
-    Parameters:
-        portfolio (dict): The portfolio data loaded from the TOML file.
-
-    Returns:
-        list of dict: A list where each item represents a fund and its asset allocations.
+    Extract individual fund allocations (equity, debt, real estate, commodities, and cash)
+    from the portfolio data. If a PPF section exists, add it as an allocation with 100% debt.
     """
     fund_allocations = []
     for fund in portfolio["funds"]:
-        fund_allocations.append(
-            {
-                "name": fund["name"],
-                "allocation": fund["allocation"],
-                "equity": fund["asset_allocation"]["equity"],
-                "debt": fund["asset_allocation"]["debt"],
-                "real_estate": fund["asset_allocation"]["real_estate"],
-                "commodities": fund["asset_allocation"]["commodities"],
-                "cash": fund["asset_allocation"]["cash"],
-            }
-        )
+        fund_allocations.append({
+            "name": fund["name"],
+            "allocation": fund["allocation"],
+            "equity": fund["asset_allocation"]["equity"],
+            "debt": fund["asset_allocation"]["debt"],
+            "real_estate": fund["asset_allocation"]["real_estate"],
+            "commodities": fund["asset_allocation"]["commodities"],
+            "cash": fund["asset_allocation"]["cash"],
+        })
+    if "ppf" in portfolio:
+        ppf_name = portfolio["ppf"].get("name", "PPF")
+        ppf_allocation = portfolio["ppf"].get("allocation", 0)
+        fund_allocations.append({
+            "name": ppf_name,
+            "allocation": ppf_allocation,
+            "equity": 0,
+            "debt": 100,      # Count PPF as 100% debt.
+            "real_estate": 0,
+            "commodities": 0,
+            "cash": 0,
+        })
     return fund_allocations
 
 
