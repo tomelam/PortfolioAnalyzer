@@ -56,24 +56,14 @@ def main():
         aligned_portfolio_civs["gold_india"] = gold_series["gold_value"]
         
     # Process gold held at BullionVault using the manually downloaded CSV.
-    if "gold_bullionvault" in portfolio:
-        gv_file = portfolio["gold_bullionvault"].get("gold_data_file", "Gold Futures Historical Data.csv")
+    if "offshore_gold" in portfolio:
+        gv_file = portfolio["offshore_gold"].get("gold_data_file", "Gold Futures Historical Data.csv")
         # Now use the CSV loader; no API key is needed.
         gv_data = load_gold_data_from_csv(gv_file)
         portfolio_start_date = aligned_portfolio_civs.index.min()
         gv_series = calculate_gold_cumulative_gain(gv_data, portfolio_start_date)
         gv_series = gv_series.reindex(aligned_portfolio_civs.index, method="ffill")
-        aligned_portfolio_civs["gold_bullionvault"] = gv_series["gold_value"]
-            
-    # Optionally, process HardAssetsAlliance gold similarly.
-    if "hard_assets_alliance" in portfolio:
-        haa_file = portfolio["hard_assets_alliance"].get("gold_data_file")
-        if haa_file:
-            haa_data = load_gold_data_from_csv(haa_file)
-            portfolio_start_date = aligned_portfolio_civs.index.min()
-            haa_series = calculate_gold_cumulative_gain(haa_data, portfolio_start_date)
-            haa_series = haa_series.reindex(aligned_portfolio_civs.index, method="ffill")
-            aligned_portfolio_civs["hard_assets_alliance"] = haa_series["gold_value"]
+        aligned_portfolio_civs["offshore_gold"] = gv_series["gold_value"]
             
     # Calculate the portfolio daily returns (including all components).
     gain_daily_portfolio_series = calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs)

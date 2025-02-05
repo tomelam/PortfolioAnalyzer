@@ -1,4 +1,4 @@
-label = "Portfolio 1 (Targeting Drawdowns <10%), plus 15% in PPF and 10% in Offshore Vaulted Gold"
+label = "Portfolio 1 (Targeting Drawdowns <10%), plus 15% in PPF and 10% in Gold"
 
 [[funds]]
 name = "ICICI_Prudential_Bluechip_Fund"
@@ -37,5 +37,10 @@ ppf_interest_rates_file = "ppf_interest_rates.csv"
 
 [offshore_gold]
 name = "Offshore Vaulted Gold"
-allocation = 0.10
+allocation = 0.05
+gold_data_file = "Gold Futures Historical Data.csv"
+
+[gold_india]
+name = "Gold Kept in India"
+allocation = 0.05
 gold_data_file = "Gold Futures Historical Data.csv"

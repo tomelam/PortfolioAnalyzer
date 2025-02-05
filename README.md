@@ -62,6 +62,8 @@ python main.py portfolio.toml --benchmark-name "NIFTY 50" --benchmark-ticker "^N
 ```
 If the TOML file you use to define the analyzed and plotted portfolio includes gold as a component, download the CSV file of the gold prices from https://www.investing.com/commodities/gold-historical-data .
 
+Mac users might notice messages like `2025-02-04 20:00:14.220 python[20791:454371] +[IMKClient subclass]: chose IMKClient_Modern` cluttering the terminal output. These are OS Activity Mode messages coming from Apple's Input Method Kit (IMK). They can be suppressed by appending `2> /dev/null` to the command. This is not a perfect solution. Normally, the OS_ACTIVITY_MODE environment variable could be set to "disable" to suppress such messages, but it appears that Apple's Input Method Kit (IMK) framework does not consistently honor that variable.
+
 ---
 
 ## Project Structure
