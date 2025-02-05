@@ -3,7 +3,6 @@ import pandas as pd
 from pandas.testing import assert_frame_equal
 from data_loader import align_portfolio_civs
 from metrics_calculator import calculate_portfolio_metrics
-from stress_test import simulate_multiple_shocks
 from test_utils import load_json
 import pickle
 

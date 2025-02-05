@@ -87,6 +87,13 @@ Mac users might notice messages like `2025-02-04 20:00:14.220 python[20791:45437
 ├── requirements.txt         # List of required Python packages
 └── README.md                # This file
 ```
+---
+
+## Testing
+
+```bash
+python -m pytest tests/
+```
 
 ---
 
