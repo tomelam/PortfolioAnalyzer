@@ -9,6 +9,7 @@ This repository contains the Portfolio Analyzer application. It fetches historic
 - **Data Loading & Alignment:**  
   - Fetches NAV data for each fund via API calls.
   - Loads risk-free rate data from CSV. The included file FRED--INDIRLTLT01STM.csv is one such file downloaded from [fred.stlouisfed.org](https://fred.stlouisfed.org).
+  - Uses gold futures (GCJ5) downloaded manually as CSV from [https://www.investing.com/commodities/gold-historical-data](https://www.investing.com/commodities/gold-historical-data).
   - Retrieves benchmark historical data from Yahoo Finance.
   - Aligns data to a common date range across all data sources.
 
@@ -59,6 +60,7 @@ This repository contains the Portfolio Analyzer application. It fetches historic
 python main.py <path_to_portfolio_toml_file> [options]
 python main.py portfolio.toml --benchmark-name "NIFTY 50" --benchmark-ticker "^NSEI" --risk-free-rates-file "FRED--INDIRLTLT01STM.csv" --max-drawdown-threshold 5
 ```
+If the TOML file you use to define the analyzed and plotted portfolio includes gold as a component, download the CSV file of the gold prices from https://www.investing.com/commodities/gold-historical-data .
 
 ---
 

@@ -17,6 +17,8 @@ from metrics_calculator import (
 )
 from visualizer import plot_cumulative_returns
 from ppf_calculator import calculate_ppf_cumulative_gain
+from gold_downloader import load_gold_data_from_csv
+from data_loader import calculate_gold_cumulative_gain
 import argparse
 import pandas as pd
 
@@ -34,19 +36,46 @@ def main():
     # Load and align mutual fund CIV data.
     aligned_portfolio_civs = get_aligned_portfolio_civs(portfolio)
 
-    # If a PPF section exists, compute its CIV series and add it as an input.
+    # Process PPF if included.
     if "ppf" in portfolio:
         ppf_file = portfolio["ppf"].get("ppf_interest_rates_file", "ppf_interest_rates.csv")
         ppf_rates = load_ppf_interest_rates(ppf_file)
-        # Use the mutual funds' common start date as the portfolio start.
         portfolio_start_date = aligned_portfolio_civs.index.min()
         ppf_series = calculate_ppf_cumulative_gain(ppf_rates, portfolio_start_date)
-        # Align the PPF series to the mutual funds date range.
         ppf_series = ppf_series.reindex(aligned_portfolio_civs.index, method="ffill")
-        # Add the PPF computed CIV as a new column.
         aligned_portfolio_civs["PPF"] = ppf_series["ppf_value"]
 
-    # Calculate the portfolio daily returns (which now include the PPF input).
+    # Process gold held in India using the manually downloaded CSV.
+    if "gold_india" in portfolio:
+        gold_india_file = portfolio["gold_india"].get("gold_data_file", "Gold Futures Historical Data.csv")
+        # Use the new CSV loader function.
+        gold_data = load_gold_data_from_csv(gold_india_file)
+        portfolio_start_date = aligned_portfolio_civs.index.min()
+        gold_series = calculate_gold_cumulative_gain(gold_data, portfolio_start_date)
+        gold_series = gold_series.reindex(aligned_portfolio_civs.index, method="ffill")
+        aligned_portfolio_civs["gold_india"] = gold_series["gold_value"]
+        
+    # Process gold held at BullionVault using the manually downloaded CSV.
+    if "gold_bullionvault" in portfolio:
+        gv_file = portfolio["gold_bullionvault"].get("gold_data_file", "Gold Futures Historical Data.csv")
+        # Now use the CSV loader; no API key is needed.
+        gv_data = load_gold_data_from_csv(gv_file)
+        portfolio_start_date = aligned_portfolio_civs.index.min()
+        gv_series = calculate_gold_cumulative_gain(gv_data, portfolio_start_date)
+        gv_series = gv_series.reindex(aligned_portfolio_civs.index, method="ffill")
+        aligned_portfolio_civs["gold_bullionvault"] = gv_series["gold_value"]
+            
+    # Optionally, process HardAssetsAlliance gold similarly.
+    if "hard_assets_alliance" in portfolio:
+        haa_file = portfolio["hard_assets_alliance"].get("gold_data_file")
+        if haa_file:
+            haa_data = load_gold_data_from_csv(haa_file)
+            portfolio_start_date = aligned_portfolio_civs.index.min()
+            haa_series = calculate_gold_cumulative_gain(haa_data, portfolio_start_date)
+            haa_series = haa_series.reindex(aligned_portfolio_civs.index, method="ffill")
+            aligned_portfolio_civs["hard_assets_alliance"] = haa_series["gold_value"]
+            
+    # Calculate the portfolio daily returns (including all components).
     gain_daily_portfolio_series = calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs)
 
     # Load risk-free rate data.
@@ -61,7 +90,7 @@ def main():
     risk_free_rates = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
     risk_free_rate = risk_free_rates.mean()
 
-    # Calculate portfolio metrics, including the PPF component.
+    # Calculate portfolio metrics.
     metrics, max_drawdowns = calculate_portfolio_metrics(
         gain_daily_portfolio_series, risk_free_rate, benchmark_returns
     )
@@ -88,12 +117,12 @@ def main():
     fund_allocations = extract_fund_allocations(portfolio)
     portfolio_allocations = calculate_portfolio_allocations(fund_allocations)
 
-    # Calculate cumulative returns for the portfolio and benchmark.
+    # Calculate cumulative returns.
     cumulative_historical, cumulative_benchmark = calculate_gains_cumulative(
         gain_daily_portfolio_series, benchmark_returns
     )
 
-    # Plot historical performance (the PPF is now part of the portfolio).
+    # Plot historical performance.
     plot_cumulative_returns(
         portfolio_label,
         cumulative_historical,

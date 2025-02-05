@@ -250,6 +250,42 @@ def extract_fund_allocations(portfolio):
             "commodities": 0,
             "cash": 0,
         })
+    if "gold_india" in portfolio:
+        gold_name = portfolio["gold_india"].get("name", "Gold (India)")
+        gold_allocation = portfolio["gold_india"].get("allocation", 0)
+        fund_allocations.append({
+            "name": gold_name,
+            "allocation": gold_allocation,
+            "equity": 0,
+            "debt": 0,
+            "real_estate": 0,
+            "commodities": 100,  # Gold is 100% commodities.
+            "cash": 0,
+        })
+    if "gold_bullionvault" in portfolio:
+        gv_name = portfolio["gold_bullionvault"].get("name", "Gold (BullionVault)")
+        gv_allocation = portfolio["gold_bullionvault"].get("allocation", 0)
+        fund_allocations.append({
+            "name": gv_name,
+            "allocation": gv_allocation,
+            "equity": 0,
+            "debt": 0,
+            "real_estate": 0,
+            "commodities": 100,  # Gold is 100% commodities.
+            "cash": 0,
+        })
+    if "hard_assets_alliance" in portfolio:
+        haa_name = portfolio["hard_assets_alliance"].get("name", "Gold (HardAssetsAlliance)")
+        haa_allocation = portfolio["hard_assets_alliance"].get("allocation", 0)
+        fund_allocations.append({
+            "name": haa_name,
+            "allocation": haa_allocation,
+            "equity": 0,
+            "debt": 0,
+            "real_estate": 0,
+            "commodities": 100,  # Gold is 100% commodities.
+            "cash": 0,
+        })
     return fund_allocations
 
 
@@ -332,7 +368,20 @@ def load_ppf_interest_rates(csv_file_path="ppf_interest_rates.csv"):
         raise FileNotFoundError
 
 
-# TODO: Replace the word "relative" with "normalized" or "gain" in the variable name.
+def calculate_gold_cumulative_gain(gold_data, portfolio_start_date):
+    """
+    Compute a relative cumulative gain series from a gold price series.
+    Assumes that at the portfolio start date, the relative value is 1.0.
+    """
+    # Restrict to dates on/after portfolio start.
+    gold_data = gold_data.loc[gold_data.index >= portfolio_start_date]
+    # Normalize: divide by the price on portfolio_start_date.
+    base_price = gold_data.iloc[0]["price"]
+    gold_data = gold_data.copy()
+    gold_data["gold_value"] = gold_data["price"] / base_price
+    # Reindex to daily frequency.
+    gold_data = gold_data.asfreq("D", method="ffill")
+    return gold_data[["gold_value"]]
 
 
 # Extract first-of-the-month (FOM) values
