@@ -17,7 +17,7 @@ from metrics_calculator import (
 )
 from visualizer import plot_cumulative_returns
 from ppf_calculator import calculate_ppf_cumulative_gain
-from gold_downloader import load_gold_data_from_csv
+from gold_loader import load_gold_data_from_csv
 from data_loader import calculate_gold_cumulative_gain
 import argparse
 import pandas as pd

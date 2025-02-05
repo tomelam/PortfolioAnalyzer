@@ -44,7 +44,7 @@ This repository contains the Portfolio Analyzer application. It fetches historic
    pip install -r requirements.txt
    ```
 &nbsp;
-   _Dependencies include:_
+   _Dependencies include, among others:_
    * pandas
    * numpy
    * matplotlib
@@ -80,6 +80,8 @@ Mac users might notice messages like `2025-02-04 20:00:14.220 python[20791:45437
 .
 ├── main.py                  # Entry point for the application
 ├── data_loader.py           # Handles data fetching, standardization, and alignment
+├── gold_loader.py           # Handles gold price loading from a CSV file
+├── ppf_calculator.py        # Calculates the cumulative gains of a PPF account
 ├── metrics_calculator.py    # Computes portfolio metrics and cumulative gains
 ├── visualizer.py            # Generates plots for historical portfolio and benchmark performance
 ├── requirements.txt         # List of required Python packages
