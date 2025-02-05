@@ -18,7 +18,7 @@ from metrics_calculator import (
 from visualizer import plot_cumulative_returns
 from ppf_calculator import calculate_ppf_cumulative_gain
 from gold_loader import load_gold_data_from_csv
-from data_loader import calculate_gold_cumulative_gain
+from data_loader import calculate_gold_cumulative_gain, extract_fund_allocations
 import argparse
 import pandas as pd
 
@@ -105,7 +105,7 @@ def main():
             )
 
     fund_allocations = extract_fund_allocations(portfolio)
-    portfolio_allocations = calculate_portfolio_allocations(fund_allocations)
+    portfolio_allocations = calculate_portfolio_allocations(portfolio, fund_allocations)
 
     # Calculate cumulative returns.
     cumulative_historical, cumulative_benchmark = calculate_gains_cumulative(

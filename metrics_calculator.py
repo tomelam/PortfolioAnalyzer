@@ -255,33 +255,22 @@ def calculate_portfolio_metrics(
     return metrics, max_drawdowns
 
 
-# def calculate_portfolio_allocations(portfolio, fund_allocations):
-def calculate_portfolio_allocations(fund_allocations):
+def calculate_portfolio_allocations(portfolio, fund_allocations):
     """
-    Calculate the portfolio's aggregate equity, debt, and cash allocations.
+    Calculate the portfolio's aggregate asset allocations.
 
     Parameters:
-        portfolio (dict): The portfolio data loaded from the TOML file.
-
+        portfolio (dict): The full portfolio details (from the TOML file).
+        fund_allocations (list): A list of dicts representing the allocations and asset breakdowns of each fund.
+    
     Returns:
-        dict: Aggregate portfolio allocations as percentages.
+        dict: Aggregate portfolio allocations as percentages across asset classes.
     """
-
-    total_equity = sum(
-        fund["allocation"] * (fund["equity"] / 100) for fund in fund_allocations
-    )
-    total_debt = sum(
-        fund["allocation"] * (fund["debt"] / 100) for fund in fund_allocations
-    )
-    total_real_estate = sum(
-        fund["allocation"] * (fund["real_estate"] / 100) for fund in fund_allocations
-    )
-    total_commodities = sum(
-        fund["allocation"] * (fund["commodities"] / 100) for fund in fund_allocations
-    )
-    total_cash = sum(
-        fund["allocation"] * (fund["cash"] / 100) for fund in fund_allocations
-    )
+    total_equity = sum(fund["allocation"] * (fund["equity"] / 100) for fund in fund_allocations)
+    total_debt = sum(fund["allocation"] * (fund["debt"] / 100) for fund in fund_allocations)
+    total_real_estate = sum(fund["allocation"] * (fund["real_estate"] / 100) for fund in fund_allocations)
+    total_commodities = sum(fund["allocation"] * (fund["commodities"] / 100) for fund in fund_allocations)
+    total_cash = sum(fund["allocation"] * (fund["cash"] / 100) for fund in fund_allocations)
 
     return {
         "equity": total_equity,

@@ -218,9 +218,23 @@ def load_portfolio_details(toml_file_path):
                     f"Invalid value for '{key}' in 'asset_allocation' of fund '{fund.get('name', '<unknown>')}': Must be a non-negative number"
                 )
 
+    validate_allocations(portfolio_details)
+    
     return portfolio_details
 
 
+def validate_allocations(portfolio_details, tol=0.01):
+    total_allocation = sum(fund["allocation"] for fund in portfolio_details["funds"])
+    # Include allocation for PPF if present
+    if "ppf" in portfolio_details:
+        total_allocation += portfolio_details["ppf"].get("allocation", 0)
+    # Include allocation for physical gold if present
+    if "physical_gold" in portfolio_details:
+        total_allocation += portfolio_details["physical_gold"].get("allocation", 0)
+    if abs(total_allocation - 1.0) > tol:
+        raise ValueError(f"Total allocation is {total_allocation:.4f}, but it must sum to 1.00 within tolerance {tol}.")
+
+        
 # Parse the equity, debt, and cash allocations of the funds in a portfolio
 def extract_fund_allocations(portfolio):
     """
@@ -250,36 +264,12 @@ def extract_fund_allocations(portfolio):
             "commodities": 0,
             "cash": 0,
         })
-    if "gold_india" in portfolio:
-        gold_name = portfolio["gold_india"].get("name", "Gold (India)")
-        gold_allocation = portfolio["gold_india"].get("allocation", 0)
+    if "physical_gold" in portfolio:
+        gold_name = portfolio["physical_gold"].get("name", "Physical Gold")
+        gold_allocation = portfolio["physical_gold"].get("allocation", 0)
         fund_allocations.append({
             "name": gold_name,
             "allocation": gold_allocation,
-            "equity": 0,
-            "debt": 0,
-            "real_estate": 0,
-            "commodities": 100,  # Gold is 100% commodities.
-            "cash": 0,
-        })
-    if "gold_bullionvault" in portfolio:
-        gv_name = portfolio["gold_bullionvault"].get("name", "Gold (BullionVault)")
-        gv_allocation = portfolio["gold_bullionvault"].get("allocation", 0)
-        fund_allocations.append({
-            "name": gv_name,
-            "allocation": gv_allocation,
-            "equity": 0,
-            "debt": 0,
-            "real_estate": 0,
-            "commodities": 100,  # Gold is 100% commodities.
-            "cash": 0,
-        })
-    if "hard_assets_alliance" in portfolio:
-        haa_name = portfolio["hard_assets_alliance"].get("name", "Gold (HardAssetsAlliance)")
-        haa_allocation = portfolio["hard_assets_alliance"].get("allocation", 0)
-        fund_allocations.append({
-            "name": haa_name,
-            "allocation": haa_allocation,
             "equity": 0,
             "debt": 0,
             "real_estate": 0,
