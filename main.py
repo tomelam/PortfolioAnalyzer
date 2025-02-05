@@ -45,7 +45,7 @@ def main():
         ppf_series = ppf_series.reindex(aligned_portfolio_civs.index, method="ffill")
         aligned_portfolio_civs["PPF"] = ppf_series["ppf_value"]
 
-    # Process gold held in India using the manually downloaded CSV.
+    # Process gold held in India using the manually downloaded CSV, if included.
     if "gold_india" in portfolio:
         gold_india_file = portfolio["gold_india"].get("gold_data_file", "Gold Futures Historical Data.csv")
         # Use the new CSV loader function.
@@ -55,7 +55,7 @@ def main():
         gold_series = gold_series.reindex(aligned_portfolio_civs.index, method="ffill")
         aligned_portfolio_civs["gold_india"] = gold_series["gold_value"]
         
-    # Process gold held at BullionVault using the manually downloaded CSV.
+    # Process gold held in offshore vaults using the manually downloaded CSV, if included.
     if "offshore_gold" in portfolio:
         gv_file = portfolio["offshore_gold"].get("gold_data_file", "Gold Futures Historical Data.csv")
         # Now use the CSV loader; no API key is needed.

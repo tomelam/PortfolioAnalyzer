@@ -1,6 +1,6 @@
 # Portfolio Analyzer
 
-This repository contains the Portfolio Analyzer application. It fetches historical NAV data for Indian mutual funds from mfapi.in, computes key portfolio performance metrics (such as annualized return, volatility, Sharpe/Sortino ratios, Alpha, Beta, and maximum drawdowns), and visualizes historical returns along with benchmark data.
+This repository contains the Portfolio Analyzer application. It fetches historical NAV data for Indian mutual funds from [mfapi.in](https://mfapi.in), fetches benchmark data from [Yahoo Finance](https://finance.yahoo.com/), uses risk-free rate data from [FRED](https://fred.stlouisfed.org), and uses gold futures prices from [investing.com](https://investing.com), computes key portfolio performance metrics (such as annualized return, volatility, Sharpe/Sortino ratios, Alpha, Beta, and maximum drawdowns), and visualizes historical returns along with benchmark data.
 
 ---
 
@@ -56,11 +56,19 @@ This repository contains the Portfolio Analyzer application. It fetches historic
 
 ## Usage
 
+If the portfolio described by the TOML file includes PPF as a component, ensure that the file detailing historical PPF interest rates, `ppf_interest_rates.csv`, is up to date before running the program.
+
+If the portfolio described by the TOML file includes gold as a component, download the CSV file of the gold prices from https://www.investing.com/commodities/gold-historical-data before running the program. Currently, offshore vaulted gold is segregated from gold held in India by the program, but both types of gold are priced using the save CSV data.
 ```bash
 python main.py <path_to_portfolio_toml_file> [options]
-python main.py portfolio.toml --benchmark-name "NIFTY 50" --benchmark-ticker "^NSEI" --risk-free-rates-file "FRED--INDIRLTLT01STM.csv" --max-drawdown-threshold 5
+python main.py portfolio.toml --benchmark-name "NIFTY 50" --benchmark-ticker "^NSEI" --risk-free-rates-file "FRED--INDIRLTLT01STM.csv" --max-drawdown-threshold 
 ```
-If the TOML file you use to define the analyzed and plotted portfolio includes gold as a component, download the CSV file of the gold prices from https://www.investing.com/commodities/gold-historical-data .
+The `--max-drawdown-threshhold` option (shortcut `-dt`) sets the percentage drawdown that is considered significant to count in the "Drawdowns" statistic. By default, the threshhold is set to `5` (5%).
+
+Other option shortcuts and defaults:
+* `-bn`, short for `--benchmark-name`, default `NIFTY 50`
+* `-bt`, short for `--benchmark-ticker`, default `^NSEI`
+* `-rf`, short for `--risk-free-rates-file`, default `FRED--INDIRLTLT01STM.csv`
 
 Mac users might notice messages like `2025-02-04 20:00:14.220 python[20791:454371] +[IMKClient subclass]: chose IMKClient_Modern` cluttering the terminal output. These are OS Activity Mode messages coming from Apple's Input Method Kit (IMK). They can be suppressed by appending `2> /dev/null` to the command. This is not a perfect solution. Normally, the OS_ACTIVITY_MODE environment variable could be set to "disable" to suppress such messages, but it appears that Apple's Input Method Kit (IMK) framework does not consistently honor that variable.
 
