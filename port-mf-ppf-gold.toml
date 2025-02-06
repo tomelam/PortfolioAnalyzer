@@ -35,7 +35,7 @@ name = "Public Provident Fund"
 allocation = 0.15
 ppf_interest_rates_file = "ppf_interest_rates.csv"
 
-[physical_gold]
-name = "Offshore Vaulted Gold"
+[gold]
+name = "Physical Gold"
 allocation = 0.10
 gold_data_file = "Gold Futures Historical Data.csv"

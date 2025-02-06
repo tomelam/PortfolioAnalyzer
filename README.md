@@ -58,7 +58,7 @@ This repository contains the Portfolio Analyzer application. It fetches historic
 
 If the portfolio described by the TOML file includes PPF as a component, ensure that the file detailing historical PPF interest rates, `ppf_interest_rates.csv`, is up to date before running the program.
 
-If the portfolio described by the TOML file includes gold as a component, download the CSV file of the gold prices from https://www.investing.com/commodities/gold-historical-data before running the program. Currently, offshore vaulted gold is segregated from gold held in India by the program, but both types of gold are priced using the save CSV data.
+If the portfolio described by the TOML file includes gold as a component, download the CSV file of the gold prices from https://www.investing.com/commodities/gold-historical-data before running the program. Currently, both offshore vaulted gold and gold held in India are priced using the save CSV data.
 ```bash
 python main.py <path_to_portfolio_toml_file> [options]
 python main.py portfolio.toml --benchmark-name "NIFTY 50" --benchmark-ticker "^NSEI" --risk-free-rates-file "FRED--INDIRLTLT01STM.csv" --max-drawdown-threshold 
@@ -92,7 +92,7 @@ Mac users might notice messages like `2025-02-04 20:00:14.220 python[20791:45437
 ## Testing
 
 ```bash
-python -m pytest tests/
+PYTHONPATH=. pytest tests/
 ```
 
 ---

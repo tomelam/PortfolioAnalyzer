@@ -163,12 +163,11 @@ def load_portfolio_details(toml_file_path):
         FileNotFoundError: If the TOML file does not exist.
     """
     try:
-        # Load the TOML file
         portfolio_details = toml.load(toml_file_path)
-    except FileNotFoundError:
-        raise FileNotFoundError(f"File not found: {toml_file_path}")
+    except FileNotFoundError as e:
+        raise FileNotFoundError(f"File not found: {toml_file_path}") from e
     except toml.TomlDecodeError as e:
-        raise ValueError(f"Invalid TOML format: {e}")
+        raise ValueError(f"Invalid TOML format: {e}") from e
 
     # Validate the top-level keys
     required_top_level_keys = ["label", "funds"]
@@ -177,51 +176,81 @@ def load_portfolio_details(toml_file_path):
             raise ValueError(f"Missing required top-level key: '{key}'")
 
     # Validate "funds" section
-    if (
-        not isinstance(portfolio_details["funds"], list)
-        or len(portfolio_details["funds"]) == 0
-    ):
-        raise ValueError("'funds' must be a non-empty list")
+    if not isinstance(portfolio_details["funds"], list):
+        raise ValueError("'funds' must be a list")
 
-    for fund in portfolio_details["funds"]:
-        # Validate required keys in each fund
+    errors = []
+    for i, fund in enumerate(portfolio_details["funds"], start=1):
+        fund_id = fund.get("name", f"fund #{i}")
+
+        # Validate required keys in each fund.
         required_fund_keys = ["name", "url", "allocation", "asset_allocation"]
         for key in required_fund_keys:
             if key not in fund:
-                raise ValueError(f"Missing required key in fund: '{key}'")
+                errors.append(f"Missing required key '{key}' in investment '{fund_id}'")
 
-        # Validate "allocation"
-        if not isinstance(fund["allocation"], (float, int)) or not (
-            0 <= fund["allocation"] <= 1
-        ):
-            raise ValueError(
-                f"Invalid allocation value for fund '{fund.get('name', '<unknown>')}': Must be between 0 and 1"
-            )
+        # Validate "allocation" if it exists.
+        if "allocation" in fund:
+            if not isinstance(fund["allocation"], (float, int)) or not (0 <= fund["allocation"] <= 1):
+                errors.append(
+                    f"Invalid allocation value for investment '{fund_id}': Must be between 0 and 1"
+                )
 
         # Validate "asset_allocation"
-        if not isinstance(fund["asset_allocation"], dict):
-            raise ValueError(
-                f"'asset_allocation' must be a dictionary for fund '{fund.get('name', '<unknown>')}'"
+        if "asset_allocation" not in fund:
+            # Already reported in required_fund_keys check.
+            pass
+        elif not isinstance(fund["asset_allocation"], dict):
+            errors.append(
+                f"'asset_allocation' must be a dictionary for investment '{fund_id}'"
             )
+        else:
+            required_asset_keys = ["equity", "debt", "real_estate", "commodities", "cash"]
+            for key in required_asset_keys:
+                if key not in fund["asset_allocation"]:
+                    errors.append(
+                        f"Missing key in 'asset_allocation' for investment '{fund_id}': '{key}'"
+                    )
+                else:
+                    value = fund["asset_allocation"][key]
+                    if not isinstance(value, (float, int)) or value < 0:
+                        errors.append(
+                            f"Invalid value for '{key}' in 'asset_allocation' of investment '{fund_id}': Must be a non-negative number"
+                        )
 
-        required_asset_keys = ["equity", "debt", "real_estate", "commodities", "cash"]
-        for key in required_asset_keys:
-            if key not in fund["asset_allocation"]:
-                raise ValueError(
-                    f"Missing key in 'asset_allocation' for fund '{fund.get('name', '<unknown>')}': '{key}'"
-                )
-            if (
-                not isinstance(fund["asset_allocation"][key], (float, int))
-                or fund["asset_allocation"][key] < 0
-            ):
-                raise ValueError(
-                    f"Invalid value for '{key}' in 'asset_allocation' of fund '{fund.get('name', '<unknown>')}': Must be a non-negative number"
-                )
+    # Validate the optional PPF section.
+    if "ppf" in portfolio_details:
+        ppf = portfolio_details["ppf"]
+        ppf_id = ppf.get("name", "PPF section")
+        # Check that required keys are present.
+        if "allocation" not in ppf:
+            errors.append(f"Missing required key 'allocation' in {ppf_id}")
+        else:
+            if not isinstance(ppf["allocation"], (float, int)) or not (0 <= ppf["allocation"] <= 1):
+                errors.append(f"Invalid allocation value for {ppf_id}: Must be between 0 and 1")
+        if "ppf_interest_rates_file" not in ppf:
+            errors.append(f"Missing required key 'ppf_interest_rates_file' in {ppf_id}")
 
+    # Validate the optional physical_gold section.
+    if "gold" in portfolio_details:
+        gold = portfolio_details["gold"]
+        gold_id = gold.get("name", "Gold section")
+        if "allocation" not in gold:
+            errors.append(f"Missing required key 'allocation' in {gold_id}")
+        else:
+            if not isinstance(gold["allocation"], (float, int)) or not (0 <= gold["allocation"] <= 1):
+                errors.append(f"Invalid allocation value for {gold_id}: Must be between 0 and 1")
+        if "gold_data_file" not in gold:
+            errors.append(f"Missing required key 'gold_data_file' in {gold_id}")
+
+    if errors:
+        all_errors = "\n".join(errors)
+        raise ValueError("TOML file errors detected in funds:\n" + all_errors)
+
+    # Validate total allocation (including optional sections)
     validate_allocations(portfolio_details)
-    
-    return portfolio_details
 
+    return portfolio_details
 
 def validate_allocations(portfolio_details, tol=0.01):
     total_allocation = sum(fund["allocation"] for fund in portfolio_details["funds"])
@@ -229,8 +258,8 @@ def validate_allocations(portfolio_details, tol=0.01):
     if "ppf" in portfolio_details:
         total_allocation += portfolio_details["ppf"].get("allocation", 0)
     # Include allocation for physical gold if present
-    if "physical_gold" in portfolio_details:
-        total_allocation += portfolio_details["physical_gold"].get("allocation", 0)
+    if "gold" in portfolio_details:
+        total_allocation += portfolio_details["gold"].get("allocation", 0)
     if abs(total_allocation - 1.0) > tol:
         raise ValueError(f"Total allocation is {total_allocation:.4f}, but it must sum to 1.00 within tolerance {tol}.")
 
@@ -264,9 +293,9 @@ def extract_fund_allocations(portfolio):
             "commodities": 0,
             "cash": 0,
         })
-    if "physical_gold" in portfolio:
-        gold_name = portfolio["physical_gold"].get("name", "Physical Gold")
-        gold_allocation = portfolio["physical_gold"].get("allocation", 0)
+    if "gold" in portfolio:
+        gold_name = portfolio["gold"].get("name", "Physical Gold")
+        gold_allocation = portfolio["gold"].get("allocation", 0)
         fund_allocations.append({
             "name": gold_name,
             "allocation": gold_allocation,

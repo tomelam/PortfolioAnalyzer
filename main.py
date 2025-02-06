@@ -45,26 +45,15 @@ def main():
         ppf_series = ppf_series.reindex(aligned_portfolio_civs.index, method="ffill")
         aligned_portfolio_civs["PPF"] = ppf_series["ppf_value"]
 
-    # Process gold held in India using the manually downloaded CSV, if included.
-    if "gold_india" in portfolio:
-        gold_india_file = portfolio["gold_india"].get("gold_data_file", "Gold Futures Historical Data.csv")
+    if "gold" in portfolio:
+        gold_file = portfolio["gold"].get("gold_data_file", "Gold Futures Historical Data.csv")
         # Use the new CSV loader function.
-        gold_data = load_gold_data_from_csv(gold_india_file)
+        gold_data = load_gold_data_from_csv(gold_file)
         portfolio_start_date = aligned_portfolio_civs.index.min()
         gold_series = calculate_gold_cumulative_gain(gold_data, portfolio_start_date)
         gold_series = gold_series.reindex(aligned_portfolio_civs.index, method="ffill")
-        aligned_portfolio_civs["gold_india"] = gold_series["gold_value"]
+        aligned_portfolio_civs["gold"] = gold_series["gold_value"]
         
-    # Process gold held in offshore vaults using the manually downloaded CSV, if included.
-    if "offshore_gold" in portfolio:
-        gv_file = portfolio["offshore_gold"].get("gold_data_file", "Gold Futures Historical Data.csv")
-        # Now use the CSV loader; no API key is needed.
-        gv_data = load_gold_data_from_csv(gv_file)
-        portfolio_start_date = aligned_portfolio_civs.index.min()
-        gv_series = calculate_gold_cumulative_gain(gv_data, portfolio_start_date)
-        gv_series = gv_series.reindex(aligned_portfolio_civs.index, method="ffill")
-        aligned_portfolio_civs["offshore_gold"] = gv_series["gold_value"]
-            
     # Calculate the portfolio daily returns (including all components).
     gain_daily_portfolio_series = calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs)
 
@@ -84,8 +73,8 @@ def main():
     metrics, max_drawdowns = calculate_portfolio_metrics(
         gain_daily_portfolio_series, risk_free_rate, benchmark_returns
     )
-    
-    print("\nPortfolio Metrics:")
+
+    print(f"\nPortfolio Metrics for {portfolio['label']}:")
     print(f"Mean Risk-Free Rate: {risk_free_rate * 100:.4f}%")
     print(f"Annualized Return: {metrics['Annualized Return'] * 100:.4f}%")
     print(f"Volatility: {metrics['Volatility'] * 100:.4f}%")
@@ -136,4 +125,9 @@ def parse_arguments():
     return parser.parse_args()
 
 if __name__ == "__main__":
-    main()
+    import sys
+    try:
+        main()
+    except Exception as e:
+        print(f"\nError: {e}")
+        sys.exit(1)
