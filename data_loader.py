@@ -240,8 +240,6 @@ def load_portfolio_details(toml_file_path):
         else:
             if not isinstance(gold["allocation"], (float, int)) or not (0 <= gold["allocation"] <= 1):
                 errors.append(f"Invalid allocation value for {gold_id}: Must be between 0 and 1")
-        if "gold_data_file" not in gold:
-            errors.append(f"Missing required key 'gold_data_file' in {gold_id}")
 
     if errors:
         all_errors = "\n".join(errors)

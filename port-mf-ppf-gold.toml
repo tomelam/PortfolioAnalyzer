@@ -38,4 +38,3 @@ ppf_interest_rates_file = "ppf_interest_rates.csv"
 [gold]
 name = "Physical Gold"
 allocation = 0.10
-gold_data_file = "Gold Futures Historical Data.csv"
