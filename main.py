@@ -17,7 +17,7 @@ from metrics_calculator import (
 )
 from visualizer import plot_cumulative_returns
 from ppf_calculator import calculate_ppf_cumulative_gain
-from gold_loader import load_gold_data_from_csv
+from fetch_gold_spot import get_gold_adjusted_spot
 from data_loader import calculate_gold_cumulative_gain, extract_fund_allocations
 import argparse
 import pandas as pd
@@ -32,13 +32,14 @@ def main():
     # Load portfolio details from the TOML file.
     portfolio = load_portfolio_details(toml_file_path)
     portfolio_label = portfolio["label"]
-    print(f"\nCalculating portfolio metrics for {portfolio_label}.\n")
+    print(f'\nCalculating portfolio metrics for "{portfolio_label}".\n')
 
     # Load and align mutual fund CIV data.
     aligned_portfolio_civs = get_aligned_portfolio_civs(portfolio)
 
-    # Find the earliest date when all the investments in the portfolio existed
+    # Find the earliest and latest dates when all the investments in the portfolio existed
     portfolio_start_date = aligned_portfolio_civs.index.min()
+    portfolio_end_date = aligned_portfolio_civs.index.max()
 
     # Process PPF if included.
     if "ppf" in portfolio:
@@ -48,17 +49,30 @@ def main():
         ppf_series = ppf_series.reindex(aligned_portfolio_civs.index, method="ffill")
         aligned_portfolio_civs["PPF"] = ppf_series["ppf_value"]
         if portfolio_start_date < ppf_series.index.min():
-            raise ValueError("No PPF data available at the time of the portfolio beginning.")
+            raise ValueError("No PPF data available when the portfolio started.")
 
     if "gold" in portfolio:
-        gold_file = portfolio["gold"].get("gold_data_file", "Gold Futures Historical Data.csv")
-        # Use the new CSV loader function.
-        gold_data = load_gold_data_from_csv(gold_file)
-        gold_series = calculate_gold_cumulative_gain(gold_data, portfolio_start_date)
-        gold_series = gold_series.reindex(aligned_portfolio_civs.index, method="ffill")
-        aligned_portfolio_civs["gold"] = gold_series["gold"]
+        #gold_series = get_gold_adjusted_spot()
+        gold_series = get_gold_adjusted_spot(
+            start_date=portfolio_start_date.strftime("%Y-%m-%d"),
+            end_date=portfolio_end_date.strftime("%Y-%m-%d")
+        )
+        if gold_series is not None:
+            gold_series = gold_series.reindex(aligned_portfolio_civs.index, method="ffill")
+            aligned_portfolio_civs["gold"] = gold_series["Adjusted Spot Price"]
+        else:
+            raise ValueError("Gold spot price data could not be retrieved.")
+
+        '''
+        # Optionally print first and last values within the portfolio period
+        first_date = gold_series.index.min()
+        last_date = gold_series.index.max()
+        print(f"Gold price at start ({first_date}): {gold_series.loc[first_date, 'Adjusted Spot Price']}")
+        print(f"Gold price at end ({last_date}): {gold_series.loc[last_date, 'Adjusted Spot Price']}")
+        '''
+        
         if portfolio_start_date < gold_series.index.min():
-            raise ValueError("No gold price data available at the time of the portfolio beginning.")
+            raise ValueError("No gold price data available when the portfolio started.")
         
     # Calculate the portfolio daily returns (including all components).
     gain_daily_portfolio_series = calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs)
