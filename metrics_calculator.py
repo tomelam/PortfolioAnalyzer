@@ -153,9 +153,15 @@ def calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs):
     # Compute daily returns for each mutual fund.
     daily_returns = aligned_portfolio_civs.pct_change().dropna()
     combined = sum(daily_returns[fund["name"]] * fund["allocation"] for fund in portfolio["funds"])
+
     # Add the PPF daily returns using its allocation (if present).
     if "ppf" in portfolio:
         combined += daily_returns["PPF"] * portfolio["ppf"]["allocation"]
+
+    # Add gold daily returns using its allocation (if present).
+    if "gold" in portfolio:
+        combined += daily_returns["gold"] * portfolio["gold"]["allocation"]
+
     return combined
 
 

@@ -394,13 +394,18 @@ def calculate_gold_cumulative_gain(gold_data, portfolio_start_date):
     """
     # Restrict to dates on/after portfolio start.
     gold_data = gold_data.loc[gold_data.index >= portfolio_start_date]
+    if gold_data.empty:
+        raise ValueError("No gold price data available after portfolio start date.")
+
     # Normalize: divide by the price on portfolio_start_date.
     base_price = gold_data.iloc[0]["price"]
     gold_data = gold_data.copy()
-    gold_data["gold_value"] = gold_data["price"] / base_price
+    gold_data["gold"] = gold_data["price"] / base_price  # Should be 1.0
+
     # Reindex to daily frequency.
-    gold_data = gold_data.asfreq("D", method="ffill")
-    return gold_data[["gold_value"]]
+    gold_data = gold_data.asfreq("D", method="ffill")  # Ensure no missing dates.
+
+    return gold_data[["gold"]]
 
 
 # Extract first-of-the-month (FOM) values

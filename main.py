@@ -32,27 +32,33 @@ def main():
     # Load portfolio details from the TOML file.
     portfolio = load_portfolio_details(toml_file_path)
     portfolio_label = portfolio["label"]
+    print(f"\nCalculating portfolio metrics for {portfolio_label}.\n")
 
     # Load and align mutual fund CIV data.
     aligned_portfolio_civs = get_aligned_portfolio_civs(portfolio)
+
+    # Find the earliest date when all the investments in the portfolio existed
+    portfolio_start_date = aligned_portfolio_civs.index.min()
 
     # Process PPF if included.
     if "ppf" in portfolio:
         ppf_file = portfolio["ppf"].get("ppf_interest_rates_file", "ppf_interest_rates.csv")
         ppf_rates = load_ppf_interest_rates(ppf_file)
-        portfolio_start_date = aligned_portfolio_civs.index.min()
         ppf_series = calculate_ppf_cumulative_gain(ppf_rates, portfolio_start_date)
         ppf_series = ppf_series.reindex(aligned_portfolio_civs.index, method="ffill")
         aligned_portfolio_civs["PPF"] = ppf_series["ppf_value"]
+        if portfolio_start_date < ppf_series.index.min():
+            raise ValueError("No PPF data available at the time of the portfolio beginning.")
 
     if "gold" in portfolio:
         gold_file = portfolio["gold"].get("gold_data_file", "Gold Futures Historical Data.csv")
         # Use the new CSV loader function.
         gold_data = load_gold_data_from_csv(gold_file)
-        portfolio_start_date = aligned_portfolio_civs.index.min()
         gold_series = calculate_gold_cumulative_gain(gold_data, portfolio_start_date)
         gold_series = gold_series.reindex(aligned_portfolio_civs.index, method="ffill")
-        aligned_portfolio_civs["gold"] = gold_series["gold_value"]
+        aligned_portfolio_civs["gold"] = gold_series["gold"]
+        if portfolio_start_date < gold_series.index.min():
+            raise ValueError("No gold price data available at the time of the portfolio beginning.")
         
     # Calculate the portfolio daily returns (including all components).
     gain_daily_portfolio_series = calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs)
@@ -74,7 +80,8 @@ def main():
         gain_daily_portfolio_series, risk_free_rate, benchmark_returns
     )
 
-    print(f"\nPortfolio Metrics for {portfolio['label']}:")
+    #print(f"\nPortfolio Metrics for {portfolio['label']}:")
+    print("\nMetrics:")
     print(f"Mean Risk-Free Rate: {risk_free_rate * 100:.4f}%")
     print(f"Annualized Return: {metrics['Annualized Return'] * 100:.4f}%")
     print(f"Volatility: {metrics['Volatility'] * 100:.4f}%")
@@ -126,8 +133,11 @@ def parse_arguments():
 
 if __name__ == "__main__":
     import sys
+    import traceback
     try:
         main()
     except Exception as e:
         print(f"\nError: {e}")
+        # Optionally print full error traceback
+        print(traceback.format_exc())
         sys.exit(1)
