@@ -28,14 +28,17 @@ def test_calculate_portfolio_allocations(mocker):
     ]
     mock_expected_allocations = {"equity": 0.9701, "debt": 0.0014}
 
-    mocker.patch(
-        "test_utils.load_json",
-        side_effect=[mock_fund_allocations, mock_expected_allocations],
-    )
+    # Provide a dummy portfolio that includes the funds.
+    mock_portfolio = {"funds": mock_fund_allocations}
 
+    # Pass both required arguments: the portfolio and its fund allocations.
     calculated_portfolio_allocations = calculate_portfolio_allocations(
-        mock_fund_allocations
+        mock_portfolio, mock_fund_allocations
     )
 
-    for key in mock_expected_allocations:
-        assert calculated_portfolio_allocations[key] == mock_expected_allocations[key]
+    assert calculated_portfolio_allocations["equity"] == pytest.approx(
+        mock_expected_allocations["equity"], rel=1e-3
+    )
+    assert calculated_portfolio_allocations["debt"] == pytest.approx(
+        mock_expected_allocations["debt"], rel=1e-3
+    )

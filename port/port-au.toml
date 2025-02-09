@@ -1,0 +1,5 @@
+label = "Portfolio Au"
+
+[gold]
+name = "Physical Gold"
+allocation = 1.000

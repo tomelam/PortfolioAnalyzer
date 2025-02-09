@@ -152,31 +152,62 @@ def calculate_downside_risk(portfolio_returns):
 def calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs):
     # Compute daily returns for each mutual fund.
     daily_returns = aligned_portfolio_civs.pct_change().dropna()
-    combined = sum(daily_returns[fund["name"]] * fund["allocation"] for fund in portfolio["funds"])
+    #combined = sum(daily_returns[fund["name"]] * fund["allocation"] for fund in portfolio["funds"])
+    combined = None
+    if "funds" in portfolio and not aligned_portfolio_civs.empty:
+        daily_returns = aligned_portfolio_civs.pct_change().dropna()
+        asset_returns = sum(daily_returns[fund["name"]] * fund["allocation"] for fund in portfolio["funds"])
+        combined = asset_returns if combined is None else combined.add(asset_returns, fill_value=0)
 
     # Add the PPF daily returns using its allocation (if present).
     if "ppf" in portfolio:
-        combined += daily_returns["PPF"] * portfolio["ppf"]["allocation"]
+        from data_loader import load_ppf_interest_rates
+        from ppf_calculator import calculate_ppf_cumulative_gain
+        ppf_rates = load_ppf_interest_rates(portfolio["ppf"]["ppf_interest_rates_file"])
+        if "funds" in portfolio and not aligned_portfolio_civs.empty:
+            portfolio_start_date = aligned_portfolio_civs.index.min()
+        else:
+            portfolio_start_date = ppf_rates.index.min()
+        ppf_series = calculate_ppf_cumulative_gain(ppf_rates, portfolio_start_date)
+        ppf_returns = ppf_series.pct_change().dropna()["ppf_value"]
+        asset_returns = ppf_returns * portfolio["ppf"]["allocation"]
+        combined = asset_returns if combined is None else combined.add(asset_returns, fill_value=0)
 
     # Add gold daily returns using its allocation (if present).
     if "gold" in portfolio:
-        combined += daily_returns["gold"] * portfolio["gold"]["allocation"]
+        from fetch_gold_spot import get_gold_adjusted_spot
+        if "funds" in portfolio and not aligned_portfolio_civs.empty:
+            portfolio_start_date = aligned_portfolio_civs.index.min()
+        else:
+            portfolio_start_date = None
+        gold_series = get_gold_adjusted_spot(start_date=portfolio_start_date.strftime("%Y-%m-%d") if portfolio_start_date else "2000-01-01", end_date=None)
+        gold_returns = gold_series.pct_change().dropna()["Adjusted Spot Price"]
+        asset_returns = gold_returns * portfolio["gold"]["allocation"]
+        combined = asset_returns if combined is None else combined.add(asset_returns, fill_value=0)
 
-    return combined
-
+    return combined if combined is not None else pd.Series(dtype=float)
 
 def calculate_gains_cumulative(gain_daily_portfolio_series, gain_daily_benchmark_series):
-    # Calculate the portfolio's cumulative returns
-    cumulative_historical = (1 + gain_daily_portfolio_series).cumprod() - 1
+    # Compute cumulative returns for portfolio and benchmark
+    cum_port = (1 + gain_daily_portfolio_series).cumprod() - 1
+    cum_bench = (1 + gain_daily_benchmark_series).cumprod() - 1
 
-    # Calculate the benchmark's cumulative returns (note the addition of 1)
-    cumulative_benchmark = (1 + gain_daily_benchmark_series).cumprod() - 1
+    # Determine common start date (later of the two series’ first dates)
+    common_start_date = max(gain_daily_portfolio_series.index.min(), cum_bench.index.min())
 
-    # Get the earliest date in the portfolio series
-    earliest_date = gain_daily_portfolio_series.index.min()
+    # Restrict both series to dates from the common start date onward
+    cum_port = cum_port[cum_port.index >= common_start_date]
+    cum_bench = cum_bench[cum_bench.index >= common_start_date]
 
-    # Baseline the benchmark series so that its value at the portfolio's start is zero.
-    cumulative_benchmark -= cumulative_benchmark.loc[earliest_date]
+    # Reindex the benchmark series to the portfolio index (using forward fill)
+    cum_bench = cum_bench.reindex(cum_port.index, method='ffill')
+
+    # Rebase both series so that they start at 0
+    cum_port = cum_port - cum_port.iloc[0]
+    cum_bench = cum_bench - cum_bench.iloc[0]
+
+    cumulative_historical = cum_port
+    cumulative_benchmark = cum_bench
 
     return cumulative_historical, cumulative_benchmark
 

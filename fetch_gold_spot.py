@@ -1,7 +1,7 @@
 import yfinance as yf
 import pandas as pd
 
-def get_gold_adjusted_spot(start_date="2013-01-01", end_date="2023-12-31"):
+def get_gold_adjusted_spot(start_date="2000-01-01", end_date=None):
     """
     Fetches front-month COMEX gold futures prices and estimates spot prices.
 
@@ -13,6 +13,8 @@ def get_gold_adjusted_spot(start_date="2013-01-01", end_date="2023-12-31"):
         pd.DataFrame: Adjusted gold spot price series.
     """
     # print(f"get_gold_adjusted_spot() received start_date: {start_date}")
+    if start_date is None:
+        start_date = "2000-01=01"
     if end_date is None:
         from datetime import datetime
         end_date = datetime.today().strftime("%Y-%m-%d")  # Use today's date if not provided

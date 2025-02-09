@@ -20,7 +20,7 @@ mock_valid_toml = {
         {
             "name": "ICICI_Prudential_Bluechip_Fund",
             "url": "https://api.mfapi.in/mf/120620",
-            "allocation": 0.60,
+            "allocation": 0.40,
             "asset_allocation": {
                 "equity": 99.89,
                 "debt": 0.00,
@@ -73,5 +73,9 @@ def test_invalid_toml_invalid_fund_allocation(mocker):
     }
     mocker.patch("toml.load", return_value=invalid_toml)
 
-    with pytest.raises(ValueError, match="Invalid allocation value for fund 'Fund A'"):
+    # Use (?s) to allow '.' to match newline characters
+    with pytest.raises(
+        ValueError,
+        match=r"(?s)TOML file errors detected:.*investment 'Fund A': Must be between 0 and 1"
+    ):
         load_portfolio_details("port-x.toml")

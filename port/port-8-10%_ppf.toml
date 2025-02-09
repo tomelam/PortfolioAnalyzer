@@ -1,0 +1,36 @@
+label = "Portfolio 8 with 10% in PPF"
+
+[[funds]]
+name = "ICICI_Prudential_Bluechip_Fund"
+url = "https://api.mfapi.in/mf/120586"
+allocation = 0.10526315789473684
+asset_allocation = {equity = 92.69, debt = 0.35, real_estate = 0.00, commodities = 0.00, cash = 6.96}
+
+[[funds]]
+name = "HDFC_Balanced_Advantage_Fund"
+url = "https://api.mfapi.in/mf/118968"
+allocation = 0.2631578947368421
+asset_allocation = {equity = 53.34, debt = 29.91, real_estate = 1.44, commodities = 0.00, cash = 15.31}
+
+[[funds]]
+name = "ICICI_Prudential_Corporate_Bond_Fund"
+url = "https://api.mfapi.in/mf/120692"
+allocation = 0.26842105263157887
+asset_allocation = {equity = 0.00, debt = 97.10, real_estate = 0.00, commodities = 0.00, cash = 2.90}
+
+[[funds]]
+name = "HDFC_Hybrid_Debt_Fund"
+url = "https://api.mfapi.in/mf/119118"
+allocation = 0.21052631578947367
+asset_allocation = {equity = 21.86, debt = 73.35, real_estate = 0.66, commodities = 0.00, cash = 4.13}
+
+[[funds]]
+name = "SBI_Gold_Fund"
+url = "https://api.mfapi.in/mf/102885"
+allocation = 0.05263157894736842
+asset_allocation = {equity = 0.00, debt = 0.00, real_estate = 0.00, commodities = 98.37, cash = 1.63}
+
+[ppf]
+name = "Public Provident Fund"
+allocation = 0.10
+ppf_interest_rates_file = "ppf_interest_rates.csv"
