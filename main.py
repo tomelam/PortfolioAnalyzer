@@ -16,7 +16,7 @@ from metrics_calculator import (
     calculate_portfolio_allocations,
 )
 from visualizer import plot_cumulative_returns
-from ppf_calculator import calculate_ppf_cumulative_gain
+#from ppf_calculator import calculate_ppf_cumulative_gain
 from fetch_gold_spot import get_gold_adjusted_spot
 import argparse
 import pandas as pd
