@@ -9,6 +9,10 @@ This repository contains the Portfolio Analyzer application. It fetches historic
 - **Data Loading & Alignment:**  
   - Fetches NAV data for each fund via API calls.
   - Loads risk-free rate data from CSV. The included file FRED--INDIRLTLT01STM.csv is one such file downloaded from [fred.stlouisfed.org](https://fred.stlouisfed.org).
+  - Uses PPF interest rates manually encoded as CSV in the file `ppf_interest_rates.csv`.
+  - Scrapes the SCSS interest rates from (The National Savings Institute's table "Senior Citizens' Savings Scheme--Interest Rate Since Inception")[https://www.nsiindia.gov.in/(S(2xgxs555qwdlfb2p4ub03n3n))/InternalPage.aspx?Id_Pk=181].
+  - Scrapes the SGB issue price/unit and redemption price/unit from the Wikipedia page (Sovereign Gold Bond)[https://en.wikipedia.org/wiki/Sovereign_Gold_Bond].
+  - Uses a fixed rate (5.0%) for the REC Limited 5% bond (ISIN: INE020B07MD4).
   - Uses gold futures (GCJ5) downloaded manually as CSV from [https://www.investing.com/commodities/gold-historical-data](https://www.investing.com/commodities/gold-historical-data).
   - Retrieves benchmark historical data from Yahoo Finance.
   - Aligns data to a common date range across all data sources.

@@ -32,9 +32,6 @@ def main():
     portfolio_label = portfolio["label"]
     print(f"\nCalculating portfolio metrics for {portfolio_label}.")
 
-    if not any(k in portfolio for k in ["funds", "gold", "ppf"]):
-        raise ValueError("Portfolio must contain at least one asset (mutual funds, gold, or PPF).")
-
     aligned_portfolio_civs = get_aligned_portfolio_civs(portfolio) if "funds" in portfolio else pd.DataFrame()
     portfolio_start_date = aligned_portfolio_civs.index.min() if not aligned_portfolio_civs.empty else None
 

@@ -1,0 +1,5 @@
+label = "SGB"
+
+[sgb]
+name = "Sovereign Gold Bond"
+allocation = 1.00

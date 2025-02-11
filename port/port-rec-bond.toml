@@ -1,0 +1,6 @@
+label = "REC Bond"
+
+[rec_bond]
+name = "REC Limited Bond"
+allocation = 1.0
+coupon = 5.0

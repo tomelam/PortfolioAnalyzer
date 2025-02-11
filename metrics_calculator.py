@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 
-
 def calculate_max_drawdowns(gain_daily_returns, threshold=0.05):
     """
     Calculate maximum drawdowns with full retracements, printing debug info for key calculations only.
@@ -150,47 +149,119 @@ def calculate_downside_risk(portfolio_returns):
 
 
 def calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs):
-    # Compute daily returns for each mutual fund.
-    daily_returns = aligned_portfolio_civs.pct_change().dropna()
-    #combined = sum(daily_returns[fund["name"]] * fund["allocation"] for fund in portfolio["funds"])
-    combined = None
+    import pandas as pd
+    
+    # Start with mutual funds returns, if any.
+    daily_returns = None
     if "funds" in portfolio and not aligned_portfolio_civs.empty:
-        daily_returns = aligned_portfolio_civs.pct_change().dropna()
-        asset_returns = sum(daily_returns[fund["name"]] * fund["allocation"] for fund in portfolio["funds"])
-        combined = asset_returns if combined is None else combined.add(asset_returns, fill_value=0)
+        daily_returns = sum(
+            aligned_portfolio_civs.pct_change().dropna()[fund["name"]] * fund["allocation"]
+            for fund in portfolio["funds"]
+        )
 
-    # Add the PPF daily returns using its allocation (if present).
+    # PPF
     if "ppf" in portfolio:
         from data_loader import load_ppf_interest_rates
         from ppf_calculator import calculate_ppf_cumulative_gain
         ppf_rates = load_ppf_interest_rates(portfolio["ppf"]["ppf_interest_rates_file"])
-        if "funds" in portfolio and not aligned_portfolio_civs.empty:
-            portfolio_start_date = aligned_portfolio_civs.index.min()
-        else:
-            portfolio_start_date = ppf_rates.index.min()
+        portfolio_start_date = aligned_portfolio_civs.index.min() if not aligned_portfolio_civs.empty else ppf_rates.index.min()
         ppf_series = calculate_ppf_cumulative_gain(ppf_rates, portfolio_start_date)
         ppf_returns = ppf_series.pct_change().dropna()["ppf_value"]
-        asset_returns = ppf_returns * portfolio["ppf"]["allocation"]
-        combined = asset_returns if combined is None else combined.add(asset_returns, fill_value=0)
+        daily_returns = ppf_returns if daily_returns is None else daily_returns.add(ppf_returns * portfolio["ppf"]["allocation"], fill_value=0)
 
-    # Add gold daily returns using its allocation (if present).
+    # Gold
     if "gold" in portfolio:
         from fetch_gold_spot import get_gold_adjusted_spot
-        if "funds" in portfolio and not aligned_portfolio_civs.empty:
-            portfolio_start_date = aligned_portfolio_civs.index.min()
-        else:
-            portfolio_start_date = None
-        gold_series = get_gold_adjusted_spot(start_date=portfolio_start_date.strftime("%Y-%m-%d") if portfolio_start_date else "2000-01-01", end_date=None)
+        portfolio_start_date = aligned_portfolio_civs.index.min() if not aligned_portfolio_civs.empty else None
+        gold_series = get_gold_adjusted_spot(start_date=portfolio_start_date.strftime("%Y-%m-%d") if portfolio_start_date else "2000-01-01")
         gold_returns = gold_series.pct_change().dropna()["Adjusted Spot Price"]
-        asset_returns = gold_returns * portfolio["gold"]["allocation"]
-        combined = asset_returns if combined is None else combined.add(asset_returns, fill_value=0)
+        daily_returns = gold_returns if daily_returns is None else daily_returns.add(gold_returns * portfolio["gold"]["allocation"], fill_value=0)
 
-    return combined if combined is not None else pd.Series(dtype=float)
+    # SGB. Assume matured values based upon projections of the spot price of gold.
+    if "sgb" in portfolio:
+        from sgb_extractor import extract_sgb_series
+        from bond_calculators import calculate_realistic_sgb_series
+        # Extract SGB tranche data.
+        sgb_data = extract_sgb_series()  # Optionally add refresh_hours logic.
+        
+        # Retrieve the gold spot series (this function already exists in fetch_gold_spot.py).
+        from fetch_gold_spot import get_gold_adjusted_spot
+        # Use an appropriate start date (e.g., overall_start from the SGB data or a fixed date)
+        gold_series = get_gold_adjusted_spot(start_date="2015-01-01")  # adjust as needed
+        
+        # Compute the realistic SGB cumulative series.
+        sgb_cum_series = calculate_realistic_sgb_series(sgb_data, gold_series)
+        
+        # Compute daily returns from the cumulative series.
+        sgb_returns = sgb_cum_series.pct_change().dropna()
+        daily_returns = sgb_returns if daily_returns is None else daily_returns.add(sgb_returns * portfolio["sgb"]["allocation"], fill_value=0)
+
+    # SCSS
+    if "scss" in portfolio:
+        from scss_rates_extractor import fetch_html, extract_rate_series
+        url = "https://www.nsiindia.gov.in/(S(2xgxs555qwdlfb2p4ub03n3n))/InternalPage.aspx?Id_Pk=181"
+        html = fetch_html(url)  # You can add a refresh_hours check similar to Yahoo Finance.
+        scss_data = extract_rate_series(html)
+        scss_df = pd.DataFrame(scss_data)
+        # Standardize header names—assume the table includes 'YEAR' and 'INTEREST'.
+        scss_df.columns = [col.strip().lower() for col in scss_df.columns]
+        print("DEBUG: SCSS DataFrame columns:", scss_df.columns)
+        scss_df.rename(columns={'rate of interest (%)': 'interest'}, inplace=True)
+        if 'year' in scss_df.columns and 'interest' in scss_df.columns:
+            print("Raw 'year' values:", scss_df['year'].head())
+            #scss_df['year'] = pd.to_datetime(scss_df['year'], format='%Y', errors='coerce')
+            #scss_df.set_index('year', inplace=True)            
+            #scss_df['year'] = scss_df['year'].str.extract(r'(\d{2}-\d{2}-\d{4})')[0].str.strip()
+            #scss_df['year'] = pd.to_datetime(scss_df['year'], format='%d-%m-%Y', errors='coerce')
+            #scss_df.set_index('year', inplace=True)
+            scss_df['year'] = scss_df['year'].str.extract(r'(\d{1,2}[-.]\d{1,2}[-.]\d{4})')[0].str.strip()
+            scss_df['year'] = pd.to_datetime(scss_df['year'], dayfirst=True, errors='coerce')
+            scss_df.set_index('year', inplace=True)
+
+            # Convert the 'interest' column to numeric (this is crucial for later calculations)
+            scss_df['interest'] = pd.to_numeric(scss_df['interest'], errors='coerce')
+
+            # Print for debugging purposes:
+            print("SCSS DataFrame head:")
+            print(scss_df.head())
+            print("SCSS DataFrame info:")
+            print(scss_df.info())
+    
+            from bond_calculators import calculate_variable_bond_cumulative_gain
+            if not aligned_portfolio_civs.empty:
+                portfolio_start_date = aligned_portfolio_civs.index.min()
+            else:
+                portfolio_start_date = scss_df.index.min()
+            scss_cum_series = calculate_variable_bond_cumulative_gain(scss_df, portfolio_start_date)
+            scss_returns = scss_cum_series.pct_change().dropna()
+            daily_returns = scss_returns if daily_returns is None else daily_returns.add(scss_returns * portfolio["scss"]["allocation"], fill_value=0)
+
+    # REC Bond (fixed coupon)
+    if "rec_bond" in portfolio:
+        rec_coupon = portfolio["rec_bond"].get("coupon", 5.0)  # Fixed 5.0% coupon by default.
+        from bond_calculators import calculate_bond_cumulative_gain
+        #portfolio_start_date = aligned_portfolio_civs.index.min() if not aligned_portfolio_civs.empty else pd.Timestamp.today()
+        portfolio_start_date = aligned_portfolio_civs.index.min() if not aligned_portfolio_civs.empty else pd.Timestamp("2000-01-01")
+        rec_cum_series = calculate_bond_cumulative_gain(rec_coupon, portfolio_start_date)
+        rec_returns = rec_cum_series.pct_change().dropna()
+        daily_returns = rec_returns if daily_returns is None else daily_returns.add(rec_returns * portfolio["rec_bond"]["allocation"], fill_value=0)
+
+    return daily_returns if daily_returns is not None else pd.Series(dtype=float)
+
 
 def calculate_gains_cumulative(gain_daily_portfolio_series, gain_daily_benchmark_series):
     # Compute cumulative returns for portfolio and benchmark
     cum_port = (1 + gain_daily_portfolio_series).cumprod() - 1
     cum_bench = (1 + gain_daily_benchmark_series).cumprod() - 1
+
+    port_start = gain_daily_portfolio_series.index.min()
+    bench_start = cum_bench.index.min()
+
+    # If either is NaN (e.g., due to an empty series), provide a fallback date.
+    if pd.isna(port_start) or pd.isna(bench_start):
+        common_start_date = pd.Timestamp("2000-01-01")  # or another sensible fallback
+    else:
+        common_start_date = max(port_start, bench_start)
 
     # Determine common start date (later of the two series’ first dates)
     common_start_date = max(gain_daily_portfolio_series.index.min(), cum_bench.index.min())
@@ -206,10 +277,7 @@ def calculate_gains_cumulative(gain_daily_portfolio_series, gain_daily_benchmark
     cum_port = cum_port - cum_port.iloc[0]
     cum_bench = cum_bench - cum_bench.iloc[0]
 
-    cumulative_historical = cum_port
-    cumulative_benchmark = cum_bench
-
-    return cumulative_historical, cumulative_benchmark
+    return cum_port, cum_bench
 
 
 def calculate_benchmark_cumulative(benchmark_returns, earliest_datetime):
