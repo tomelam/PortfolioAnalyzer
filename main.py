@@ -29,29 +29,57 @@ def main():
     drawdown_threshold = args.max_drawdown_threshold / 100
 
     portfolio = load_portfolio_details(toml_file_path)
+    print("DEBUG: Portfolio allocations:", portfolio)
     portfolio_label = portfolio["label"]
     print(f"\nCalculating portfolio metrics for {portfolio_label}.")
 
-    aligned_portfolio_civs = get_aligned_portfolio_civs(portfolio) if "funds" in portfolio else pd.DataFrame()
-    portfolio_start_date = aligned_portfolio_civs.index.min() if not aligned_portfolio_civs.empty else None
+    aligned_portfolio_civs = (
+        get_aligned_portfolio_civs(portfolio)
+        if "funds" in portfolio
+        else pd.DataFrame()
+    )
+    portfolio_start_date = (
+        aligned_portfolio_civs.index.min()
+        if not aligned_portfolio_civs.empty
+        else None
+    )
 
     if "gold" in portfolio:
-        gold_series = get_gold_adjusted_spot(start_date=portfolio_start_date.strftime("%Y-%m-%d") if portfolio_start_date else "2000-01-01")
+        gold_series = (
+            get_gold_adjusted_spot(
+                start_date=portfolio_start_date.strftime("%Y-%m-%d")
+                if portfolio_start_date
+                else "2000-01-01"
+            )
+        )
         if gold_series is not None:
-            gold_series = gold_series.reindex(aligned_portfolio_civs.index, method="ffill") if not aligned_portfolio_civs.empty else gold_series
+            gold_series = (
+                gold_series.reindex(aligned_portfolio_civs.index, method="ffill")
+                if not aligned_portfolio_civs.empty
+                else gold_series
+            )
             aligned_portfolio_civs["gold"] = gold_series["Adjusted Spot Price"]
         else:
             raise ValueError("Gold spot price data could not be retrieved.")
 
-    gain_daily_portfolio_series = calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs)
+    gain_daily_portfolio_series = (
+        calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs)
+    )
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(args.risk_free_rates_file)
     benchmark_data = fetch_yahoo_finance_data(benchmark_ticker, refresh_hours=1, period="max")
     benchmark_returns = get_benchmark_gain_daily(benchmark_data)
     risk_free_rates = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
     risk_free_rate = risk_free_rates.mean()
 
+    print("\nDEBUG: gain_daily_portfolio_series structure:")
+    print(gain_daily_portfolio_series.head())
+    print("\nDEBUG: gain_daily_portfolio_series columns (if DataFrame):", getattr(gain_daily_portfolio_series, "columns", "Not a DataFrame"))
     metrics, max_drawdowns = calculate_portfolio_metrics(
-        gain_daily_portfolio_series, risk_free_rate, benchmark_returns
+        gain_daily_portfolio_series,
+        portfolio,
+        risk_free_rate,
+        benchmark_returns=None,
+        drawdown_threshold=0.05,
     )
 
     print(f"Mean Risk-Free Rate: {risk_free_rate * 100:.4f}%")
@@ -73,7 +101,7 @@ def main():
         "Historical Performance",
         cumulative_benchmark,
         benchmark_name,
-        calculate_portfolio_allocations(portfolio, extract_fund_allocations(portfolio)),
+        calculate_portfolio_allocations(portfolio),
         metrics,
         max_drawdowns,
     )

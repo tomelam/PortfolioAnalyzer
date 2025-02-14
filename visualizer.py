@@ -23,7 +23,8 @@ def plot_cumulative_returns(portfolio_label, cumulative_historical, title, bench
     plt.legend(handles=handles, labels=labels, loc='upper left')
 
     # Place the allocation box slightly higher within the left margin, without shifting right
-    if allocations:
+    print(f"Type of allocations: {type(allocations)}, allocations: {allocations}")
+    if allocations is not None:
         allocations_text = "\n".join([f"{key}: {value * 100:.2f}%" for key, value in allocations.items()])
         plt.gca().text(
             0.02, 0.77, allocations_text,  # x remains near left; y raised slightly
