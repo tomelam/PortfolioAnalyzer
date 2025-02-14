@@ -147,6 +147,75 @@ def file_modified_within(file_path, hours):
     return False
 
 
+def load_scss_interest_rates():
+    import urllib3
+
+    def fetch_html(url, verify_ssl=False):
+        response = requests.get(url, verify=verify_ssl)
+        response.raise_for_status()
+        return response.text
+
+    def find_target_table(soup):
+        """
+        Look for a container (either a <table> or a <tbody>) whose first row has
+        at least two cells with the first cell equal to "YEAR" and the second cell containing
+        "INTEREST".
+        """
+        for container in soup.find_all(['table', 'tbody']):
+            first_row = container.find('tr')
+            if first_row:
+                cells = first_row.find_all(['td', 'th'])
+                if len(cells) >= 2:
+                    header1 = cells[0].get_text(strip=True).lower()
+                    header2 = cells[1].get_text(strip=True).lower()
+                    if header1 == "year" and "interest" in header2:
+                        return container
+        return None
+
+    def extract_rate_series(html):
+        """
+        Extracts the interest rate series from the identified table.
+        Returns:
+        A list of dictionaries (one per row) using the first row as header keys.
+        """
+        from bs4 import BeautifulSoup
+
+        soup = BeautifulSoup(html, 'html.parser')
+        target_table = find_target_table(soup)
+        if not target_table:
+            raise ValueError("Target table not found.")
+
+        header_row = target_table.find('tr')
+        headers = [cell.get_text(strip=True) for cell in header_row.find_all(['td', 'th'])]
+
+        rate_series = []
+        for row in target_table.find_all('tr')[1:]:
+            cells = row.find_all(['td', 'th'])
+            cells_text = [cell.get_text(strip=True) for cell in cells]
+            if len(cells_text) < len(headers):
+                cells_text.extend([""] * (len(headers) - len(cells_text)))
+            else:
+                cells_text = cells_text[:len(headers)]
+                rate_series.append(dict(zip(headers, cells_text)))
+        return rate_series
+
+    url = "https://www.nsiindia.gov.in/(S(2xgxs555qwdlfb2p4ub03n3n))/InternalPage.aspx?Id_Pk=181"
+    # Suppress SSL certificate warnings.
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    try:
+        html = fetch_html(url, verify_ssl=False)
+        rate_series = extract_rate_series(html)
+        print("SCSS rate series:")
+        for row in rate_series:
+            print(row)
+    except Exception as e:
+        print(f"Error: {e}")
+    rate_df = pd.DataFrame(rate_series, columns=["date", "interest"])  # Ensure correct column names
+    rate_df["date"] = pd.to_datetime(rate_df["date"])  # Convert to datetime
+    rate_df = rate_df.set_index("date")  # Set date as index
+    return rate_df
+
+
 # Load the TOML file
 def load_portfolio_details(toml_file_path):
     """
