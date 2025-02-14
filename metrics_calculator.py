@@ -417,9 +417,12 @@ def calculate_gains_cumulative(gain_daily_portfolio_series, gain_daily_benchmark
 
     # Apply cumulative product
     gain_cumulative_returns = (1 + gain_daily_portfolio_series).cumprod()
+    gain_cumulative_benchmark = (1 + gain_daily_benchmark_series).cumprod()
 
     # DEBUG: Print first few rows of computed cumulative gain
     print("\nDEBUG: First few rows of gain_cumulative_returns after .cumprod():")
     print(gain_cumulative_returns.head())
+    print("\nDEBUG: First few rows of gain_cumulative_benchmark after .cumprod():")
+    print(gain_cumulative_benchmark.head())
 
-    return gain_cumulative_returns, gain_cumulative_returns  # Return twice just to keep compatibility
+    return gain_cumulative_returns, gain_cumulative_benchmark
