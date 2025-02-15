@@ -1,26 +1,31 @@
 import pandas as pd
 
+import pandas as pd
+
 def calculate_portfolio_allocations(portfolio):
     """
-    Calculate the portfolio's aggregate asset allocations.
-
-    Parameters:
-        portfolio (dict): The full portfolio details (from the TOML file).
-        fund_allocations (list): A list of dicts representing the allocations
-            and asset breakdowns of each fund.
+    Calculate the portfolio's aggregate asset allocations for funds.
     
-    Returns:
-        dict: Aggregate portfolio allocations as percentages across asset classes.
+    For each fund, the asset percentages (e.g. 'equity', 'debt', etc.)
+    are expected to be provided as top-level keys in the fund dict.
+    The allocation from each fund is weighted by the fund's overall allocation,
+    with the percentage divided by 100.
+    
+    Returns a Series with the aggregated asset allocations.
     """
-    # Define all asset types
-    asset_types = ["ppf", "funds", "gold", "sgb", "scss", "rec_bond"]
-
-    # Extract allocations dynamically
-    portfolio_weights = pd.Series(
-        {f"{asset}_value": portfolio.get(asset, {}).get("allocation", 0) for asset in asset_types}
-    )
-
-    return portfolio_weights
+    if "funds" in portfolio:
+        # Define the asset types we expect
+        asset_types = ["equity", "debt", "real_estate", "commodities", "cash"]
+        aggregated = {}
+        for asset in asset_types:
+            aggregated[asset] = sum(
+                fund.get("allocation", 0) * (fund.get(asset, 0) / 100)
+                for fund in portfolio["funds"]
+            )
+        return pd.Series(aggregated)
+    else:
+        # For non-fund assets, return an empty Series (or handle as needed)
+        return pd.Series({})
 
 
 def calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs, gold_series=None):
@@ -62,7 +67,7 @@ def calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs, gol
             for fund in portfolio["funds"]
         ).to_frame(name="funds_value")
         #daily_returns = funds_returns if daily_returns is None else daily_returns.add(funds_returns, fill_value=0)
-        daily_returns = daily_returns.join(fund_returns, how="outer")
+        daily_returns = daily_returns.join(funds_returns, how="outer")
 
     if daily_returns.empty:
         raise ValueError("Error: No valid asset returns were found! Portfolio calculations failed.")

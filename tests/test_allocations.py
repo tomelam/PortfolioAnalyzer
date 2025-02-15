@@ -1,5 +1,5 @@
 import pytest
-from metrics_calculator import calculate_portfolio_allocations
+from portfolio_calculator import calculate_portfolio_allocations
 
 
 @pytest.mark.order(4)  # test_calculate_portfolio_allocations(mocker)
@@ -33,7 +33,7 @@ def test_calculate_portfolio_allocations(mocker):
 
     # Pass both required arguments: the portfolio and its fund allocations.
     calculated_portfolio_allocations = calculate_portfolio_allocations(
-        mock_portfolio, mock_fund_allocations
+        mock_portfolio,
     )
 
     assert calculated_portfolio_allocations["equity"] == pytest.approx(
