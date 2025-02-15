@@ -13,19 +13,20 @@ def calculate_portfolio_allocations(portfolio):
     
     Returns a Series with the aggregated asset allocations.
     """
+    aggregated = {}
     if "funds" in portfolio:
         # Define the asset types we expect
         asset_types = ["equity", "debt", "real_estate", "commodities", "cash"]
-        aggregated = {}
         for asset in asset_types:
             aggregated[asset] = sum(
                 fund.get("allocation", 0) * (fund.get(asset, 0) / 100)
                 for fund in portfolio["funds"]
             )
-        return pd.Series(aggregated)
-    else:
-        # For non-fund assets, return an empty Series (or handle as needed)
-        return pd.Series({})
+    # For non-fund assets, add their allocation directly.
+    for asset in ["ppf", "gold", "sgb", "scss", "rec_bond"]:
+        if asset in portfolio:
+            aggregated[asset] = portfolio[asset].get("allocation", 0)
+    return pd.Series(aggregated)
 
 
 def calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs, gold_series=None):
@@ -35,11 +36,10 @@ def calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs, gol
     Returns:
         pd.DataFrame: DataFrame representing daily portfolio returns, with each asset as a column.
     """
-    daily_returns = pd.DataFrame(
-        index=aligned_portfolio_civs.index
-        if not aligned_portfolio_civs.empty
-        else None
-    )
+    if not aligned_portfolio_civs.empty:
+        daily_returns = pd.DataFrame(index=aligned_portfolio_civs.index)
+    else:
+        daily_returns = pd.DataFrame()  # initialize as empty DataFrame
 
     # Gold
     if "gold" in portfolio:
@@ -59,6 +59,24 @@ def calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs, gol
         #ppf_returns = ppf_series.pct_change().dropna()
         ppf_returns = ppf_series["ppf_value"].pct_change().dropna().to_frame(name="ppf_value")
         daily_returns = daily_returns.join(ppf_returns, how="outer")
+
+    # SCSS
+    if "scss" in portfolio:
+        from data_loader import load_scss_interest_rates
+        from bond_calculators import calculate_variable_bond_cumulative_gain
+        start_date = (aligned_portfolio_civs.index.min() if not aligned_portfolio_civs.empty 
+                      else pd.Timestamp("2010-01-01"))
+        scss_rates = load_scss_interest_rates()
+        scss_series = calculate_variable_bond_cumulative_gain(scss_rates, start_date)
+        print("DEBUG: scss_series columns:", scss_series.columns)
+        scss_returns = scss_series.pct_change().dropna()
+        # If daily_returns is empty, set it to the scss_returns index.
+        if daily_returns.empty:
+            daily_returns = scss_returns.copy()
+        else:
+            daily_returns = daily_returns.join(scss_returns, how="outer").fillna(0)
+        # Multiply the SCSS returns by its allocation.
+        daily_returns["scss_value"] = daily_returns["scss_value"] * portfolio["scss"]["allocation"]
 
     # Mutual Funds
     if "funds" in portfolio and not aligned_portfolio_civs.empty:

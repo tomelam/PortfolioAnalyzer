@@ -60,9 +60,16 @@ def main():
         from data_loader import load_scss_interest_rates
         from bond_calculators import calculate_variable_bond_cumulative_gain
 
+        # Determine a valid start date:
+        if not aligned_portfolio_civs.empty:
+            start_date = aligned_portfolio_civs.index.min()
+        else:
+            start_date = pd.Timestamp("2010-01-01")  # or another appropriate default
+    
         print("Loading SCSS interest rates...")
         scss_rates = load_scss_interest_rates()
-        scss_series = calculate_variable_bond_cumulative_gain(scss_rates, aligned_portfolio_civs.index.min())
+        #scss_series = calculate_variable_bond_cumulative_gain(scss_rates, aligned_portfolio_civs.index.min())
+        scss_series = calculate_variable_bond_cumulative_gain(scss_rates, start_date)
 
     # SGB (Sovereign Gold Bonds)
     sgb_data = None

@@ -21,11 +21,12 @@ def calculate_variable_bond_cumulative_gain(rate_df, portfolio_start_date):
     Calculate a daily cumulative gain series from variable bond rates.
     
     Expects:
-      - rate_df: a DataFrame with a DatetimeIndex and a column 'interest' representing the annual interest rate in percent.
+      - rate_df: a DataFrame with a DatetimeIndex and a column 'interest' representing the annual
+        interest rate in percent.
       - portfolio_start_date: the start date for the calculation.
     
-    The function reindexes the sparse rate data to a business day frequency, forward-fills missing values,
-    converts the annual rate to a daily return (assuming 252 business days per year),
+    The function reindexes the sparse rate data to a business day frequency, forward-fills missing
+    values, converts the annual rate to a daily return (assuming 252 business days per year),
     and computes a cumulative product.
     
     Returns:
@@ -41,12 +42,29 @@ def calculate_variable_bond_cumulative_gain(rate_df, portfolio_start_date):
     portfolio_start_date = pd.to_datetime(portfolio_start_date)
     # Define an end date; here we use today.
     end_date = pd.Timestamp.today()
+
+    # NEW: Use the later of the portfolio start date and the earliest rate date.
+    effective_start_date = (
+        portfolio_start_date
+        if portfolio_start_date >= rate_df.index.min()
+        else rate_df.index.min()
+    )
+    
+    # Create a business day date range.
+
+    # DEBUG: Check the start and end dates used for the date range.
+    print("DEBUG: portfolio_start_date =", portfolio_start_date)
+    print("DEBUG: effective_start_date =", effective_start_date)
+    print("DEBUG: end_date =", end_date)
+    
     # Create a business day date range.
     dates = pd.date_range(start=portfolio_start_date, end=end_date, freq='B')
     
     # Reindex the rate data to the daily dates and forward-fill missing values.
     # Here, 'interest' should be numeric (in percent) – already converted outside.
     rate_series = rate_df['interest'].reindex(dates, method='ffill')
+
+    print("DEBUG: rate_series shape:", rate_series.shape)
     
     # Convert annual rate (in percent) to daily return:
     # daily_rate = (1 + annual_rate/100)^(1/252) - 1
@@ -54,9 +72,11 @@ def calculate_variable_bond_cumulative_gain(rate_df, portfolio_start_date):
     
     # Compute the cumulative series by compounding daily returns.
     cum_series = (1 + daily_rate).cumprod()
+    print("DEBUG: cum_series shape:", cum_series.shape)
     
     # Optionally, ensure the series is on a business day frequency.
     daily_cum_series = cum_series.asfreq('B', method='ffill')
+    daily_cum_series = daily_cum_series.to_frame(name="scss_value")
     
     return daily_cum_series
 

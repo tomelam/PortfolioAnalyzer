@@ -149,6 +149,7 @@ def file_modified_within(file_path, hours):
 
 def load_scss_interest_rates():
     import urllib3
+    from bs4 import BeautifulSoup
 
     def fetch_html(url, verify_ssl=False):
         response = requests.get(url, verify=verify_ssl)
@@ -175,11 +176,8 @@ def load_scss_interest_rates():
     def extract_rate_series(html):
         """
         Extracts the interest rate series from the identified table.
-        Returns:
-        A list of dictionaries (one per row) using the first row as header keys.
+        Returns a list of dictionaries (one per row) using the first row as header keys.
         """
-        from bs4 import BeautifulSoup
-
         soup = BeautifulSoup(html, 'html.parser')
         target_table = find_target_table(soup)
         if not target_table:
@@ -196,23 +194,75 @@ def load_scss_interest_rates():
                 cells_text.extend([""] * (len(headers) - len(cells_text)))
             else:
                 cells_text = cells_text[:len(headers)]
-                rate_series.append(dict(zip(headers, cells_text)))
+            rate_series.append(dict(zip(headers, cells_text)))
         return rate_series
+
+    def parse_financial_year_start(year_str):
+        """
+        Given a string like "02-08-2004 to 31-03-2012", extract and parse the start date.
+        Try common formats (e.g. "dd-mm-YYYY" and "dd.mm.YYYY").
+        """
+        start_str = year_str.split("to")[0].strip()
+        for fmt in ("%d-%m-%Y", "%d.%m.%Y"):
+            try:
+                return pd.to_datetime(start_str, format=fmt)
+            except Exception:
+                continue
+        # Fall back to dateutil parser with dayfirst=True.
+        return pd.to_datetime(start_str, dayfirst=True, errors='coerce')
+
+    def process_rate_series(raw_series):
+        """
+        Process the raw rate series list (with keys 'YEAR' and 'RATE OF INTEREST (%)')
+        into a list of dictionaries with keys "date" and "interest".
+        """
+        processed = []
+        for row in raw_series:
+            try:
+                start_date = parse_financial_year_start(row["YEAR"])
+                interest = float(row["RATE OF INTEREST (%)"])
+                processed.append({"date": start_date, "interest": interest})
+            except Exception as e:
+                print(f"Skipping row due to error: {e}")
+        return processed
 
     url = "https://www.nsiindia.gov.in/(S(2xgxs555qwdlfb2p4ub03n3n))/InternalPage.aspx?Id_Pk=181"
     # Suppress SSL certificate warnings.
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     try:
         html = fetch_html(url, verify_ssl=False)
-        rate_series = extract_rate_series(html)
+        raw_rate_series = extract_rate_series(html)
         print("SCSS rate series:")
-        for row in rate_series:
+        for row in raw_rate_series:
             print(row)
+        processed_rates = process_rate_series(raw_rate_series)
     except Exception as e:
         print(f"Error: {e}")
-    rate_df = pd.DataFrame(rate_series, columns=["date", "interest"])  # Ensure correct column names
-    rate_df["date"] = pd.to_datetime(rate_df["date"])  # Convert to datetime
-    rate_df = rate_df.set_index("date")  # Set date as index
+        processed_rates = []
+
+    '''
+    # Build a DataFrame with the processed data and ensure proper dtypes.
+    rate_df = pd.DataFrame(processed_rates, columns=["date", "interest"])
+    rate_df["date"] = pd.to_datetime(rate_df["date"])
+    rate_df = rate_df.dropna(subset=["date"])
+    rate_df = rate_df.set_index("date")
+    # Optionally sort the DataFrame by the index.
+    rate_df.sort_index(inplace=True)
+    return rate_df
+    '''
+        # Build a DataFrame with the processed data and ensure proper dtypes.
+    rate_df = pd.DataFrame(processed_rates, columns=["date", "interest"])
+    rate_df["date"] = pd.to_datetime(rate_df["date"])
+    rate_df = rate_df.dropna(subset=["date"])
+    rate_df = rate_df.set_index("date")
+    rate_df.sort_index(inplace=True)
+
+    # DEBUG: print the resulting rate_df to check if it has valid data
+    print("DEBUG: SCSS rate DataFrame head:")
+    print(rate_df.head())
+
+    rate_df["interest"] = pd.to_numeric(rate_df["interest"], errors="coerce")
+    rate_df = rate_df.dropna(subset=["interest"])
     return rate_df
 
 
