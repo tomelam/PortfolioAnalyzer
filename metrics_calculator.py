@@ -3,67 +3,76 @@ import pandas as pd
 
 def calculate_max_drawdowns(portfolio_gain_series, threshold=0.05):
     """
-    Calculate maximum drawdowns with full retracements, printing debug info for key calculations only.
-
+    Identify drawdown periods from a cumulative portfolio series.
+    A drawdown starts at a local peak, continues until the portfolio
+    returns to or exceeds that peak, and is recorded if it exceeds
+    the given threshold (e.g. 0.05 for 5%).
+    
     Parameters:
-        gain_cumulative_returns (pd.Series): Cumulative portfolio returns.
-        threshold (float): Minimum drawdown percentage to report (e.g., 0.05 for 5%).
+        portfolio_gain_series (pd.Series): A cumulative series, e.g. (1 + returns).cumprod().
+        threshold (float): Minimum drawdown fraction to record.
 
     Returns:
-        list of dict: Each dict contains 'start_date', 'trough_date', 'end_date',
-            and 'drawdown' (percentage).
+        list of dict: Each dict has 'start_date', 'trough_date', 'end_date', 'drawdown' (in %).
     """
-    print("\nDEBUG: Type of portfolio_gain_series:", type(portfolio_gain_series))
-    if isinstance(portfolio_gain_series, pd.DataFrame):
-        print("\nDEBUG: portfolio_gain_series is a DataFrame. Columns:", portfolio_gain_series.columns)
-    elif isinstance(portfolio_gain_series, pd.Series):
-        print("\nDEBUG: portfolio_gain_series is a Series.")
+    # We assume portfolio_gain_series is sorted by date ascending.
+    # If it's not, sort it or ensure it is sorted before calling.
+    portfolio_gain_series = portfolio_gain_series.sort_index()
     
     max_drawdowns = []
     
-    #gain_cumulative_returns = (1 + portfolio_gain_series).cumprod()
-
-    # Convert gains back to absolute values for retracement checks
-    #absolute_values = gain_cumulative_returns + 1  # Adjust gains to start from the base value
-    
-    #gain_peak = gain_cumulative_returns.cummax()  # Running record of the highest NAV
-    max_drawdowns = []
-    gain_peak = portfolio_gain_series.cummax()
-    
+    peak_value = None
+    peak_date = None
     in_drawdown = False
-    drawdown_start_date = None
     trough_date = None
     trough_value = None
 
-    print("\nDEBUG: before `for` loop")
-    #for date, value in gain_cumulative_returns.iteritems():
-    for date, value in portfolio_gain_series.items():  # ✅ Works for Series
-        peak_value = gain_peak.at[date]  # ✅ Ensures `gain_peak[date]` is a scalar
-        if value < peak_value:  # Below peak, in drawdown
-            if not in_drawdown:  # Start of a new drawdown
-                in_drawdown = True
-                drawdown_start_date = date
-                trough_date = date
-                trough_value = value
-            elif value < trough_value:  # Update trough during drawdown
-                trough_date = date
-                trough_value = value
-        elif in_drawdown and value >= gain_peak[drawdown_start_date]:  # Full retracement to peak
-            # Calculate drawdown percentage
-            drawdown_percentage = (trough_value - gain_peak[start_date]) / gain_peak[start_date]
-            if (abs(drawdown_percentage) >= threshold):  # Only include significant drawdowns
-                max_drawdowns.append(
-                    {
-                        "start_date": drawdown_start_date,
+    for date, value in portfolio_gain_series.items():
+        if peak_value is None or value > peak_value:
+            # The portfolio has reached a new peak
+            # If we were in a drawdown, it ends here.
+            if in_drawdown:
+                # Calculate how big the drawdown was
+                dd_fraction = (trough_value - peak_value) / peak_value
+                if abs(dd_fraction) >= threshold:
+                    max_drawdowns.append({
+                        "start_date": peak_date,
                         "trough_date": trough_date,
                         "end_date": date,
-                        "drawdown": drawdown_percentage * 100,  # Convert to percentage
-                    }
-                )
-            in_drawdown = False  # Reset drawdown state
-        #else:  # Update peak if no drawdown is active
-        #    gain_peak[date] = value
-
+                        "drawdown": dd_fraction * 100,  # convert to %
+                    })
+                in_drawdown = False
+            
+            # Update the new peak
+            peak_value = value
+            peak_date = date
+        else:
+            # The portfolio is below the peak
+            if not in_drawdown:
+                # We are entering a drawdown
+                in_drawdown = True
+                trough_value = value
+                trough_date = date
+            else:
+                # Update trough if this is a new low
+                if value < trough_value:
+                    trough_value = value
+                    trough_date = date
+    
+    # If we end in a drawdown that never fully retraces, you can choose
+    # whether or not to record it. For example:
+    if in_drawdown:
+        dd_fraction = (trough_value - peak_value) / peak_value
+        if abs(dd_fraction) >= threshold:
+            # We consider the end_date the last known date
+            last_date = portfolio_gain_series.index[-1]
+            max_drawdowns.append({
+                "start_date": peak_date,
+                "trough_date": trough_date,
+                "end_date": last_date,
+                "drawdown": dd_fraction * 100,
+            })
+    
     return max_drawdowns
 
 
@@ -102,14 +111,10 @@ def calculate_risk_adjusted_metrics(
     print("\nDEBUG: downside_risk before calculation:")
     print(downside_risk)
     print("\nDEBUG: downside_risk type:", type(downside_risk))
-    sharpe_ratio = (
-        (annualized_return - risk_free_rate) / volatility if volatility else np.nan
-    )
-    sortino_ratio = (
-        (annualized_return - risk_free_rate) / downside_risk
-        if downside_risk
-        else np.nan
-    )
+    # Prevent a near-0 downside risk from making the denominator 0 by adding a small epsilon
+    sharpe_ratio = (annualized_return - risk_free_rate) / (volatility + 1e-6)
+    # Prevent a near-0 downside risk from making the denominator 0 by adding a small epsilon
+    sortino_ratio = (annualized_return - risk_free_rate) / (downside_risk + 1e-6)
     return sharpe_ratio, sortino_ratio
 
 
@@ -138,27 +143,22 @@ def calculate_alpha_beta(
     return alpha, beta
 
 
-# Calculate downside risk
-def calculate_downside_risk(gain_daily_portfolio_df, portfolio_weights):
+def calculate_downside_risk(portfolio_returns, portfolio_weights=None):
     """
-    Calculate downside risk of the portfolio.
-
-    Parameters:
-        portfolio_returns (pd.Series): Portfolio daily returns.
-
-    Returns:
-        float: Downside risk.
+    Calculate the standard deviation of negative daily returns (downside risk).
+    Expects a single Series (not a DataFrame).
     """
-    downside_returns = gain_daily_portfolio_df[gain_daily_portfolio_df < 0]
+    import numpy as np
 
-    # Always a Series, since gain_daily_portfolio_df is a DataFrame
-    individual_downside_risks = downside_returns.std()
+    # Filter negative returns
+    negative_returns = portfolio_returns[portfolio_returns < 0]
 
-    # Compute weighted downside risk
-    weighted_downside_risk = (individual_downside_risks * portfolio_weights).sum()
-    
-    #return downside_returns.std() * (252**0.5)
-    return weighted_downside_risk
+    # If there are no negative returns, downside risk is 0
+    if negative_returns.empty:
+        return 0.0
+
+    # Convert to annualized downside risk
+    return negative_returns.std() * np.sqrt(252)
 
 
 def calculate_benchmark_cumulative(benchmark_returns, earliest_datetime):
@@ -191,15 +191,18 @@ def calculate_portfolio_metrics(
     """
     from portfolio_calculator import calculate_portfolio_allocations
 
-    # Compute PPF cumulative returns if PPF exists
-    if "ppf_value" in gain_daily_portfolio_series:
-        ppf_cumulative_returns = (1 + gain_daily_portfolio_series["ppf_value"]).cumprod()
-        start_value = ppf_cumulative_returns.iloc[0]
-        end_value = ppf_cumulative_returns.iloc[-1]
-        days = (ppf_cumulative_returns.index[-1] - ppf_cumulative_returns.index[0]).days
-        ppf_annualized_return = (end_value / start_value) ** (365 / days) - 1
+    # Combine variable-rate bond returns from both PPF and SCSS.
+    var_bond_keys = [k for k in gain_daily_portfolio_series.columns if k in ["ppf_value", "scss_value",]]
+    if var_bond_keys:
+        # Compute the daily returns as the average of the available variable bond returns.
+        var_bond_daily_returns = gain_daily_portfolio_series[var_bond_keys].mean(axis=1)
+        var_bond_cumulative = (1 + var_bond_daily_returns).cumprod()
+        start_value = var_bond_cumulative.iloc[0]
+        end_value = var_bond_cumulative.iloc[-1]
+        days = (var_bond_cumulative.index[-1] - var_bond_cumulative.index[0]).days
+        var_bond_annualized_return = (end_value / start_value) ** (365 / days) - 1
     else:
-        ppf_annualized_return = 0
+        var_bond_annualized_return = 0
 
     # Compute mutual fund annualized return
     fund_columns = [col for col in gain_daily_portfolio_series.columns if col != "ppf_value"]
@@ -210,38 +213,41 @@ def calculate_portfolio_metrics(
         fund_annualized_return = 0
 
     # Compute portfolio allocations
-    ppf_allocation = portfolio.get("ppf", {}).get("allocation", 0)
-    funds_allocation = sum(fund["allocation"] for fund in portfolio.get("funds", []))
-    total_allocation = ppf_allocation + funds_allocation
+    var_bond_allocation = portfolio.get("ppf", {}).get("allocation", 0) + portfolio.get("scss", {}).get("allocation", 0)
+    funds_allocation = sum(fund.get("allocation", 0) for fund in portfolio.get("funds", []))
+    total_allocation = var_bond_allocation + funds_allocation
 
     # Normalize allocations
     if total_allocation > 0:
-        ppf_weight = ppf_allocation / total_allocation
+        var_bond_weight = var_bond_allocation / total_allocation
         funds_weight = funds_allocation / total_allocation
     else:
-        ppf_weight, funds_weight = 0, 0
+        var_bond_weight, funds_weight = 0, 0
 
-    # Compute weighted portfolio annualized return
-    annualized_return = (ppf_annualized_return * ppf_weight) + (fund_annualized_return * funds_weight)
+    # Compute weighted portfolio annualized return using the combined variable-rate bond return.
+    annualized_return = (var_bond_annualized_return * var_bond_weight) + (fund_annualized_return * funds_weight)
 
     # Compute portfolio volatility
     volatility = gain_daily_portfolio_series.std().mean() * (252**0.5)
 
     # Compute Sharpe and Sortino ratios
     portfolio_weights = calculate_portfolio_allocations(portfolio)
-    downside_risk = calculate_downside_risk(gain_daily_portfolio_series, portfolio_weights)
+
+    # Compute a single weighted cumulative gain series for the portfolio
+    if "funds_value" in gain_daily_portfolio_series.columns and len(gain_daily_portfolio_series.columns) == 1:
+        daily_return_series = gain_daily_portfolio_series["funds_value"]
+    else:
+        daily_return_series = (gain_daily_portfolio_series * portfolio_weights).sum(axis=1)
+    # Convert daily returns into a cumulative factor starting at ~1.0.
+    gain_cumulative_portfolio_series = (1 + daily_return_series).cumprod()
+
+    downside_risk = calculate_downside_risk(daily_return_series, portfolio_weights=None)
     sharpe_ratio, sortino_ratio = calculate_risk_adjusted_metrics(
         annualized_return, volatility, downside_risk, risk_free_rate
     )
 
-    # Compute max drawdowns
-    #max_drawdowns = calculate_max_drawdowns(gain_daily_portfolio_series, drawdown_threshold)
-    # Compute a single weighted cumulative gain series for the portfolio
-    gain_cumulative_portfolio_series = (gain_daily_portfolio_series * portfolio_weights).sum(axis=1)
-    
-    # Pass this correctly structured Series to `calculate_max_drawdowns()`
+    # Compute maximum drawdowns
     max_drawdowns = calculate_max_drawdowns(gain_cumulative_portfolio_series, drawdown_threshold)
-
 
     metrics = {
         "Annualized Return": annualized_return,

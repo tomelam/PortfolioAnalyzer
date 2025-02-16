@@ -1,0 +1,13 @@
+# PPF & SCSS
+
+label = "PPF & SCSS"
+
+[ppf]
+name = "Public Provident Fund"
+allocation = 0.50
+ppf_interest_rates_file = "ppf_interest_rates.csv"
+label = "SCSS"
+
+[scss]
+name = "Senior Citizens' Savings Scheme"
+allocation = 0.50

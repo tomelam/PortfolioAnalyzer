@@ -33,7 +33,13 @@ def main():
     print(f"\nCalculating portfolio metrics for {portfolio_label}.")
 
     aligned_portfolio_civs = get_aligned_portfolio_civs(portfolio) if "funds" in portfolio else pd.DataFrame()
-    portfolio_start_date = aligned_portfolio_civs.index.min() if not aligned_portfolio_civs.empty else None
+    if aligned_portfolio_civs.empty:
+        # Get benchmark data to extract its start date
+        benchmark_data = fetch_yahoo_finance_data(benchmark_ticker, refresh_hours=1, period="max")
+        benchmark_returns = get_benchmark_gain_daily(benchmark_data)
+        start_date = benchmark_returns.index[0]
+    else:
+        start_date = aligned_portfolio_civs.index.min()
 
     gold_series = None
     if "gold" in portfolio or "sgb" in portfolio:
@@ -42,11 +48,11 @@ def main():
     # PPF (Public Provident Fund)
     ppf_series = None
     if "ppf" in portfolio:
-        from ppf_calculator import calculate_ppf_cumulative_gain
-
+        from data_loader import load_ppf_interest_rates
+        from bond_calculators import calculate_variable_bond_cumulative_gain
         print("Loading PPF interest rates...")
         ppf_rates = load_ppf_interest_rates(portfolio["ppf"]["ppf_interest_rates_file"])
-        ppf_series = calculate_ppf_cumulative_gain(ppf_rates)
+        ppf_series = calculate_variable_bond_cumulative_gain(ppf_rates, start_date)
 
     # Funds (Mutual Funds, Equity, Debt)
     funds_data = None
@@ -60,15 +66,16 @@ def main():
         from data_loader import load_scss_interest_rates
         from bond_calculators import calculate_variable_bond_cumulative_gain
 
+        '''
         # Determine a valid start date:
         if not aligned_portfolio_civs.empty:
             start_date = aligned_portfolio_civs.index.min()
         else:
             start_date = pd.Timestamp("2010-01-01")  # or another appropriate default
-    
+        '''
+        
         print("Loading SCSS interest rates...")
         scss_rates = load_scss_interest_rates()
-        #scss_series = calculate_variable_bond_cumulative_gain(scss_rates, aligned_portfolio_civs.index.min())
         scss_series = calculate_variable_bond_cumulative_gain(scss_rates, start_date)
 
     # SGB (Sovereign Gold Bonds)

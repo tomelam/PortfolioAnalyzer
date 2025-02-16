@@ -105,7 +105,7 @@ def get_benchmark_gain_daily(benchmark_data):
     # Assign the index name to "date"
     benchmark_data.index.name = "date"
     # Calculate daily returns
-    benchmark_gain_daily = benchmark_data["Close"].pct_change().dropna()
+    benchmark_gain_daily = benchmark_data["Close"].pct_change().fillna(0)
     # Set the index name to "date" so it matches expected_result
     benchmark_gain_daily.index.name = "date"
     return benchmark_gain_daily
