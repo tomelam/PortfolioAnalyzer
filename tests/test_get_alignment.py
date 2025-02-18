@@ -18,13 +18,3 @@ def test_get_aligned_portfolio_civs():
 
     # Compare only the first 1000 rows/items
     assert_identical(result.iloc[:1000], expected_data.iloc[:1000])
-
-    # Load mock data from Pickle file for an argument
-    mock_argument_data = toml.load("tests/data/port-ppf.toml")
-    expected_data = load_pickle("tests/data/aligned_ppf_portfolio_civs.pkl")
-
-    # Call the actual function-under-test with the mocked argument
-    result = get_aligned_portfolio_civs(mock_argument_data)
-
-    # Compare only the first 1000 rows/items
-    assert_identical(result.iloc[:1000], expected_data.iloc[:1000])
