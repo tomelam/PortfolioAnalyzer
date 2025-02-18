@@ -3,6 +3,7 @@ import pandas as pd
 #from test_utils import mock_nav_data
 from data_loader import fetch_navs_of_mutual_fund
 
+
 @pytest.mark.order(5)  # test_fetch_navs_of_mutual_funds
 def test_fetch_navs_of_mutual_fund(mocker):
     """Test fetching NAV data."""

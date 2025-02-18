@@ -32,6 +32,15 @@ mock_valid_toml = {
     ],
 }
 
+mock_valid_ppf_toml = {
+    "label": "PPF",
+    "ppf": {
+        "name": "Public Provident Fund",
+        "allocation": 1.0,
+        "ppf_interest_rates_file": "ppf_interest_rates.csv"
+    }
+}
+
 
 @pytest.mark.order(1)  # test_valid_toml(mocker)
 def test_valid_toml(mocker):
@@ -40,6 +49,12 @@ def test_valid_toml(mocker):
 
     assert "label" in portfolio
     assert portfolio["label"] == "Portfolio X: 60% NIFTY50 + 40% Bluechip"
+
+    mocker.patch("toml.load", return_value=mock_valid_ppf_toml)
+    portfolio = load_portfolio_details("port-ppf.toml")
+
+    assert "label" in portfolio
+    assert portfolio["label"] == "PPF"
 
 
 @pytest.mark.order(2)  # test_invalid_toml_missing_top_level_key(mocker)
