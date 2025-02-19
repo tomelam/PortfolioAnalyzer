@@ -2,14 +2,22 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import pandas as pd
 
-def plot_cumulative_returns(portfolio_label, cumulative_historical, title, benchmark_cumulative=None, benchmark_name=None, allocations=None, metrics=None, max_drawdowns=None):
+def plot_cumulative_returns(
+        portfolio_label,
+        cumulative_historical,
+        title,
+        benchmark_cumulative,
+        benchmark_name=None,
+        allocations=None,
+        metrics=None,max_drawdowns=None
+):
     plt.figure(figsize=(12, 6))
 
     # Plot historical portfolio returns
     plt.plot(cumulative_historical * 100, label="Historical Portfolio Returns", color="blue")
 
     # Optionally plot benchmark returns
-    if benchmark_cumulative is not None:
+    if not benchmark_cumulative.empty:
         plt.plot(benchmark_cumulative * 100, label=benchmark_name, color="green")
 
     # Add vertical line for portfolio start

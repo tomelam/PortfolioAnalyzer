@@ -95,6 +95,7 @@ def main():
     )
 
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(args.risk_free_rates_file)
+    print(f"Fetching benchmark {benchmark_name} (ticker {benchmark_ticker}) data...")
     benchmark_data = fetch_yahoo_finance_data(benchmark_ticker, refresh_hours=1, period="max")
     benchmark_returns = get_benchmark_gain_daily(benchmark_data)
     risk_free_rates = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
@@ -119,6 +120,14 @@ def main():
     cumulative_historical, cumulative_benchmark = calculate_gains_cumulative(
         gain_daily_portfolio_series, benchmark_returns
     )
+
+    # Sanity checks:
+    assert not gain_daily_portfolio_series.empty, "gain_daily_portfolio_series Series is empty."
+    assert not cumulative_historical.empty, "cumulative_historical DataFrame is empty."
+    # benchmark_data.empty will be empty if the Yahoo Finance API is down
+    #assert not benchmark_data.empty, "benchmark_data is empty."
+    #assert not benchmark_returns.empty, "benchmark_returns is empty."
+    #assert not cumulative_benchmark.empty, "cumulative_benchmark is empty."
 
     plot_cumulative_returns(
         portfolio_label,

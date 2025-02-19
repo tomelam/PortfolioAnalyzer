@@ -251,7 +251,7 @@ def calculate_portfolio_metrics(
         "Drawdowns": len(max_drawdowns),
     }
 
-    if benchmark_returns is not None:
+    if not benchmark_returns.empty:
         '''
         alpha, beta = calculate_alpha_beta(
             gain_daily_portfolio_series, benchmark_returns, annualized_return, risk_free_rate
