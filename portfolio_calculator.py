@@ -99,11 +99,13 @@ def calculate_gains_cumulative(gain_daily_portfolio_series, gain_daily_benchmark
         return pd.Series(dtype=float), pd.Series(dtype=float)
     '''
 
-    # DEBUGGING: Print first few rows of daily returns before cumulative gains
-    print("\nDEBUG: First few rows of gain_daily_portfolio_series before .cumprod():")
+    # DEBUGGING: Print first and last rows of daily returns before cumulative gains
+    print("\nDEBUG: First and last rows of gain_daily_portfolio_series before .cumprod():")
     print(gain_daily_portfolio_series.head())
-    #print("\nDEBUG: Last few rows of gain_daily_portfolio_series before .cumprod():")
-    #print(gain_daily_portfolio_series.tail())
+    print(gain_daily_portfolio_series.tail())
+    print("\nDEBUG: Last and last rows of gain_daily_benchmark_series before .cumprod():")
+    print(gain_daily_benchmark_series.head())
+    print(gain_daily_benchmark_series.tail())
 
     '''
     # Convert daily returns to cumulative gains
@@ -117,10 +119,12 @@ def calculate_gains_cumulative(gain_daily_portfolio_series, gain_daily_benchmark
     gain_cumulative_returns = (1 + gain_daily_portfolio_series).cumprod()
     gain_cumulative_benchmark = (1 + gain_daily_benchmark_series).cumprod()
 
-    # DEBUG: Print first few rows of computed cumulative gain
-    print("\nDEBUG: First few rows of gain_cumulative_returns after .cumprod():")
+    # DEBUG: Print first and last rows of computed cumulative gain
+    print("\nDEBUG: First and last rows of gain_cumulative_returns after .cumprod():")
     print(gain_cumulative_returns.head())
-    print("\nDEBUG: First few rows of gain_cumulative_benchmark after .cumprod():")
+    print(gain_cumulative_returns.tail())
+    print("\nDEBUG: First and last rows of gain_cumulative_benchmark after .cumprod():")
     print(gain_cumulative_benchmark.head())
+    print(gain_cumulative_benchmark.tail())
 
     return gain_cumulative_returns, gain_cumulative_benchmark

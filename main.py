@@ -3,7 +3,7 @@ from data_loader import (
     get_aligned_portfolio_civs,
     fetch_and_standardize_risk_free_rates,
     align_dynamic_risk_free_rates,
-    fetch_yahoo_finance_data,
+    load_benchmark_navs,
     get_benchmark_gain_daily,
     extract_fund_allocations,
     load_ppf_interest_rates,
@@ -24,7 +24,7 @@ def main():
     import pandas as pd
     args = parse_arguments()
     toml_file_path = args.toml_file
-    benchmark_ticker = args.benchmark_ticker
+    benchmark_csv_file = args.benchmark_csv_file
     benchmark_name = args.benchmark_name
     drawdown_threshold = args.max_drawdown_threshold / 100
 
@@ -95,8 +95,8 @@ def main():
     )
 
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(args.risk_free_rates_file)
-    print(f"Fetching benchmark {benchmark_name} (ticker {benchmark_ticker}) data...")
-    benchmark_data = fetch_yahoo_finance_data(benchmark_ticker, refresh_hours=1, period="max")
+    print(f"Loading benchmark {benchmark_name} data from {benchmark_csv_file}")
+    benchmark_data = load_benchmark_navs(benchmark_csv_file)
     benchmark_returns = get_benchmark_gain_daily(benchmark_data)
     risk_free_rates = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
     risk_free_rate = risk_free_rates.mean()
@@ -145,8 +145,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Portfolio Analyzer application.")
     parser.add_argument("toml_file", type=str, help="Path to the TOML file describing the portfolio.")
     parser.add_argument("--benchmark-name", "-bn", type=str, default="NIFTY 50", help="Benchmark name.")
-    parser.add_argument("--benchmark-ticker", "-bt", type=str, default="^NSEI", help="Benchmark ticker.")
-    parser.add_argument("--risk-free-rates-file", "-rf", type=str, default="FRED--INDIRLTLT01STM.csv", help="Risk-free rates file.")
+    parser.add_argument("--benchmark-csv-file", "-bf", type=str, default="data/Nifty 50 Historical Data.csv", help="Benchmark CSV file.")
+    parser.add_argument("--risk-free-rates-file", "-rf", type=str, default="INDIRLTLT01STM.csv", help="Risk-free rates file.")
     parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5, help="Drawdown threshold, in percent.")
     return parser.parse_args()
 

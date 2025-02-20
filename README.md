@@ -8,13 +8,13 @@ This repository contains the Portfolio Analyzer application. It fetches historic
 
 - **Data Loading & Alignment:**  
   - Fetches NAV data for each fund via API calls.
-  - Loads risk-free rate data from CSV. The included file FRED--INDIRLTLT01STM.csv is one such file downloaded from [fred.stlouisfed.org](https://fred.stlouisfed.org).
+  - Loads risk-free rate data from CSV. The included file INDIRLTLT01STM.csv is one such file downloaded from [fred.stlouisfed.org](https://fred.stlouisfed.org).
   - Uses PPF interest rates manually encoded as CSV in the file `ppf_interest_rates.csv`.
   - Scrapes the SCSS interest rates from (The National Savings Institute's table "Senior Citizens' Savings Scheme--Interest Rate Since Inception")[https://www.nsiindia.gov.in/(S(2xgxs555qwdlfb2p4ub03n3n))/InternalPage.aspx?Id_Pk=181].
   - Scrapes the SGB issue price/unit and redemption price/unit from the Wikipedia page (Sovereign Gold Bond)[https://en.wikipedia.org/wiki/Sovereign_Gold_Bond].
   - Uses a fixed rate (5.0%) for the REC Limited 5% bond (ISIN: INE020B07MD4).
   - Uses gold futures (GCJ5) downloaded manually as CSV from [https://www.investing.com/commodities/gold-historical-data](https://www.investing.com/commodities/gold-historical-data).
-  - Retrieves benchmark historical data from Yahoo Finance.
+  - Optionally uses benchmark historical data manually downloaded from Investing.com for plotting and for alpha and beta calculations. For example, the Nifty 50 (NSEI) data can be downloaded from (the Nifty 50 page)[https://www.investing.com/indices/s-p-cnx-nifty-historical-data].
   - Aligns data to a common date range across all data sources.
 
 - **Portfolio Metrics Calculation:**  
@@ -65,14 +65,14 @@ If the portfolio described by the TOML file includes PPF as a component, ensure 
 If the portfolio described by the TOML file includes gold as a component, download the CSV file of the gold prices from https://www.investing.com/commodities/gold-historical-data before running the program. Currently, both offshore vaulted gold and gold held in India are priced using the save CSV data.
 ```bash
 python main.py <path_to_portfolio_toml_file> [options]
-python main.py portfolio.toml --benchmark-name "NIFTY 50" --benchmark-ticker "^NSEI" --risk-free-rates-file "FRED--INDIRLTLT01STM.csv" --max-drawdown-threshold 
+python main.py portfolio.toml --benchmark-name "NIFTY 50" --benchmark-ticker "^NSEI" --risk-free-rates-file "INDIRLTLT01STM.csv" --max-drawdown-threshold
 ```
 The `--max-drawdown-threshhold` option (shortcut `-dt`) sets the percentage drawdown that is considered significant to count in the "Drawdowns" statistic. By default, the threshhold is set to `5` (5%).
 
 Other option shortcuts and defaults:
 * `-bn`, short for `--benchmark-name`, default `NIFTY 50`
 * `-bt`, short for `--benchmark-ticker`, default `^NSEI`
-* `-rf`, short for `--risk-free-rates-file`, default `FRED--INDIRLTLT01STM.csv`
+* `-rf`, short for `--risk-free-rates-file`, default `INDIRLTLT01STM.csv`
 
 Mac users might notice messages like `2025-02-04 20:00:14.220 python[20791:454371] +[IMKClient subclass]: chose IMKClient_Modern` cluttering the terminal output. These are OS Activity Mode messages coming from Apple's Input Method Kit (IMK). They can be suppressed by appending `2> /dev/null` to the command. This is not a perfect solution. Normally, the OS_ACTIVITY_MODE environment variable could be set to "disable" to suppress such messages, but it appears that Apple's Input Method Kit (IMK) framework does not consistently honor that variable.
 

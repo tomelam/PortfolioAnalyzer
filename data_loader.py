@@ -21,9 +21,9 @@
 # 2. Low-Level Functions:
 #    - fetch_yahoo_finance_data
 #    - massage_yahoo_data
-#    - download_csv
 #    - file_modified_within
 
+import sys
 import pandas as pd
 import requests
 import toml
@@ -88,6 +88,18 @@ def align_portfolio_civs(portfolio_civs):
     return aligned_combined_civs
 
 
+def load_benchmark_navs(benchmark_csv_file="data/Nifty 50 Historical Data.csv"):
+    df = pd.read_csv(benchmark_csv_file, thousands=",", parse_dates=["Date"])
+    # Convert the Date column using the correct format
+    df["Date"] = pd.to_datetime(df["Date"], format="%m/%d/%Y")
+    df.set_index("Date", inplace=True)
+    print("\nDEBUG: First few rows of raw benchmark data:")
+    print(df.head(100))
+    print("\nDEBUG: Last few rows of raw benchmark data:")
+    print(df.tail(100))
+    return df
+
+
 def get_benchmark_gain_daily(benchmark_data):
     """
     Get usefully indexed benchmark historical NAVs using Yahoo Finance.
@@ -100,33 +112,14 @@ def get_benchmark_gain_daily(benchmark_data):
     """
     # Ensure the index (dates) is treated as a datetime column
     benchmark_data.index = pd.to_datetime(benchmark_data.index, errors="coerce").tz_localize(None)
-    if "Close" in benchmark_data.columns:
-        benchmark_data.rename(columns={"Close": "Close"}, inplace=True)
     # Assign the index name to "date"
     benchmark_data.index.name = "date"
     # Calculate daily returns
-    benchmark_gain_daily = benchmark_data["Close"].pct_change().dropna()
+    #benchmark_gain_daily = benchmark_data["Close"].pct_change().dropna()
+    benchmark_gain_daily = benchmark_data["Open"].pct_change().dropna()
     # Set the index name to "date" so it matches expected_result
     benchmark_gain_daily.index.name = "date"
     return benchmark_gain_daily
-
-
-# Function to download data from a given URL and save it as a CSV file
-def download_csv(url, output_file):
-    """
-    Download a CSV file from a given URL and save it locally.
-
-    Parameters:
-        url (str): The URL to download the CSV file from.
-        output_file (str): The path to save the downloaded CSV file.
-    """
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        with open(output_file, "wb") as file:
-            file.write(response.content)
-    except requests.RequestException as e:
-        raise RequestException(f"Failed to download data from {url}: {e}")
 
 
 # Check if the file was modified within a specific time frame
@@ -627,7 +620,7 @@ def rename_yahoo_data_columns(data):
 
 
 # Load risk-free rate data
-def fetch_and_standardize_risk_free_rates(file_path, url=None):
+def fetch_and_standardize_risk_free_rates(file_path):
     """
     Load risk-free rate data from a CSV file, downloading it if a URL is provided.
 
@@ -638,11 +631,8 @@ def fetch_and_standardize_risk_free_rates(file_path, url=None):
     Returns:
         pd.DataFrame: Risk-free rate data indexed by date.
     """
-    if url and not file_modified_within(file_path, 24):
-        print(
-            "The risk-free-rate data is outdated or missing. Fetching it from the web..."
-        )
-        download_csv(url, file_path)
+    if not file_modified_within(file_path, 24):
+        sys.exit("The risk-free-rate data is outdated or missing. You must download it manually.")
     else:
         print("The risk-free-rate data is fresh. No need to download it again now.")
 
