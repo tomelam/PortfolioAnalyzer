@@ -14,7 +14,7 @@ This repository contains the Portfolio Analyzer application. It fetches historic
   - Scrapes the SGB issue price/unit and redemption price/unit from the Wikipedia page (Sovereign Gold Bond)[https://en.wikipedia.org/wiki/Sovereign_Gold_Bond].
   - Uses a fixed rate (5.0%) for the REC Limited 5% bond (ISIN: INE020B07MD4).
   - Uses gold futures (GCJ5) downloaded manually as CSV from [https://www.investing.com/commodities/gold-historical-data](https://www.investing.com/commodities/gold-historical-data).
-  - Optionally uses benchmark historical data manually downloaded from Investing.com for plotting and for alpha and beta calculations. For example, the Nifty 50 (NSEI) data can be downloaded from (the Nifty 50 page)[https://www.investing.com/indices/s-p-cnx-nifty-historical-data].
+  - Optionally uses benchmark historical data manually downloaded from Investing.com for plotting and for alpha and beta calculations. For example, the NIFTY Total Returns (NIFTRI) data can be downloaded from (the Nifty 50 page)[https://www.investing.com/indices/nifty-total-returns-historical-data].
   - Aligns data to a common date range across all data sources.
 
 - **Portfolio Metrics Calculation:**  

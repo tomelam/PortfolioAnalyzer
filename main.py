@@ -144,8 +144,8 @@ def parse_arguments():
     import argparse
     parser = argparse.ArgumentParser(description="Portfolio Analyzer application.")
     parser.add_argument("toml_file", type=str, help="Path to the TOML file describing the portfolio.")
-    parser.add_argument("--benchmark-name", "-bn", type=str, default="NIFTY 50", help="Benchmark name.")
-    parser.add_argument("--benchmark-csv-file", "-bf", type=str, default="data/Nifty 50 Historical Data.csv", help="Benchmark CSV file.")
+    parser.add_argument("--benchmark-name", "-bn", type=str, default="NIFTY 50 TRI", help="Benchmark name.")
+    parser.add_argument("--benchmark-csv-file", "-bf", type=str, default="data/NIFTRI.csv", help="Benchmark CSV file.")
     parser.add_argument("--risk-free-rates-file", "-rf", type=str, default="INDIRLTLT01STM.csv", help="Risk-free rates file.")
     parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5, help="Drawdown threshold, in percent.")
     return parser.parse_args()

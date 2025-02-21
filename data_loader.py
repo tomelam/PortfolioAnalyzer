@@ -88,7 +88,7 @@ def align_portfolio_civs(portfolio_civs):
     return aligned_combined_civs
 
 
-def load_benchmark_navs(benchmark_csv_file="data/Nifty 50 Historical Data.csv"):
+def load_benchmark_navs(benchmark_csv_file="data/NIFTRI.csv"):
     df = pd.read_csv(benchmark_csv_file, thousands=",", parse_dates=["Date"])
     # Convert the Date column using the correct format
     df["Date"] = pd.to_datetime(df["Date"], format="%m/%d/%Y")

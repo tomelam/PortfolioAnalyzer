@@ -13,11 +13,11 @@ def calculate_max_drawdowns(portfolio_gain_series, threshold=0.05):
         list of dict: Each dict contains 'start_date', 'trough_date', 'end_date',
             and 'drawdown' (percentage).
     """
-    print("\nDEBUG: Type of portfolio_gain_series:", type(portfolio_gain_series))
+    print("DEBUG: Type of portfolio_gain_series:", type(portfolio_gain_series))
     if isinstance(portfolio_gain_series, pd.DataFrame):
-        print("\nDEBUG: portfolio_gain_series is a DataFrame. Columns:", portfolio_gain_series.columns)
+        print("DEBUG: portfolio_gain_series is a DataFrame. Columns:", portfolio_gain_series.columns)
     elif isinstance(portfolio_gain_series, pd.Series):
-        print("\nDEBUG: portfolio_gain_series is a Series.")
+        print("DEBUG: portfolio_gain_series is a Series.")
     
     max_drawdowns = []
     
@@ -35,7 +35,7 @@ def calculate_max_drawdowns(portfolio_gain_series, threshold=0.05):
     trough_date = None
     trough_value = None
 
-    print("\nDEBUG: before `for` loop")
+    print("DEBUG: before `for` loop for finding maximum drawdowns-with-full-retracement")
     #for date, value in gain_cumulative_returns.iteritems():
     for date, value in portfolio_gain_series.items():  # ✅ Works for Series
         peak_value = gain_peak.at[date]  # ✅ Ensures `gain_peak[date]` is a scalar
@@ -99,9 +99,8 @@ def calculate_risk_adjusted_metrics(
     Returns:
         tuple: Sharpe ratio and Sortino ratio.
     """
-    print("\nDEBUG: downside_risk before calculation:")
-    print(downside_risk)
-    print("\nDEBUG: downside_risk type:", type(downside_risk))
+    print("DEBUG: downside_risk before calculation: {downside_risk}")
+    print("DEBUG: downside_risk type:", type(downside_risk))
     sharpe_ratio = (
         (annualized_return - risk_free_rate) / volatility if volatility else np.nan
     )
@@ -251,7 +250,8 @@ def calculate_portfolio_metrics(
         "Drawdowns": len(max_drawdowns),
     }
 
-    if not benchmark_returns.empty:
+    print(f"type(benchmark_returns): {type(benchmark_returns)}")
+    if benchmark_returns is not None:
         '''
         alpha, beta = calculate_alpha_beta(
             gain_daily_portfolio_series, benchmark_returns, annualized_return, risk_free_rate
