@@ -94,10 +94,33 @@ def main():
         gold_series,
     )
 
+    # Optionally, if the flag is set, dump portfolio data to a pickle file.
+    if args.generate_golden:
+        import pickle
+        portfolio_data = {
+            "gain_daily": gain_daily_portfolio_series,
+            "allocations": calculate_portfolio_allocations(portfolio),
+            # You can extend this dictionary with other intermediate outputs
+            # such as cumulative returns if desired.
+        }
+        with open("tests/data/portfolio_data.pkl", "wb") as f:
+            pickle.dump(portfolio_data, f)
+        print("Golden portfolio data generated.")
+
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(args.risk_free_rates_file)
     print(f"Loading benchmark {benchmark_name} data from {benchmark_csv_file}")
-    benchmark_data = load_benchmark_navs(benchmark_csv_file)
+    benchmark_data = load_benchmark_navs(benchmark_csv_file)  # TODO: Handle the missing-file case.
     benchmark_returns = get_benchmark_gain_daily(benchmark_data)
+
+    # If the --generate-golden switch is on, dump the benchmark_returns to a pickle file.
+    if args.generate_golden:
+        assert isinstance(
+            benchmark_returns,
+            (pd.Series, pd.DataFrame)
+        ), "benchmark_returns must be a pandas Series or DataFrame"
+        benchmark_returns.to_pickle("tests/data/benchmark_returns.pkl")
+        print("Golden benchmark_returns dataset generated.")
+    
     risk_free_rates = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
     risk_free_rate = risk_free_rates.mean()
 
@@ -112,7 +135,7 @@ def main():
     print(f"Annualized Return: {metrics['Annualized Return'] * 100:.4f}%")
     print(f"Volatility: {metrics['Volatility'] * 100:.4f}%")
     print(f"Sharpe Ratio: {metrics['Sharpe Ratio']:.4f}")
-    print(f"Sortino Ratio: {metrics['Sortino Ratio']:.4f}")
+    #TODO: Make this work: print(f"Sortino Ratio: {metrics['Sortino Ratio']:.4f}")
     if "Alpha" in metrics and "Beta" in metrics:
         print(f"Beta: {metrics['Beta']:.4f}")
         print(f"Alpha: {metrics['Alpha']:.4f}")
@@ -137,7 +160,7 @@ def main():
         benchmark_name,
         calculate_portfolio_allocations(portfolio),
         metrics,
-        max_drawdowns,
+        max_drawdowns=None,  #FIXME: Pass the calculated value
     )
 
 def parse_arguments():
@@ -148,6 +171,8 @@ def parse_arguments():
     parser.add_argument("--benchmark-csv-file", "-bf", type=str, default="data/NIFTRI.csv", help="Benchmark CSV file.")
     parser.add_argument("--risk-free-rates-file", "-rf", type=str, default="INDIRLTLT01STM.csv", help="Risk-free rates file.")
     parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5, help="Drawdown threshold, in percent.")
+    parser.add_argument("--generate-golden", "-gg", action="store_true", help="Regenerate golden benchmark data.")
+    parser.add_argument("--cutoff-date", "-cutoff", type=str, default="2008-01-01", help="Cutoff date for benchmark data (YYYY-MM-DD)")
     return parser.parse_args()
 
 if __name__ == "__main__":

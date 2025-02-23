@@ -1,6 +1,6 @@
 # Portfolio Analyzer
 
-This repository contains the Portfolio Analyzer application. It fetches historical NAV data for Indian mutual funds from [mfapi.in](https://mfapi.in), fetches benchmark data from [Yahoo Finance](https://finance.yahoo.com/), uses risk-free rate data from [FRED](https://fred.stlouisfed.org), and uses gold futures prices from [investing.com](https://investing.com), computes key portfolio performance metrics (such as annualized return, volatility, Sharpe/Sortino ratios, Alpha, Beta, and maximum drawdowns), and visualizes historical returns along with benchmark data.
+This repository contains the Portfolio Analyzer application. It fetches historical NAV data for Indian mutual funds from [mfapi.in](https://mfapi.in), loads benchmark data manually downloaded from [Investing.com's indices database](https://www.investing.com/indices), uses risk-free rate data from [FRED](https://fred.stlouisfed.org), and uses gold futures prices from [investing.com](https://investing.com), computes key portfolio performance metrics (such as annualized return, volatility, Sharpe/Sortino ratios, Alpha, Beta, and maximum drawdowns), and visualizes historical returns along with benchmark data.
 
 ---
 
@@ -14,7 +14,7 @@ This repository contains the Portfolio Analyzer application. It fetches historic
   - Scrapes the SGB issue price/unit and redemption price/unit from the Wikipedia page (Sovereign Gold Bond)[https://en.wikipedia.org/wiki/Sovereign_Gold_Bond].
   - Uses a fixed rate (5.0%) for the REC Limited 5% bond (ISIN: INE020B07MD4).
   - Uses gold futures (GCJ5) downloaded manually as CSV from [https://www.investing.com/commodities/gold-historical-data](https://www.investing.com/commodities/gold-historical-data).
-  - Optionally uses benchmark historical data manually downloaded from Investing.com for plotting and for alpha and beta calculations. For example, the NIFTY Total Returns (NIFTRI) data can be downloaded from (the Nifty 50 page)[https://www.investing.com/indices/nifty-total-returns-historical-data].
+  - Optionally uses benchmark historical data manually downloaded from Investing.com for plotting and for alpha and beta calculations. For example, the NIFTY Total Returns (NIFTRI) data can be downloaded from (the Nifty 50 TRI page)[https://www.investing.com/indices/nifty-total-returns-historical-data].
   - Aligns data to a common date range across all data sources.
 
 - **Portfolio Metrics Calculation:**  
@@ -118,3 +118,9 @@ This project is licensed under the [MIT License](https://opensource.org/licenses
 Thanks to the creators and maintainers of the website [mfapi.in](https://mfapi.in), whoever they are. They have created and made available a wonderful free API that makes analysis of Indian mutual funds relatively easy.
 
 Thanks to the developers of the open-source libraries used in this project. Their work makes projects like this possible.
+
+---
+
+## Further Reading
+
+[Portfolio Visualizer](https://www.portfoliovisualizer.com)

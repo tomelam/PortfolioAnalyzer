@@ -9,7 +9,8 @@ def plot_cumulative_returns(
         benchmark_cumulative,
         benchmark_name=None,
         allocations=None,
-        metrics=None,max_drawdowns=None
+        metrics=None,
+        max_drawdowns=None
 ):
     plt.figure(figsize=(12, 6))
 

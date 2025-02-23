@@ -99,6 +99,9 @@ def calculate_risk_adjusted_metrics(
     Returns:
         tuple: Sharpe ratio and Sortino ratio.
     """
+    return
+
+'''
     print("DEBUG: downside_risk before calculation: {downside_risk}")
     print("DEBUG: downside_risk type:", type(downside_risk))
     sharpe_ratio = (
@@ -110,9 +113,15 @@ def calculate_risk_adjusted_metrics(
         else np.nan
     )
     return sharpe_ratio, sortino_ratio
+'''
 
 
+'''
 # Calculate Alpha and Beta
+def calculate_alpha_beta(
+    gain_daily_portfolio_series, benchmark_returns, annualized_return, risk_free_rate
+):
+'''
 def calculate_alpha_beta(
     portfolio_returns, benchmark_returns, annualized_return, risk_free_rate
 ):
@@ -128,12 +137,90 @@ def calculate_alpha_beta(
     Returns:
         tuple: Alpha and Beta.
     """
-    beta = portfolio_returns.corr(benchmark_returns) * (
-        portfolio_returns.std() / benchmark_returns.std()
-    )
-    alpha = annualized_return - (
-        risk_free_rate + beta * (benchmark_returns.mean() * 252 - risk_free_rate)
-    )
+    import pandas as pd
+
+    debug = False
+
+    # Ensure portfolio_returns is a Series.
+    if isinstance(portfolio_returns, pd.DataFrame):
+        port_ret = portfolio_returns.iloc[:, 0]
+    else:
+        port_ret = portfolio_returns
+
+    # TODO: This is for debugging. I might have reversed the minuend and subtrahend in a calculation.
+    port_ret = -port_ret
+
+    # Squeeze benchmark_returns in case it's a DataFrame with one column.
+    bench_ret = benchmark_returns.squeeze()
+
+    if debug:
+        print("DEBUG: After extraction, type(port_ret) =", type(port_ret))
+        print("DEBUG: port_ret head:\n", port_ret.head())
+        print("DEBUG: After squeeze, type(bench_ret) =", type(bench_ret))
+        print("DEBUG: Portfolio returns index range:", port_ret.index.min(), "to", port_ret.index.max())
+        print("DEBUG: Benchmark returns index range:", bench_ret.index.min(), "to", bench_ret.index.max())
+
+    # Drop NaNs.
+    port_ret = port_ret.dropna()
+    bench_ret = bench_ret.dropna()
+
+    # *** Sort both series in ascending order ***
+    port_ret = port_ret.sort_index()
+    bench_ret = bench_ret.sort_index()
+    if debug:
+        aligned = pd.DataFrame({
+            "portfolio": port_ret,
+            "benchmark": bench_ret
+        })
+        print(aligned.head(14))
+        print(aligned.tail(14))
+
+    # Determine the overlapping period:
+    common_start = max(port_ret.index.min(), bench_ret.index.min())
+    common_end = min(port_ret.index.max(), bench_ret.index.max())
+    if debug:
+        print("DEBUG: Overlap period from", common_start, "to", common_end)
+
+    # Truncate both series to the overlapping period.
+    port_ret = port_ret.loc[common_start:common_end]
+    bench_ret = bench_ret.loc[common_start:common_end]
+    if debug:
+        print("DEBUG: After truncation, port_ret.shape =", port_ret.shape)
+        print("DEBUG: After truncation, bench_ret.shape =", bench_ret.shape)
+
+    # *** Align indices: reindex benchmark returns to match portfolio returns ***
+    #bench_ret = bench_ret.reindex(port_ret.index)
+    #bench_ret = bench_ret.dropna()
+    bench_ret = bench_ret.reindex(port_ret.index, method='ffill')
+    bench_ret = bench_ret.shift(1)
+    if debug:
+        print("DEBUG: After reindexing, port_ret.shape =", port_ret.shape)
+        print("DEBUG: After reindexing, bench_ret.shape =", bench_ret.shape)
+
+    # Calculate correlation and volatility ratio.
+    corr = port_ret.corr(bench_ret)
+    lagged_corr = port_ret.corr(bench_ret.shift(1))
+    vol_ratio = port_ret.std() / bench_ret.std()
+    if debug:
+        print("DEBUG: Calculated correlation =", corr)
+        print("Correlation with benchmark shifted by 1 day:", lagged_corr)
+        print("DEBUG: Calculated volatility ratio =", vol_ratio)
+    #corr = -lagged_corr
+
+    if debug:
+        print("Portfolio returns from", port_ret.index.min(), "to", port_ret.index.max())
+        print("Benchmark returns from", bench_ret.index.min(), "to", bench_ret.index.max())
+        print("Portfolio returns stats:", port_ret.describe())
+        print("Benchmark returns stats:", bench_ret.describe())
+        print("Correlation:", port_ret.corr(bench_ret))
+        print("Portfolio std:", port_ret.std(), "Benchmark std:", bench_ret.std())
+
+    beta = float(corr) * float(vol_ratio)
+    alpha = float(port_ret.mean() - risk_free_rate - beta * (bench_ret.mean() - risk_free_rate))
+    if debug:
+        print("DEBUG: Calculated alpha =", alpha)
+        print("DEBUG: Calculated beta =", beta)
+
     return alpha, beta
 
 
@@ -168,17 +255,17 @@ def calculate_benchmark_cumulative(benchmark_returns, earliest_datetime):
 
 # Calculate all metrics
 def calculate_portfolio_metrics(
-        gain_daily_portfolio_series,
+        gain_daily_series,
         portfolio,
         risk_free_rate,
         benchmark_returns=None,
         drawdown_threshold=0.05
 ):
     """
-    Calculate key portfolio performance metrics.
+    Calculate various performance metrics.
 
     Parameters:
-        gain_daily_portfolio_series (pd.DataFrame): Daily portfolio returns.
+        portfolio_returns (pd.DataFrame): Daily portfolio returns.
         portfolio (dict): The portfolio details from the TOML file.
         risk_free_rate (float): Risk-free rate.
         benchmark_returns (pd.Series, optional): Benchmark daily returns.
@@ -190,56 +277,52 @@ def calculate_portfolio_metrics(
     """
     from portfolio_calculator import calculate_portfolio_allocations
 
-    # Compute PPF cumulative returns if PPF exists
-    if "ppf_value" in gain_daily_portfolio_series:
-        ppf_cumulative_returns = (1 + gain_daily_portfolio_series["ppf_value"]).cumprod()
-        start_value = ppf_cumulative_returns.iloc[0]
-        end_value = ppf_cumulative_returns.iloc[-1]
-        days = (ppf_cumulative_returns.index[-1] - ppf_cumulative_returns.index[0]).days
-        ppf_annualized_return = (end_value / start_value) ** (365 / days) - 1
-    else:
-        ppf_annualized_return = 0
+    # Fill NaN values in the daily returns so that the cumulative product doesn't become NaN.
+    gain_daily_series = gain_daily_series.fillna(0)
 
-    # Compute mutual fund annualized return
-    fund_columns = [col for col in gain_daily_portfolio_series.columns if col != "ppf_value"]
-    if fund_columns:
-        fund_daily_returns = gain_daily_portfolio_series[fund_columns]
-        fund_annualized_return = fund_daily_returns.mean().sum() * 252
-    else:
-        fund_annualized_return = 0
+    # Compute cumulative returns from the daily gains.
+    cumulative = (1 + gain_daily_series).cumprod()
 
-    # Compute portfolio allocations
-    ppf_allocation = portfolio.get("ppf", {}).get("allocation", 0)
-    funds_allocation = sum(fund["allocation"] for fund in portfolio.get("funds", []))
-    total_allocation = ppf_allocation + funds_allocation
+    # Standard annualized return calculation:
+    # 1. Total return over the period.
+    total_return = cumulative.iloc[-1] / cumulative.iloc[0] - 1
+    # 2. Number of years in the period.
+    num_years = (gain_daily_series.index[-1] - gain_daily_series.index[0]).days / 365.25
+    # 3. Annualized return.
+    annualized_return = (1 + total_return) ** (1 / num_years) - 1
 
-    # Normalize allocations
-    if total_allocation > 0:
-        ppf_weight = ppf_allocation / total_allocation
-        funds_weight = funds_allocation / total_allocation
-    else:
-        ppf_weight, funds_weight = 0, 0
+    # Compute annualized volatility (standard deviation scaled to 252 trading days).
+    volatility = gain_daily_series.std() * (252 ** 0.5)
 
-    # Compute weighted portfolio annualized return
-    annualized_return = (ppf_annualized_return * ppf_weight) + (fund_annualized_return * funds_weight)
+    # Ensure that annualized_return, risk_free_rate, and volatility are plain floats.
+    annualized_return = float(annualized_return)
+    risk_free_rate = float(risk_free_rate)
+    volatility = float(volatility)
 
-    # Compute portfolio volatility
-    volatility = gain_daily_portfolio_series.std().mean() * (252**0.5)
+    # Compute Sharpe Ratio.
+    sharpe_ratio = (annualized_return - risk_free_rate) / volatility if volatility != 0 else float('nan')
 
-    # Compute Sharpe and Sortino ratios
-    portfolio_weights = calculate_portfolio_allocations(portfolio)
-    downside_risk = calculate_downside_risk(gain_daily_portfolio_series, portfolio_weights)
-    sharpe_ratio, sortino_ratio = calculate_risk_adjusted_metrics(
-        annualized_return, volatility, downside_risk, risk_free_rate
-    )
+    # Placeholder for Sortino Ratio (replace with actual calculation when ready).
+    sortino_ratio = None
 
-    # Compute max drawdowns
-    #max_drawdowns = calculate_max_drawdowns(gain_daily_portfolio_series, drawdown_threshold)
-    # Compute a single weighted cumulative gain series for the portfolio
-    gain_cumulative_portfolio_series = (gain_daily_portfolio_series * portfolio_weights).sum(axis=1)
-    
-    # Pass this correctly structured Series to `calculate_max_drawdowns()`
-    max_drawdowns = calculate_max_drawdowns(gain_cumulative_portfolio_series, drawdown_threshold)
+    # Placeholder for drawdown calculations using drawdown_threshold.
+    max_drawdowns = None
+
+    # Placeholders for Alpha and Beta calculations.
+    alpha = None
+    beta = None
+    if benchmark_returns is not None:
+        '''
+        alpha, beta = calculate_alpha_beta(
+            gain_daily_series, benchmark_returns, annualized_return, risk_free_rate
+        )
+        '''
+        alpha, beta = calculate_alpha_beta(
+            gain_daily_series,  # Is this the right data to use for the argument?
+            benchmark_returns,
+            annualized_return,
+            risk_free_rate
+        )
 
 
     metrics = {
@@ -247,23 +330,13 @@ def calculate_portfolio_metrics(
         "Volatility": volatility,
         "Sharpe Ratio": sharpe_ratio,
         "Sortino Ratio": sortino_ratio,
-        "Drawdowns": len(max_drawdowns),
+        "Drawdowns": 0,  # TODO: Fix this.
+        "Alpha": alpha,
+        "Beta": beta,
     }
 
     print(f"type(benchmark_returns): {type(benchmark_returns)}")
-    if benchmark_returns is not None:
-        '''
-        alpha, beta = calculate_alpha_beta(
-            gain_daily_portfolio_series, benchmark_returns, annualized_return, risk_free_rate
-        )
-        '''
-        alpha, beta = calculate_alpha_beta(
-            gain_cumulative_portfolio_series,
-            benchmark_returns,
-            annualized_return,
-            risk_free_rate
-        )
-        metrics.update({"Alpha": alpha, "Beta": beta})
+
 
     return metrics, max_drawdowns
     

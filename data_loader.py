@@ -89,37 +89,54 @@ def align_portfolio_civs(portfolio_civs):
 
 
 def load_benchmark_navs(benchmark_csv_file="data/NIFTRI.csv"):
-    df = pd.read_csv(benchmark_csv_file, thousands=",", parse_dates=["Date"])
+    df = pd.read_csv(
+        benchmark_csv_file,
+        thousands=",",
+        parse_dates=["Date"],
+        dayfirst=True
+    )
     # Convert the Date column using the correct format
     df["Date"] = pd.to_datetime(df["Date"], format="%m/%d/%Y")
     df.set_index("Date", inplace=True)
+    '''
     print("\nDEBUG: First few rows of raw benchmark data:")
-    print(df.head(100))
+    print(df.head(5))
     print("\nDEBUG: Last few rows of raw benchmark data:")
-    print(df.tail(100))
+    print(df.tail(5))
+    '''
     return df
 
 
-def get_benchmark_gain_daily(benchmark_data):
+def get_benchmark_gain_daily(benchmark_data, cutoff_date=None):
     """
-    Get usefully indexed benchmark historical NAVs using Yahoo Finance.
+    Calculate daily percentage returns from benchmark data.
 
     Parameters:
-        benchmark_data: pd.DataFrame containing historical data indexed by date.
+        benchmark_data (pd.DataFrame): Historical data with at least an 'Open' column.
+        cutoff_date (pd.Timestamp or str, optional): If provided, only data
+            on or before this date is processed.
 
     Returns:
-        pd.Series: Benchmark daily returns indexed by date.
+        pd.Series: Daily percentage returns indexed by date.
     """
-    # Ensure the index (dates) is treated as a datetime column
+    # Work on a copy so as not to alter the original data.
+    benchmark_data = benchmark_data.copy()
+
+    # Ensure index is datetime and remove any timezone info
     benchmark_data.index = pd.to_datetime(benchmark_data.index, errors="coerce").tz_localize(None)
-    # Assign the index name to "date"
+
+    # If a cutoff is provided, filter the data.
+    if cutoff_date is not None:
+        cutoff_date = pd.to_datetime(cutoff_date)
+        benchmark_data = benchmark_data[benchmark_data.index <= cutoff_date]
+
+    # Ensure the index has the correct name
     benchmark_data.index.name = "date"
+
     # Calculate daily returns
-    #benchmark_gain_daily = benchmark_data["Close"].pct_change().dropna()
-    benchmark_gain_daily = benchmark_data["Open"].pct_change().dropna()
-    # Set the index name to "date" so it matches expected_result
-    benchmark_gain_daily.index.name = "date"
-    return benchmark_gain_daily
+    returns = benchmark_data["Open"].pct_change().dropna()
+    returns.index.name = "date"
+    return returns
 
 
 # Check if the file was modified within a specific time frame
@@ -601,21 +618,17 @@ def fetch_yahoo_finance_data(ticker, refresh_hours=6, period="max"):
 
 def rename_yahoo_data_columns(data):
     """
-    Ensure proper renaming of columns and consistent index setting.
+    Returns a new DataFrame with columns renamed appropriately,
+    and the index set to datetime. This function is now pure.
     """
+    data = data.copy()  # avoid in-place changes
     if "Datetime" in data.columns:
-        data.rename(columns={"Datetime": "Date"}, inplace=True)
+        data = data.rename(columns={"Datetime": "Date"})
     elif "date" in data.columns:
-        data.rename(columns={"date": "Date"}, inplace=True)
-
-    if "Date" in data.columns:
-        data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
-        data.set_index("Date", inplace=True)
-
-    # Explicitly set the index name to "Date"
-    if data.index.name != "Date":
-        data.index.name = "Date"
-        print(f"Index name corrected to 'Date': {data.index.name}")
+        data = data.rename(columns={"date": "Date"})
+    data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
+    data = data.set_index("Date")
+    data.index.name = "Date"
     return data
 
 
@@ -632,7 +645,7 @@ def fetch_and_standardize_risk_free_rates(file_path):
         pd.DataFrame: Risk-free rate data indexed by date.
     """
     if not file_modified_within(file_path, 24):
-        sys.exit("The risk-free-rate data is outdated or missing. You must download it manually.")
+        sys.exit(f"The risk-free-rate data {file_path} is outdated or missing. You must download it manually.")
     else:
         print("The risk-free-rate data is fresh. No need to download it again now.")
 
