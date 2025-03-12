@@ -78,7 +78,11 @@ def main():
 
         print("Loading SCSS interest rates...")
         scss_rates = load_scss_interest_rates()
-        scss_series = calculate_variable_bond_cumulative_gain(scss_rates)
+        start_date_for_scss = portfolio_start_date if portfolio_start_date is not None else scss_rates.index.min()
+        scss_series = calculate_variable_bond_cumulative_gain(scss_rates, start_date_for_scss)
+        portfolio_start_date = (
+            scss_series.index.min() if portfolio_start_date is None else max(portfolio_start_date, scss_series.index.min())
+        )
         portfolio_start_date = (
             scss_series.index.min() if portfolio_start_date is None else max(portfolio_start_date, scss_series.index.min())
         )
