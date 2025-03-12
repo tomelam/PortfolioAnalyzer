@@ -29,7 +29,6 @@ def main():
     drawdown_threshold = args.max_drawdown_threshold / 100
 
     benchmark_file = "data/NIFTRI.csv"
-
     try:
         benchmark_data = pd.read_csv(benchmark_file, index_col=0)
         # Convert the CSV’s date index (format: "dd-mm-yyyy") to datetime
@@ -44,45 +43,32 @@ def main():
             benchmark_data["Close"] = benchmark_data["Close"].str.replace(',', '').astype(float)
     except Exception as e:
         raise RuntimeError(f"Failed to load benchmark data from {benchmark_file}: {e}")
+    benchmark_returns = get_benchmark_gain_daily(benchmark_data)
 
     portfolio = load_portfolio_details(toml_file_path)
     portfolio_label = portfolio["label"]
     print(f"\nCalculating portfolio metrics for {portfolio_label}.")
 
-    aligned_portfolio_civs = get_aligned_portfolio_civs(portfolio) if "funds" in portfolio else pd.DataFrame()
-    if aligned_portfolio_civs.empty:
-        raise RuntimeError("Portfolio data is empty; cannot determine start date.")
-
-    portfolio_start = aligned_portfolio_civs.index.min()
-    benchmark_returns = get_benchmark_gain_daily(benchmark_data)
-    if benchmark_data.empty or benchmark_returns.empty:
-        raise RuntimeError("Benchmark data is empty; please check data/NIFTRI.csv")
-    portfolio_start = aligned_portfolio_civs.index.min()
-    benchmark_returns = get_benchmark_gain_daily(benchmark_data)
-    if benchmark_data.empty or benchmark_returns.empty:
-        raise RuntimeError("Benchmark data is empty; please check data/NIFTRLI.csv")
-    benchmark_start = benchmark_returns.index[0]
-    # Choose the earlier date so the plot includes benchmark returns from before portfolio inception.
-    start_date = benchmark_start if benchmark_start < portfolio_start else portfolio_start
-
-    gold_series = None
-    if "gold" in portfolio or "sgb" in portfolio:
-        gold_series = get_gold_adjusted_spot(start_date="2000-01-01")
-
-    # PPF (Public Provident Fund)
+    # Initialize aligned portfolio data and portfolio_start_date
+    aligned_portfolio_civs = pd.DataFrame()
+    portfolio_start_date = None
+    
+    # Funds
+    if "funds" in portfolio:
+        aligned_portfolio_civs = get_aligned_portfolio_civs(portfolio)
+        if not aligned_portfolio_civs.empty:
+            portfolio_start_date = aligned_portfolio_civs.index.min()
+            
+    # PPF
     ppf_series = None
     if "ppf" in portfolio:
-        from data_loader import load_ppf_interest_rates
-        from bond_calculators import calculate_variable_bond_cumulative_gain
+        from ppf_calculator import calculate_ppf_cumulative_gain
         print("Loading PPF interest rates...")
         ppf_rates = load_ppf_interest_rates(portfolio["ppf"]["ppf_interest_rates_file"])
-        ppf_series = calculate_variable_bond_cumulative_gain(ppf_rates, start_date)
-
-    # Funds (Mutual Funds, Equity, Debt)
-    funds_data = None
-    if "funds" in portfolio:
-        print("Processing mutual funds allocations...")
-        funds_data = extract_fund_allocations(portfolio)
+        ppf_series = calculate_ppf_cumulative_gain(ppf_rates)
+        portfolio_start_date = (
+            ppf_series.index.min() if portfolio_start_date is None else max(portfolio_start_date, ppf_series.index.min())
+        )
 
     # SCSS (Senior Citizen Savings Scheme)
     scss_series = None
@@ -90,34 +76,52 @@ def main():
         from data_loader import load_scss_interest_rates
         from bond_calculators import calculate_variable_bond_cumulative_gain
 
-        '''
-        # Determine a valid start date:
-        if not aligned_portfolio_civs.empty:
-            start_date = aligned_portfolio_civs.index.min()
-        else:
-            start_date = pd.Timestamp("2010-01-01")  # or another appropriate default
-        '''
-        
         print("Loading SCSS interest rates...")
         scss_rates = load_scss_interest_rates()
-        scss_series = calculate_variable_bond_cumulative_gain(scss_rates, start_date)
+        scss_series = calculate_variable_bond_cumulative_gain(scss_rates)
+        portfolio_start_date = (
+            scss_series.index.min() if portfolio_start_date is None else max(portfolio_start_date, scss_series.index.min())
+        )
 
-    # SGB (Sovereign Gold Bonds)
-    sgb_data = None
-    if "sgb" in portfolio:
-        from sgb_extractor import extract_sgb_series
-
-        print("Extracting SGB tranche data...")
-        sgb_data = extract_sgb_series()
-
-    # REC Bonds (Rural Electrification Corporation Bonds)
+    # REC Bonds
     rec_bond_series = None
     if "rec_bond" in portfolio:
         from bond_calculators import calculate_variable_bond_cumulative_gain
 
         print("Loading REC bond rates...")
         rec_bond_rates = portfolio["rec_bond"]["rates"]
-        rec_bond_series = calculate_variable_bond_cumulative_gain(rec_bond_rates, aligned_portfolio_civs.index.min())
+        rec_bond_series = calculate_variable_bond_cumulative_gain(rec_bond_rates)
+        portfolio_start_date = (
+            rec_bond_series.index.min()
+            if portfolio_start_date is None
+            else max(portfolio_start_date, rec_bond_series.index.min())
+        )
+
+    # SGB (Sovereign Gold Bonds)
+    sgb_series = None
+    if "sgb" in portfolio:
+        from sgb_extractor import extract_sgb_series
+
+        print("Extracting SGB tranche data...")
+        sgb_series = extract_sgb_series()
+        portfolio_start_date = (
+            sgb_series.index.min() if portfolio_start_date is None else max(portfolio_start_date, sgb_series.index.min())
+        )
+
+    # Physical Gold
+    gold_series = None
+    if "gold" in portfolio:
+        from gold_loader import load_gold_prices
+
+        print("Loading physical gold price data...")
+        gold_series = load_gold_prices()
+        portfolio_start_date = (
+            gold_series.index.min() if portfolio_start_date is None else max(portfolio_start_date, gold_series.index.min())
+        )
+
+    # Final check if still None
+    if portfolio_start_date is None:
+        raise RuntimeError("Portfolio data is empty; cannot determine start date.")
 
     gain_daily_portfolio_series = calculate_gain_daily_portfolio_series(
         portfolio,
@@ -168,7 +172,7 @@ def main():
         calculate_portfolio_allocations(portfolio),
         metrics,
         max_drawdowns,
-        start_date
+        portfolio_start_date
     )
 
 def parse_arguments():
