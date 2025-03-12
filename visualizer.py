@@ -1,91 +1,75 @@
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import pandas as pd
+from datetime import datetime
+
 def plot_cumulative_returns(
-    portfolio_label,
-    cumulative_historical,
-    title,
-    benchmark_cumulative=None,
-    benchmark_name=None,
-    allocations=None,
-    metrics=None,
-    max_drawdowns=None
+        portfolio_label,
+        cumulative_historical,
+        title,
+        benchmark_cumulative,
+        benchmark_name=None,
+        allocations=None,
+        metrics=None,
+        max_drawdowns=None,
+        rebase_date=datetime(2008, 1, 1)
 ):
-    import matplotlib.pyplot as plt
-    import matplotlib.patches as mpatches
-    import pandas as pd
-
-    # If either series is empty, just plot whatever we have.
-    if cumulative_historical.empty and (benchmark_cumulative is None or benchmark_cumulative.empty):
-        print("Nothing to plot: both portfolio and benchmark are empty.")
-        return
-
-    # Find the earliest date in each series:
-    port_start = cumulative_historical.index[0] if not cumulative_historical.empty else None
-    bench_start = benchmark_cumulative.index[0] if (benchmark_cumulative is not None and not benchmark_cumulative.empty) else None
-
-    # Choose the rebase date as the maximum (later) of the two starts.
-    if port_start is not None and bench_start is not None:
-        rebase_date = max(port_start, bench_start)
-    elif port_start is not None:
-        rebase_date = port_start
+    # Compute the start dates for each series:
+    portfolio_start = cumulative_historical.index.min()
+    benchmark_start = benchmark_cumulative.index.min()
+    # The proper rebase date is the later of the two:
+    rebase_date = max(portfolio_start, benchmark_start)
+    
+    # Find the nearest dates in each series if rebase_date is not exactly present:
+    if rebase_date not in cumulative_historical.index:
+        rebase_date_portfolio = cumulative_historical.index[cumulative_historical.index.get_loc(rebase_date, method='ffill')]
     else:
-        rebase_date = bench_start
-    print("DEBUG: rebase_date =", rebase_date)
-    print("DEBUG: cumulative_historical starts at", cumulative_historical.index[0])
-    print("DEBUG: cumulative_historical ends at", cumulative_historical.index[-1])
+        rebase_date_portfolio = rebase_date
 
-    def rebase_series(s):
-        if rebase_date < s.index[0]:
-            # If rebase_date is still earlier than the series starts, use s.index[0].
-            base_date = s.index[0]
-        else:
-            # Or use asof() in case rebase_date is in the gap:
-            base_date = rebase_date
-        base_value = s.asof(base_date)
-        print("DEBUG: base_date used =", base_date, "base_value =", base_value)
-        return s.div(base_value).mul(100)
+    if rebase_date not in benchmark_cumulative.index:
+        rebase_date_benchmark = benchmark_cumulative.index[benchmark_cumulative.index.get_loc(rebase_date, method='ffill')]
+    else:
+        rebase_date_benchmark = rebase_date
 
-    # Rebase the portfolio
-    print("DEBUG: cumulative_historical head:")
-    print(cumulative_historical.head())
-    print("DEBUG: cumulative_historical tail:")
-    print(cumulative_historical.tail())
-    cumulative_historical_rebased = rebase_series(cumulative_historical)
-    print("DEBUG: cumulative_historical_rebased head:")
-    print(cumulative_historical_rebased.head())
-    # Rebase the benchmark if it exists
-    benchmark_cumulative_rebased = None
-    if benchmark_cumulative is not None and not benchmark_cumulative.empty:
-        benchmark_cumulative_rebased = rebase_series(benchmark_cumulative)
+    # Rebase the portfolio and benchmark series so they equal 100 at the proper rebase date.
+    rebased_historical = cumulative_historical / cumulative_historical.loc[rebase_date_portfolio] * 100
+    rebased_benchmark = benchmark_cumulative / benchmark_cumulative.loc[rebase_date_benchmark] * 100
 
-    # Now plot
     plt.figure(figsize=(12, 6))
-    if not cumulative_historical_rebased.empty:
-        plt.plot(cumulative_historical_rebased, label="Historical Portfolio Relative Value", color="blue")
-    if benchmark_cumulative_rebased is not None and not benchmark_cumulative_rebased.empty:
-        plt.plot(benchmark_cumulative_rebased, label=benchmark_name, color="green")
 
-    # Mark the rebase date (dotted vertical line)
-    plt.axvline(rebase_date, color="gray", linestyle=":", label="Rebase Date")
+    # Plot the rebased portfolio returns
+    plt.plot(
+        rebased_historical.index,
+        rebased_historical,
+        label="Historical Portfolio Returns",
+        color="blue"
+    )
 
-    # Legend with drawdowns patch
+    # Plot the rebased benchmark returns, if available
+    if rebased_benchmark is not None and not rebased_benchmark.empty:
+        plt.plot(rebased_benchmark.index, rebased_benchmark, label=benchmark_name, color="green")
+
+    # Draw a vertical line at the rebase date (using the portfolio's rebase date)
+    plt.axvline(rebase_date_portfolio, color="gray", linestyle=":", label="Rebase Date")
+
+    # Create the legend and add a patch for significant drawdowns
     red_patch = mpatches.Patch(color='red', alpha=0.1, label="Significant Drawdowns")
     handles, labels = plt.gca().get_legend_handles_labels()
     handles.append(red_patch)
     labels.append("Significant Drawdowns")
     plt.legend(handles=handles, labels=labels, loc='upper left')
 
-    # Show the allocations box
+    # Place the allocation box slightly higher within the left margin
     if allocations is not None:
-        allocation_text = "\n".join(
-            f"{k}: {v*100:.2f}%" for k, v in allocations.items()
-        )
+        allocations_text = "\n".join([f"{key}: {value * 100:.2f}%" for key, value in allocations.items()])
         plt.gca().text(
-            0.02, 0.75, allocation_text,
+            0.02, 0.77, allocations_text,
             fontsize=9, transform=plt.gca().transAxes,
             verticalalignment='top', horizontalalignment='left',
             bbox=dict(boxstyle="round,pad=0.3", edgecolor="gray", facecolor="white", alpha=0.8)
         )
 
-    # Show the metrics box
+    # Display metrics in the lower-right corner
     if metrics:
         metrics_text = "\n".join([
             f"{key}: {value * 100:.2f}%" if key in ["Annualized Return", "Volatility"] else
@@ -94,7 +78,7 @@ def plot_cumulative_returns(
             for key, value in metrics.items()
         ])
         plt.gca().text(
-            0.98, 0.75, metrics_text,
+            0.98, 0.26, metrics_text,
             fontsize=9, transform=plt.gca().transAxes,
             verticalalignment='top', horizontalalignment='right',
             bbox=dict(boxstyle="round,pad=0.3", edgecolor="gray", facecolor="white", alpha=0.8)
@@ -102,12 +86,23 @@ def plot_cumulative_returns(
 
     # Highlight drawdown periods
     if max_drawdowns:
-        for dd in max_drawdowns:
-            plt.axvspan(dd["start_date"], dd["end_date"], color="red", alpha=0.1)
+        for drawdown in max_drawdowns:
+            plt.axvspan(drawdown['start_date'], drawdown['end_date'], color='red', alpha=0.1)
 
     plt.title(f"{title}: {portfolio_label}")
     plt.xlabel("Date")
-    plt.ylabel("Relative Value")
+    plt.ylabel("Cumulative Return (%)")
     plt.grid()
+
+    # Optional: define a key-press function to toggle zoom
+    def toggle_zoom(event):
+        ax = plt.gca()
+        if event.key == 'z':
+            ax.set_xlim(pd.Timestamp('2020-01-01'), ax.get_xlim()[1])
+        elif event.key == 'r':
+            ax.set_xlim(rebased_historical.index[0], rebased_historical.index[-1])
+        plt.draw()
+
+    plt.connect('key_press_event', toggle_zoom)
     plt.show()
     plt.close()

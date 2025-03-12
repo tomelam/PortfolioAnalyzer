@@ -28,18 +28,42 @@ def main():
     benchmark_name = args.benchmark_name
     drawdown_threshold = args.max_drawdown_threshold / 100
 
+    benchmark_file = "data/NIFTRI.csv"
+
+    try:
+        benchmark_data = pd.read_csv(benchmark_file, index_col=0)
+        # Convert the CSV’s date index (format: "dd-mm-yyyy") to datetime
+        benchmark_data.index = pd.to_datetime(benchmark_data.index, format="%d-%m-%Y", errors="coerce")
+        # Sort the data in chronological order
+        benchmark_data.sort_index(inplace=True)
+        # Rename "Price" to "Close" if needed
+        if "Close" not in benchmark_data.columns and "Price" in benchmark_data.columns:
+            benchmark_data.rename(columns={"Price": "Close"}, inplace=True)
+        # Clean the "Close" column: remove commas and convert to float, if it's not already numeric.
+        if benchmark_data["Close"].dtype == object:
+            benchmark_data["Close"] = benchmark_data["Close"].str.replace(',', '').astype(float)
+    except Exception as e:
+        raise RuntimeError(f"Failed to load benchmark data from {benchmark_file}: {e}")
+
     portfolio = load_portfolio_details(toml_file_path)
     portfolio_label = portfolio["label"]
     print(f"\nCalculating portfolio metrics for {portfolio_label}.")
 
     aligned_portfolio_civs = get_aligned_portfolio_civs(portfolio) if "funds" in portfolio else pd.DataFrame()
     if aligned_portfolio_civs.empty:
-        # Get benchmark data to extract its start date
-        benchmark_data = fetch_yahoo_finance_data(benchmark_ticker, refresh_hours=1, period="max")
-        benchmark_returns = get_benchmark_gain_daily(benchmark_data)
-        start_date = benchmark_returns.index[0]
-    else:
-        start_date = aligned_portfolio_civs.index.min()
+        raise RuntimeError("Portfolio data is empty; cannot determine start date.")
+
+    portfolio_start = aligned_portfolio_civs.index.min()
+    benchmark_returns = get_benchmark_gain_daily(benchmark_data)
+    if benchmark_data.empty or benchmark_returns.empty:
+        raise RuntimeError("Benchmark data is empty; please check data/NIFTRI.csv")
+    portfolio_start = aligned_portfolio_civs.index.min()
+    benchmark_returns = get_benchmark_gain_daily(benchmark_data)
+    if benchmark_data.empty or benchmark_returns.empty:
+        raise RuntimeError("Benchmark data is empty; please check data/NIFTRLI.csv")
+    benchmark_start = benchmark_returns.index[0]
+    # Choose the earlier date so the plot includes benchmark returns from before portfolio inception.
+    start_date = benchmark_start if benchmark_start < portfolio_start else portfolio_start
 
     gold_series = None
     if "gold" in portfolio or "sgb" in portfolio:
@@ -102,15 +126,15 @@ def main():
     )
 
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(args.risk_free_rates_file)
-    benchmark_data = fetch_yahoo_finance_data(benchmark_ticker, refresh_hours=1, period="max")
-    benchmark_returns = get_benchmark_gain_daily(benchmark_data)
     risk_free_rates = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
     risk_free_rate = risk_free_rates.mean()
+    # Convert the annual risk-free rate to a daily rate:
+    risk_free_rate_daily = (1 + risk_free_rate)**(1/252) - 1
 
     metrics, max_drawdowns = calculate_portfolio_metrics(
         gain_daily_portfolio_series,
         portfolio,
-        risk_free_rate,
+        risk_free_rate_daily,
         benchmark_returns
     )
 
@@ -127,6 +151,14 @@ def main():
         gain_daily_portfolio_series, benchmark_returns
     )
 
+    # Sanity checks:
+    assert not gain_daily_portfolio_series.empty, "gain_daily_portfolio_series Series is empty."
+    assert not cumulative_historical.empty, "cumulative_historical DataFrame is empty."
+    # benchmark_data.empty will be empty if the Yahoo Finance API is down
+    #assert not benchmark_data.empty, "benchmark_data is empty."
+    #assert not benchmark_returns.empty, "benchmark_returns is empty."
+    #assert not cumulative_benchmark.empty, "cumulative_benchmark is empty."
+
     plot_cumulative_returns(
         portfolio_label,
         cumulative_historical,
@@ -136,13 +168,14 @@ def main():
         calculate_portfolio_allocations(portfolio),
         metrics,
         max_drawdowns,
+        start_date
     )
 
 def parse_arguments():
     import argparse
     parser = argparse.ArgumentParser(description="Portfolio Analyzer application.")
     parser.add_argument("toml_file", type=str, help="Path to the TOML file describing the portfolio.")
-    parser.add_argument("--benchmark-name", "-bn", type=str, default="NIFTY 50", help="Benchmark name.")
+    parser.add_argument("--benchmark-name", "-bn", type=str, default="NIFTY TRI", help="Benchmark name.")
     parser.add_argument("--benchmark-ticker", "-bt", type=str, default="^NSEI", help="Benchmark ticker.")
     parser.add_argument("--risk-free-rates-file", "-rf", type=str, default="FRED--INDIRLTLT01STM.csv", help="Risk-free rates file.")
     parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5, help="Drawdown threshold, in percent.")

@@ -140,8 +140,10 @@ def calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs, gol
 
 
 def calculate_gains_cumulative(gain_daily_portfolio_series, gain_daily_benchmark_series):
+    '''
     if gain_daily_portfolio_series.empty or gain_daily_benchmark_series.empty:
         return pd.Series(dtype=float), pd.Series(dtype=float)
+    '''
 
     # DEBUGGING: Print first few rows of daily returns before cumulative gains
     print("\nDEBUG: First few rows of gain_daily_portfolio_series before .cumprod():")
