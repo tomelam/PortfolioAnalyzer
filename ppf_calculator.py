@@ -20,11 +20,11 @@ def calculate_ppf_cumulative_gain(ppf_interest_rates):
         pd.DataFrame: A DataFrame with a daily cumulative gain series in the column 'ppf_value'.
     """
     print("\nDEBUG: Inside calculate_ppf_cumulative_gain()")
-    print("DEBUG: Received portfolio_start_date:", portfolio_start_date)
+    #print("DEBUG: Received portfolio_start_date:", portfolio_start_date)
     # 1) Forward-fill daily rates from ppf_rates_df (which presumably has an index of date and a 'rate' column).
     #    If your code is daily compounding, watch out for an exact ~8% final outcome.
     #    For demonstration, I'm assuming you reindex to daily frequency and forward-fill:
-    if not isinstance(ppf_rates_df.index, pd.DatetimeIndex):
+    if not isinstance(ppf_interest_rates.index, pd.DatetimeIndex):
         raise ValueError("ppf_rates_df must have a DatetimeIndex")
 
     portfolio_start_date = "2001-03-01"
