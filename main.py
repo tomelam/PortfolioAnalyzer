@@ -17,8 +17,6 @@ from portfolio_calculator import (
     calculate_gain_daily_portfolio_series,
 )
 from visualizer import plot_cumulative_returns
-#from ppf_calculator import calculate_ppf_cumulative_gain
-from fetch_gold_spot import get_gold_adjusted_spot
 
 def main():
     import pandas as pd
@@ -92,9 +90,22 @@ def main():
     if "rec_bond" in portfolio:
         from bond_calculators import calculate_variable_bond_cumulative_gain
 
+        # TODO: This probably belongs in a different module.
         print("Loading REC bond rates...")
-        rec_bond_rates = portfolio["rec_bond"]["rates"]
-        rec_bond_series = calculate_variable_bond_cumulative_gain(rec_bond_rates)
+        rec_bond_rates = pd.DataFrame(
+            {'rate': [5.25]},
+            index=pd.date_range("2000-01-01", pd.Timestamp.today(), freq='D')
+        )
+        start_date_for_rec_bond = portfolio_start_date if portfolio_start_date is not None else rec_bond_rates.index.min()
+        rec_bond_series = calculate_variable_bond_cumulative_gain(rec_bond_rates, start_date_for_rec_bond)
+        print("rec_bond_series head after creation:", rec_bond_series.head())
+        print("rec_bond_series tail after creation:", rec_bond_series.tail())
+        print("rec_bond_series empty?", rec_bond_series.empty)
+        portfolio_start_date = (
+            rec_bond_series.index.min()
+            if portfolio_start_date is None
+            else max(portfolio_start_date, rec_bond_series.index.min())
+        )
         portfolio_start_date = (
             rec_bond_series.index.min()
             if portfolio_start_date is None
@@ -130,6 +141,9 @@ def main():
     gain_daily_portfolio_series = calculate_gain_daily_portfolio_series(
         portfolio,
         aligned_portfolio_civs,
+        ppf_series,
+        scss_series,
+        rec_bond_series,
         gold_series,
     )
 

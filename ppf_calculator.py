@@ -30,6 +30,10 @@ def calculate_ppf_cumulative_gain(ppf_interest_rates):
     # Forward-fill rates so that each day has an applicable interest rate
     daily_rates = ppf_interest_rates['rate'].reindex(daily_dates, method='ffill')
 
+    print("PPF rates near early 2005:\n", daily_rates.loc["2005-01-01":"2005-01-10"].head(10))
+    print("PPF rates near mid-2010:\n", daily_rates.loc["2010-06-01":"2010-06-10"].head(10))
+    print("PPF rates near late 2020:\n", daily_rates.loc["2020-12-01":"2020-12-10"].head(10))
+
     print("\nDEBUG: First few rows of forward-filled daily rates:")
     print(daily_rates.head())
     print("\nDEBUG: Last few rows of forward-filled daily rates:")
