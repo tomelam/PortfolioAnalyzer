@@ -1,0 +1,7 @@
+label = "Portfolio Nippon India NIFTY: NIFTY50"
+
+[[funds]]
+name = "Nippon_India_Nifty_50_Index_Fund"
+url = "https://api.mfapi.in/mf/118741"
+allocation = 1.00
+asset_allocation = {equity = 99.9, debt = 0.00, real_estate = 0.00, commodities = 0.00, cash = 0.1}
