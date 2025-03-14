@@ -216,9 +216,9 @@ def calculate_portfolio_metrics(
     volatility = gain_daily_series.std() * (252 ** 0.5)
 
     # Convert to floats.
-    annualized_return = float(annualized_return)
+    annualized_return = float(annualized_return.iloc[0])
     risk_free_rate = float(risk_free_rate)
-    volatility = float(volatility)
+    volatility = float(volatility.iloc[0])
 
     sharpe_ratio, sortino_ratio = calculate_risk_adjusted_metrics(
         annualized_return, volatility, gain_daily_series, risk_free_rate
