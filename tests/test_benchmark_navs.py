@@ -14,7 +14,7 @@ def test_get_benchmark_gain_daily():
     """
     # Load Pickled test input data
     mock_benchmark_data = load_pickle("tests/data/benchmark_data.pkl")
-    mock_benchmark_data = rename_yahoo_data_columns(mock_benchmark_data)
+    #mock_benchmark_data = rename_yahoo_data_columns(mock_benchmark_data)
 
     expected_result = load_pickle("tests/data/benchmark_returns.pkl")
     print(f"expected_result: {expected_result}")

@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 import toml
-from test_utils import load_json, load_pickle, assert_identical
+from test_utils import load_pickle, assert_identical, compare_with_golden
 from data_loader import get_aligned_portfolio_civs
 
 
@@ -17,4 +17,4 @@ def test_get_aligned_portfolio_civs():
     result = get_aligned_portfolio_civs(mock_argument_data)
 
     # Compare only the first 1000 rows/items
-    assert_identical(result.iloc[:1000], expected_data.iloc[:1000])
+    compare_with_golden(result.iloc[:1000], expected_data.iloc[:1000])

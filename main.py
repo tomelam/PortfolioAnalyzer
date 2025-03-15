@@ -1,6 +1,7 @@
 from data_loader import (
     load_portfolio_details,
-    get_aligned_portfolio_civs,
+    fetch_portfolio_civs,
+    align_portfolio_civs,
     fetch_and_standardize_risk_free_rates,
     align_dynamic_risk_free_rates,
     fetch_yahoo_finance_data,
@@ -53,7 +54,14 @@ def main():
     
     # Funds
     if "funds" in portfolio:
-        aligned_portfolio_civs = get_aligned_portfolio_civs(portfolio)
+        # Fetch raw, unaligned CIVs
+        unaligned_portfolio_civs = fetch_portfolio_civs(portfolio)
+
+        # Align the CIVs
+        aligned_portfolio_civs = align_portfolio_civs(unaligned_portfolio_civs)
+        # ✅ Ensure MultiIndex is flattened
+        if isinstance(aligned_portfolio_civs.columns, pd.MultiIndex):
+            aligned_portfolio_civs.columns = aligned_portfolio_civs.columns.droplevel(1)
         if not aligned_portfolio_civs.empty:
             portfolio_start_date = aligned_portfolio_civs.index.min()
             
@@ -181,6 +189,27 @@ def main():
     #assert not benchmark_returns.empty, "benchmark_returns is empty."
     #assert not cumulative_benchmark.empty, "cumulative_benchmark is empty."
 
+    # Optionally save golden data for regression testing
+    if args.save_golden_data:
+        import pickle
+        from pathlib import Path
+
+        data_dir = Path("tests/data")
+        data_dir.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
+
+        golden_data_files = {
+            "benchmark_data.pkl": benchmark_data,
+            "benchmark_returns.pkl": benchmark_returns,
+            "unaligned_civs.pkl": unaligned_portfolio_civs,
+            "aligned_portfolio_civs.pkl": aligned_portfolio_civs,
+        }
+
+        for filename, data in golden_data_files.items():
+            with open(data_dir / filename, "wb") as f:
+                pickle.dump(data, f)
+
+        print(f"Golden data saved to {data_dir}/")
+
     plot_cumulative_returns(
         portfolio_label,
         cumulative_historical,
@@ -201,6 +230,8 @@ def parse_arguments():
     parser.add_argument("--benchmark-ticker", "-bt", type=str, default="^NSEI", help="Benchmark ticker.")
     parser.add_argument("--risk-free-rates-file", "-rf", type=str, default="FRED--INDIRLTLT01STM.csv", help="Risk-free rates file.")
     parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5, help="Drawdown threshold, in percent.")
+
+    parser.add_argument("--save-golden-data", "-sgd", action="store_true", help="Save golden data as a Pickle file for testing.")
     return parser.parse_args()
 
 if __name__ == "__main__":
