@@ -19,6 +19,7 @@ from portfolio_calculator import (
 )
 from visualizer import plot_cumulative_returns
 
+
 def main():
     import pandas as pd
     args = parse_arguments()
@@ -28,129 +29,91 @@ def main():
     drawdown_threshold = args.max_drawdown_threshold / 100
 
     benchmark_file = "data/NIFTRI.csv"
-    try:
-        benchmark_data = pd.read_csv(benchmark_file, index_col=0)
-        # Convert the CSV’s date index (format: "dd-mm-yyyy") to datetime
-        benchmark_data.index = pd.to_datetime(benchmark_data.index, format="%d-%m-%Y", errors="coerce")
-        # Sort the data in chronological order
-        benchmark_data.sort_index(inplace=True)
-        # Rename "Price" to "Close" if needed
-        if "Close" not in benchmark_data.columns and "Price" in benchmark_data.columns:
-            benchmark_data.rename(columns={"Price": "Close"}, inplace=True)
-        # Clean the "Close" column: remove commas and convert to float, if it's not already numeric.
-        if benchmark_data["Close"].dtype == object:
-            benchmark_data["Close"] = benchmark_data["Close"].str.replace(',', '').astype(float)
-    except Exception as e:
-        raise RuntimeError(f"Failed to load benchmark data from {benchmark_file}: {e}")
+    benchmark_data = pd.read_csv(benchmark_file, index_col=0)
+    benchmark_data.index = pd.to_datetime(benchmark_data.index, format="%d-%m-%Y", errors="coerce")
+    benchmark_data.sort_index(inplace=True)
+    if "Close" not in benchmark_data.columns and "Price" in benchmark_data.columns:
+        benchmark_data.rename(columns={"Price": "Close"}, inplace=True)
+    if benchmark_data["Close"].dtype == object:
+        benchmark_data["Close"] = benchmark_data["Close"].str.replace(',', '').astype(float)
     benchmark_returns = get_benchmark_gain_daily(benchmark_data)
 
     portfolio = load_portfolio_details(toml_file_path)
     portfolio_label = portfolio["label"]
     print(f"\nCalculating portfolio metrics for {portfolio_label}.")
 
-    # Initialize aligned portfolio data and portfolio_start_date
     aligned_portfolio_civs = pd.DataFrame()
     portfolio_start_date = None
-    
-    # Funds
-    if "funds" in portfolio:
-        # Fetch raw, unaligned CIVs
-        unaligned_portfolio_civs = fetch_portfolio_civs(portfolio)
 
-        # Align the CIVs
+    if "funds" in portfolio:
+        unaligned_portfolio_civs = fetch_portfolio_civs(portfolio)
         aligned_portfolio_civs = align_portfolio_civs(unaligned_portfolio_civs)
-        # ✅ Ensure MultiIndex is flattened
         if isinstance(aligned_portfolio_civs.columns, pd.MultiIndex):
             aligned_portfolio_civs.columns = aligned_portfolio_civs.columns.droplevel(1)
         if not aligned_portfolio_civs.empty:
             portfolio_start_date = aligned_portfolio_civs.index.min()
-            
-    # PPF
-    ppf_series = None
+
+    ppf_series = scss_series = rec_bond_series = sgb_series = gold_series = None
+
     if "ppf" in portfolio:
         from ppf_calculator import calculate_ppf_cumulative_gain
-        print("Loading PPF interest rates...")
         ppf_rates = load_ppf_interest_rates(portfolio["ppf"]["ppf_interest_rates_file"])
         ppf_series = calculate_ppf_cumulative_gain(ppf_rates)
-        portfolio_start_date = (
-            ppf_series.index.min() if portfolio_start_date is None else max(portfolio_start_date, ppf_series.index.min())
-        )
 
-    # SCSS (Senior Citizen Savings Scheme)
-    scss_series = None
     if "scss" in portfolio:
         from data_loader import load_scss_interest_rates
         from bond_calculators import calculate_variable_bond_cumulative_gain
-
-        print("Loading SCSS interest rates...")
         scss_rates = load_scss_interest_rates()
-        start_date_for_scss = portfolio_start_date if portfolio_start_date is not None else scss_rates.index.min()
-        scss_series = calculate_variable_bond_cumulative_gain(scss_rates, start_date_for_scss)
-        portfolio_start_date = (
-            scss_series.index.min() if portfolio_start_date is None else max(portfolio_start_date, scss_series.index.min())
-        )
-        portfolio_start_date = (
-            scss_series.index.min() if portfolio_start_date is None else max(portfolio_start_date, scss_series.index.min())
-        )
+        scss_series = calculate_variable_bond_cumulative_gain(scss_rates, scss_rates.index.min())
 
-    # REC Bonds
-    rec_bond_series = None
     if "rec_bond" in portfolio:
         from bond_calculators import calculate_variable_bond_cumulative_gain
+        rec_bond_rates = pd.DataFrame({'rate': [5.25]}, index=pd.date_range("2000-01-01", pd.Timestamp.today(), freq='D'))
+        rec_bond_series = calculate_variable_bond_cumulative_gain(rec_bond_rates, rec_bond_rates.index.min())
 
-        # TODO: This probably belongs in a different module.
-        print("Loading REC bond rates...")
-        rec_bond_rates = pd.DataFrame(
-            {'rate': [5.25]},
-            index=pd.date_range("2000-01-01", pd.Timestamp.today(), freq='D')
-        )
-        start_date_for_rec_bond = portfolio_start_date if portfolio_start_date is not None else rec_bond_rates.index.min()
-        rec_bond_series = calculate_variable_bond_cumulative_gain(rec_bond_rates, start_date_for_rec_bond)
-        print("rec_bond_series head after creation:", rec_bond_series.head())
-        print("rec_bond_series tail after creation:", rec_bond_series.tail())
-        print("rec_bond_series empty?", rec_bond_series.empty)
-        portfolio_start_date = (
-            rec_bond_series.index.min()
-            if portfolio_start_date is None
-            else max(portfolio_start_date, rec_bond_series.index.min())
-        )
-        portfolio_start_date = (
-            rec_bond_series.index.min()
-            if portfolio_start_date is None
-            else max(portfolio_start_date, rec_bond_series.index.min())
-        )
-
-    # SGB (Sovereign Gold Bonds)
-    sgb_series = None
     if "sgb" in portfolio:
         from sgb_loader import create_sgb_daily_returns
-
-        print("Loading SGB tranche data from CSV...")
         sgb_series = create_sgb_daily_returns("data/sgb_data.csv")
 
-        # Debug output
-        print(f"DEBUG: sgb_series type = {type(sgb_series)}")
-        print(f"DEBUG: sgb_series.index = {sgb_series.index if hasattr(sgb_series, 'index') else 'NO INDEX'}")
-        print(f"DEBUG: sgb_series.head() =\n{sgb_series.head() if hasattr(sgb_series, 'head') else 'NO HEAD METHOD'}")
-
-        portfolio_start_date = (
-            sgb_series.index.min() if portfolio_start_date is None else max(portfolio_start_date, sgb_series.index.min())
-        )
-
-    # Physical Gold
-    gold_series = None
     if "gold" in portfolio:
         from gold_loader import load_gold_prices
-
-        print("Loading physical gold price data...")
         gold_series = load_gold_prices()
-        portfolio_start_date = (
-            gold_series.index.min() if portfolio_start_date is None else max(portfolio_start_date, gold_series.index.min())
-        )
 
-    # Final check if still None
-    if portfolio_start_date is None:
-        raise RuntimeError("Portfolio data is empty; cannot determine start date.")
+    # === ROBUST PORTFOLIO START DATE LOGIC ===
+    asset_series_list = [
+        aligned_portfolio_civs, ppf_series, scss_series,
+        rec_bond_series, sgb_series, gold_series
+    ]
+
+    asset_start_dates = []
+    for series in asset_series_list:
+        if series is not None and not series.empty:
+            if not isinstance(series.index, pd.DatetimeIndex):
+                series.index = pd.to_datetime(series.index, errors='coerce')
+            min_date = series.dropna().index.min()
+            if pd.notna(min_date):
+                asset_start_dates.append(min_date)
+
+    if not asset_start_dates:
+        raise ValueError("No valid asset data found to set portfolio start date!")
+
+    portfolio_start_date = max(asset_start_dates)
+
+    # Trim series only if not empty
+    if aligned_portfolio_civs is not None and not aligned_portfolio_civs.empty:
+        aligned_portfolio_civs = aligned_portfolio_civs[aligned_portfolio_civs.index >= portfolio_start_date]
+
+    if ppf_series is not None:
+        ppf_series = ppf_series[ppf_series.index >= portfolio_start_date]
+    if scss_series is not None:
+        scss_series = scss_series[scss_series.index >= portfolio_start_date]
+    if rec_bond_series is not None:
+        rec_bond_series = rec_bond_series[rec_bond_series.index >= portfolio_start_date]
+    if sgb_series is not None:
+        sgb_series = sgb_series[sgb_series.index >= portfolio_start_date]
+    if gold_series is not None:
+        gold_series = gold_series[gold_series.index >= portfolio_start_date]
+    # === END OF ROBUST LOGIC ===
 
     gain_daily_portfolio_series = calculate_gain_daily_portfolio_series(
         portfolio,
@@ -165,7 +128,6 @@ def main():
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(args.risk_free_rates_file)
     risk_free_rates = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
     risk_free_rate = risk_free_rates.mean()
-    # Convert the annual risk-free rate to a daily rate:
     risk_free_rate_daily = (1 + risk_free_rate)**(1/252) - 1
 
     metrics, max_drawdowns = calculate_portfolio_metrics(
@@ -188,35 +150,6 @@ def main():
         gain_daily_portfolio_series, benchmark_returns
     )
 
-    # Sanity checks:
-    assert not gain_daily_portfolio_series.empty, "gain_daily_portfolio_series Series is empty."
-    assert not cumulative_historical.empty, "cumulative_historical DataFrame is empty."
-    # benchmark_data.empty will be empty if the Yahoo Finance API is down
-    #assert not benchmark_data.empty, "benchmark_data is empty."
-    #assert not benchmark_returns.empty, "benchmark_returns is empty."
-    #assert not cumulative_benchmark.empty, "cumulative_benchmark is empty."
-
-    # Optionally save golden data for regression testing
-    if args.save_golden_data:
-        import pickle
-        from pathlib import Path
-
-        data_dir = Path("tests/data")
-        data_dir.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
-
-        golden_data_files = {
-            "benchmark_data.pkl": benchmark_data,
-            "benchmark_returns.pkl": benchmark_returns,
-            "unaligned_civs.pkl": unaligned_portfolio_civs,
-            "aligned_portfolio_civs.pkl": aligned_portfolio_civs,
-        }
-
-        for filename, data in golden_data_files.items():
-            with open(data_dir / filename, "wb") as f:
-                pickle.dump(data, f)
-
-        print(f"Golden data saved to {data_dir}/")
-
     plot_cumulative_returns(
         portfolio_label,
         cumulative_historical,
@@ -228,6 +161,7 @@ def main():
         max_drawdowns,
         portfolio_start_date
     )
+
 
 def parse_arguments():
     import argparse

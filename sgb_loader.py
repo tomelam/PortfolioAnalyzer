@@ -16,21 +16,18 @@ def create_sgb_daily_returns(csv_path="sgb_data.csv"):
     df.set_index("Issue Date", inplace=True)
     df.sort_index(inplace=True)
 
-    # Resample daily and forward-fill missing days
     df_daily = df.resample('D').ffill()
-
-    # Remove rows before first valid issue price
     first_valid_idx = df_daily['Issue Price (₹/gram)'].first_valid_index()
     df_daily = df_daily.loc[first_valid_idx:]
 
-    # Calculate daily returns
-    df_daily_returns = df_daily['Issue Price (₹/gram)'].pct_change()
+    # Compute daily price returns
+    price_returns = df_daily['Issue Price (₹/gram)'].pct_change().fillna(0)
 
-    # Replace infinite values and initial NaNs with zero
-    df_daily_returns.replace([np.inf, -np.inf], np.nan, inplace=True)
-    df_daily_returns = df_daily_returns.fillna(0)
+    # Include the fixed annual interest rate of 2.5% for SGBs
+    daily_interest_rate = (1 + 0.025)**(1/365) - 1
+    total_daily_returns = price_returns + daily_interest_rate
 
-    return df_daily_returns.to_frame(name='Daily Returns')
+    return total_daily_returns.to_frame(name='Daily Returns')
 
 
 if __name__ == "__main__":

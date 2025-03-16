@@ -9,7 +9,7 @@ def calculate_portfolio_allocations(portfolio):
             for asset_type in aggregated:
                 aggregated[asset_type] += alloc * fund["asset_allocation"][asset_type] / 100.0
 
-    for bond in ["ppf", "scss", "rec_bond"]:
+    for bond in ["ppf", "scss", "sgb", "rec_bond"]:
         if bond in portfolio:
             aggregated["debt"] += portfolio[bond].get("allocation", 0)
 
@@ -17,6 +17,7 @@ def calculate_portfolio_allocations(portfolio):
         aggregated["commodities"] += portfolio["gold"].get("allocation", 0)
 
     return pd.Series(aggregated)
+
 
 def calculate_gain_daily_portfolio_series(
     portfolio,
@@ -29,11 +30,11 @@ def calculate_gain_daily_portfolio_series(
 ):
     daily_returns_components = []
 
-    # Funds
+    # Funds (weighted correctly)
     if "funds" in portfolio and not aligned_portfolio_civs.empty:
-        funds_alloc = sum(fund["allocation"] for fund in portfolio["funds"])
-        funds_returns = aligned_portfolio_civs.pct_change().fillna(0).mean(axis=1)
-        daily_returns_components.append(funds_returns.rename("funds") * funds_alloc)
+        fund_weights = [fund["allocation"] for fund in portfolio["funds"]]
+        funds_returns = aligned_portfolio_civs.pct_change().fillna(0).mul(fund_weights, axis=1).sum(axis=1)
+        daily_returns_components.append(funds_returns.rename("funds"))
 
     # PPF
     if ppf_series is not None and "ppf" in portfolio:
@@ -53,7 +54,7 @@ def calculate_gain_daily_portfolio_series(
         rec_bond_returns = rec_bond_series["var_rate_bond_value"].pct_change().fillna(0)
         daily_returns_components.append(rec_bond_returns.rename("rec_bond") * rec_bond_alloc)
 
-    # SGB
+    # SGB (no daily_interest here; it's done in loader)
     if sgb_series is not None and "sgb" in portfolio:
         sgb_alloc = portfolio["sgb"]["allocation"]
         sgb_returns = sgb_series.iloc[:, 0]
