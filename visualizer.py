@@ -91,7 +91,7 @@ def plot_cumulative_returns(
 
     plt.title(f"{title}: {portfolio_label}")
     plt.xlabel("Date")
-    plt.ylabel("Cumulative Return (%)")
+    plt.ylabel("Growth of Initial Investment (Base = 100)")
     plt.grid()
 
     # Optional: define a key-press function to toggle zoom
