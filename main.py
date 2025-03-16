@@ -123,10 +123,16 @@ def main():
     # SGB (Sovereign Gold Bonds)
     sgb_series = None
     if "sgb" in portfolio:
-        from sgb_extractor import extract_sgb_series
+        from sgb_loader import create_sgb_daily_returns
 
-        print("Extracting SGB tranche data...")
-        sgb_series = extract_sgb_series()
+        print("Loading SGB tranche data from CSV...")
+        sgb_series = create_sgb_daily_returns("data/sgb_data.csv")
+
+        # Debug output
+        print(f"DEBUG: sgb_series type = {type(sgb_series)}")
+        print(f"DEBUG: sgb_series.index = {sgb_series.index if hasattr(sgb_series, 'index') else 'NO INDEX'}")
+        print(f"DEBUG: sgb_series.head() =\n{sgb_series.head() if hasattr(sgb_series, 'head') else 'NO HEAD METHOD'}")
+
         portfolio_start_date = (
             sgb_series.index.min() if portfolio_start_date is None else max(portfolio_start_date, sgb_series.index.min())
         )
@@ -152,6 +158,7 @@ def main():
         ppf_series,
         scss_series,
         rec_bond_series,
+        sgb_series,
         gold_series,
     )
 

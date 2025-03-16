@@ -18,9 +18,15 @@ def calculate_portfolio_allocations(portfolio):
 
     return pd.Series(aggregated)
 
-def calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs,
-                                          ppf_series=None, scss_series=None,
-                                          rec_bond_series=None, gold_series=None):
+def calculate_gain_daily_portfolio_series(
+        portfolio,
+        aligned_portfolio_civs,
+        ppf_series=None,
+        scss_series=None,
+        rec_bond_series=None,
+        sgb_series=None,
+        gold_series=None,
+):
     daily_returns_components = []
 
     # Funds
@@ -49,6 +55,12 @@ def calculate_gain_daily_portfolio_series(portfolio, aligned_portfolio_civs,
         rec_bond_returns = rec_bond_series["var_rate_bond_value"].pct_change().fillna(0)
         print("REC bond returns after pct_change:", rec_bond_returns.head(), rec_bond_returns.dropna().empty)
         daily_returns_components.append(rec_bond_returns.rename("rec_bond"))
+
+    # SGB
+    if sgb_series is not None and "sgb" in portfolio:
+        print("SGB daily returns head:", sgb_series.head())
+        sgb_returns = sgb_series.iloc[:, 0]  # already daily returns
+        daily_returns_components.append(sgb_returns.rename("sgb"))
 
     # Gold
     if gold_series is not None:
