@@ -19,59 +19,53 @@ def calculate_portfolio_allocations(portfolio):
     return pd.Series(aggregated)
 
 def calculate_gain_daily_portfolio_series(
-        portfolio,
-        aligned_portfolio_civs,
-        ppf_series=None,
-        scss_series=None,
-        rec_bond_series=None,
-        sgb_series=None,
-        gold_series=None,
+    portfolio,
+    aligned_portfolio_civs,
+    ppf_series=None,
+    scss_series=None,
+    rec_bond_series=None,
+    sgb_series=None,
+    gold_series=None,
 ):
     daily_returns_components = []
 
     # Funds
     if "funds" in portfolio and not aligned_portfolio_civs.empty:
-        print("Funds daily returns head:", aligned_portfolio_civs.head())
+        funds_alloc = sum(fund["allocation"] for fund in portfolio["funds"])
         funds_returns = aligned_portfolio_civs.pct_change().fillna(0).mean(axis=1)
-        daily_returns_components.append(funds_returns.rename("funds"))
+        daily_returns_components.append(funds_returns.rename("funds") * funds_alloc)
 
     # PPF
-    if ppf_series is not None:
-        print("PPF series head:", ppf_series.head())
-        ppf_returns = ppf_series.pct_change().fillna(0)
-        daily_returns_components.append(ppf_returns.iloc[:, 0].rename("ppf"))
+    if ppf_series is not None and "ppf" in portfolio:
+        ppf_alloc = portfolio["ppf"]["allocation"]
+        ppf_returns = ppf_series["ppf_value"].pct_change().fillna(0)
+        daily_returns_components.append(ppf_returns.rename("ppf") * ppf_alloc)
 
     # SCSS
-    if scss_series is not None:
-        print("SCSS series head:", scss_series.head())
-        scss_returns = scss_series.pct_change().fillna(0)
-        daily_returns_components.append(scss_returns.iloc[:, 0].rename("scss"))
+    if scss_series is not None and "scss" in portfolio:
+        scss_alloc = portfolio["scss"]["allocation"]
+        scss_returns = scss_series["var_rate_bond_value"].pct_change().fillna(0)
+        daily_returns_components.append(scss_returns.rename("scss") * scss_alloc)
 
-    # TODO: Since we've added a fixed-rate bond to the calculation, don't refer to the
-    # general calculations of bonds as being variable rate.
     # REC Bonds
-    if rec_bond_series is not None:
-        print("REC Bond series before pct_change:\n", rec_bond_series.head())
+    if rec_bond_series is not None and "rec_bond" in portfolio:
+        rec_bond_alloc = portfolio["rec_bond"]["allocation"]
         rec_bond_returns = rec_bond_series["var_rate_bond_value"].pct_change().fillna(0)
-        print("REC bond returns after pct_change:", rec_bond_returns.head(), rec_bond_returns.dropna().empty)
-        daily_returns_components.append(rec_bond_returns.rename("rec_bond"))
+        daily_returns_components.append(rec_bond_returns.rename("rec_bond") * rec_bond_alloc)
 
     # SGB
     if sgb_series is not None and "sgb" in portfolio:
-        print("SGB daily returns head:", sgb_series.head())
-        sgb_returns = sgb_series.iloc[:, 0]  # already daily returns
-        daily_returns_components.append(sgb_returns.rename("sgb"))
+        sgb_alloc = portfolio["sgb"]["allocation"]
+        sgb_returns = sgb_series.iloc[:, 0]
+        daily_returns_components.append(sgb_returns.rename("sgb") * sgb_alloc)
 
     # Gold
-    if gold_series is not None:
-        print("Gold series head:", gold_series.head())
+    if gold_series is not None and "gold" in portfolio:
+        gold_alloc = portfolio["gold"]["allocation"]
         gold_returns = gold_series["Adjusted Spot Price"].pct_change().fillna(0)
-        daily_returns_components.append(gold_returns.rename("gold"))
+        daily_returns_components.append(gold_returns.rename("gold") * gold_alloc)
 
     if not daily_returns_components:
-        print("daily_returns_components length:", len(daily_returns_components))
-        for i, comp in enumerate(daily_returns_components):
-            print(f"Component {i} head:\n", comp.head())
         raise ValueError("No valid asset returns were found!")
 
     daily_returns = pd.concat(daily_returns_components, axis=1).fillna(0)
@@ -80,8 +74,8 @@ def calculate_gain_daily_portfolio_series(
     if daily_returns["portfolio_value"].abs().sum() == 0:
         raise ValueError("No valid asset returns were found!")
 
-    print("daily_returns DataFrame head after combining:", daily_returns.head())
     return daily_returns[["portfolio_value"]]
+
 
 def calculate_gains_cumulative(gain_daily_portfolio_series, gain_daily_benchmark_series):
     gain_cumulative_returns = (1 + gain_daily_portfolio_series).cumprod()
