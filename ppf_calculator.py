@@ -19,11 +19,6 @@ def calculate_ppf_cumulative_gain(ppf_interest_rates):
     Returns:
         pd.DataFrame: A DataFrame with a daily cumulative gain series in the column 'ppf_value'.
     """
-    print("\nDEBUG: Inside calculate_ppf_cumulative_gain()")
-    #print("DEBUG: Received portfolio_start_date:", portfolio_start_date)
-    # 1) Forward-fill daily rates from ppf_rates_df (which presumably has an index of date and a 'rate' column).
-    #    If your code is daily compounding, watch out for an exact ~8% final outcome.
-    #    For demonstration, I'm assuming you reindex to daily frequency and forward-fill:
     if not isinstance(ppf_interest_rates.index, pd.DatetimeIndex):
         raise ValueError("ppf_rates_df must have a DatetimeIndex")
 
@@ -35,25 +30,12 @@ def calculate_ppf_cumulative_gain(ppf_interest_rates):
     # Forward-fill rates so that each day has an applicable interest rate
     daily_rates = ppf_interest_rates['rate'].reindex(daily_dates, method='ffill')
 
-    print("PPF rates near early 2005:\n", daily_rates.loc["2005-01-01":"2005-01-10"].head(10))
-    print("PPF rates near mid-2010:\n", daily_rates.loc["2010-06-01":"2010-06-10"].head(10))
-    print("PPF rates near late 2020:\n", daily_rates.loc["2020-12-01":"2020-12-10"].head(10))
-
-    print("\nDEBUG: First few rows of forward-filled daily rates:")
-    print(daily_rates.head())
-    print("\nDEBUG: Last few rows of forward-filled daily rates:")
-    print(daily_rates.tail())
 
     # Convert annual rate to daily effective rate
     daily_effective_rate = (1 + daily_rates / 100) ** (1 / 365) - 1
 
     # Compute cumulative gain by compounding daily
     cumulative_gain = (1 + daily_effective_rate).cumprod()
-
-    print("\nDEBUG: First few rows of computed cumulative gain:")
-    print(cumulative_gain.head())
-    print("\nDEBUG: Last few rows of computed cumulative gain:")
-    print(cumulative_gain.tail())
 
     return cumulative_gain.to_frame(name='ppf_value')
 
@@ -71,14 +53,8 @@ if __name__ == '__main__':
     ppf_rates.dropna(subset=['date'], inplace=True)
     ppf_rates.set_index('date', inplace=True)
 
-    print("\nDEBUG: First few rows of PPF rates from file:")
-    print(ppf_rates.head())
-    print("\nDEBUG: Last few rows of PPF rates from file:")
-    print(ppf_rates.tail())
-
     # Define the portfolio start date
     portfolio_start = "2001-03-01"
-    print("\nDEBUG: Portfolio start date:", portfolio_start)
 
     # Compute cumulative gain series
     ppf_series = calculate_ppf_cumulative_gain(ppf_rates, portfolio_start)
@@ -87,8 +63,4 @@ if __name__ == '__main__':
     start_value = ppf_series.iloc[0]['ppf_value']
     end_value = ppf_series.iloc[-1]['ppf_value']
     days = (ppf_series.index[-1] - ppf_series.index[0]).days
-    print(f"days in test: {days}")
     annualized_return = (end_value / start_value) ** (365 / days) - 1
-
-    print("\nDEBUG: Overall Gain: {:.4f}".format(end_value))
-    print("DEBUG: Annualized Return: {:.4%}".format(annualized_return))

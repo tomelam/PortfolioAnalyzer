@@ -2,11 +2,98 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import pandas as pd
 from datetime import datetime
+import os
+import toml
 
+def display_toml_below_figure(ax_table, toml_file):
+    """
+    Reads a TOML file, extracts relevant portfolio data, and displays it as a formatted table inside a subplot.
+    
+    Args:
+        ax_table (matplotlib.axes.Axes): The subplot where the table is added.
+        toml_file (str): Path to the TOML file.
+    """
+    # Ensure file exists
+    if not os.path.isfile(toml_file):
+        raise FileNotFoundError(f"File not found: {toml_file}")
+
+    # Load TOML file
+    with open(toml_file, "r") as f:
+        data = toml.load(f)
+
+    # Extract label
+    file_name = os.path.basename(toml_file)
+    label = data.get("label", "Unknown Portfolio")
+
+    # Extract relevant details into table format
+    table_data = []
+    for key, value in data.items():
+        if key in ["file", "label"]:
+            continue
+
+        if isinstance(value, dict) and "allocation" in value:
+            table_data.append([
+                key.capitalize(),
+                value["name"].strip(),
+                f"{value['allocation'] * 100:6.2f}%"
+            ])
+        elif isinstance(value, list):
+            for fund in value:
+                table_data.append([
+                    "Fund",
+                    fund["name"].strip(),
+                    f"{fund['allocation'] * 100:6.2f}%"
+                ])
+
+    # Desired columns: Type (1.25x), Asset (4.0x), Allocation (1.25x)
+    # But colWidths must be FRACTIONAL, so let's do ratio = 1.25 : 4.0 : 1.25 => total 6.5
+    # Convert to fraction:
+    type_ratio = 1.25 / 6.5      # ~0.1923
+    asset_ratio = 4.0 / 6.5      # ~0.6154
+    allocation_ratio = 1.25 / 6.5 # ~0.1923
+
+    col_labels = ["Type", "Asset", "Allocation"]
+    ax_table.axis("off")
+
+    table = ax_table.table(
+        cellText=table_data,
+        colLabels=col_labels,
+        cellLoc='left',
+        loc='upper left',
+        colWidths=[type_ratio, asset_ratio, allocation_ratio],  # <-- Column width ratios
+        bbox=[0, 0, 1.0, 0.6]  # Enough width so none get cut off
+    )
+
+    # Optional: reduce row height, fix font size
+    table.scale(1, 0.5)
+    table.auto_set_font_size(False)
+    table.set_fontsize(9)
+
+    # Format the table
+    for (row, col), cell in table._cells.items():
+        # Header row
+        if row == 0:
+            cell.set_text_props(weight='bold', ha='left', fontname='sans-serif')
+            cell.set_facecolor("#f0f0f0")
+
+        # Left-align "Type" & "Asset" columns 
+        if col == 1:
+            cell.PAD = 0.035   # Remove extra internal padding
+
+        # Right-align "Allocation" column
+        if col == 2:
+            text_obj = cell.get_text()
+            text_obj.set_ha("right")
+
+        # Soften border lines
+        cell.set_edgecolor("lightgray")
+    
+    
 def plot_cumulative_returns(
         portfolio_label,
         cumulative_historical,
         title,
+        toml_file,
         benchmark_cumulative,
         benchmark_name=None,
         allocations=None,
@@ -14,10 +101,15 @@ def plot_cumulative_returns(
         max_drawdowns=None,
         rebase_date=datetime(2008, 1, 1)
 ):
+    #fig = plt.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(10, 6))
+
+    gs = fig.add_gridspec(2, 1, height_ratios=[3.5, 1])
+    ax = fig.add_subplot(gs[0])
+
     # Compute the start dates for each series:
     portfolio_start = cumulative_historical.index.min()
     benchmark_start = benchmark_cumulative.index.min()
-    # The proper rebase date is the later of the two:
     rebase_date = max(portfolio_start, benchmark_start)
     
     # Find the nearest dates in each series if rebase_date is not exactly present:
@@ -35,10 +127,8 @@ def plot_cumulative_returns(
     rebased_historical = cumulative_historical / cumulative_historical.loc[rebase_date_portfolio] * 100
     rebased_benchmark = benchmark_cumulative / benchmark_cumulative.loc[rebase_date_benchmark] * 100
 
-    plt.figure(figsize=(12, 6))
-
     # Plot the rebased portfolio returns
-    plt.plot(
+    ax.plot(
         rebased_historical.index,
         rebased_historical,
         label="Historical Portfolio Returns",
@@ -47,62 +137,45 @@ def plot_cumulative_returns(
 
     # Plot the rebased benchmark returns, if available
     if rebased_benchmark is not None and not rebased_benchmark.empty:
-        plt.plot(rebased_benchmark.index, rebased_benchmark, label=benchmark_name, color="green")
+        ax.plot(rebased_benchmark.index, rebased_benchmark, label=benchmark_name, color="green")
 
     # Draw a vertical line at the rebase date (using the portfolio's rebase date)
-    plt.axvline(rebase_date_portfolio, color="gray", linestyle=":", label="Rebase Date")
-
-    # Create the legend and add a patch for significant drawdowns
-    red_patch = mpatches.Patch(color='red', alpha=0.1, label="Significant Drawdowns")
-    handles, labels = plt.gca().get_legend_handles_labels()
-    handles.append(red_patch)
-    labels.append("Significant Drawdowns")
-    plt.legend(handles=handles, labels=labels, loc='upper left')
-
-    # Place the allocation box slightly higher within the left margin
-    if allocations is not None:
-        allocations_text = "\n".join([f"{key}: {value * 100:.2f}%" for key, value in allocations.items()])
-        plt.gca().text(
-            0.02, 0.77, allocations_text,
-            fontsize=9, transform=plt.gca().transAxes,
-            verticalalignment='top', horizontalalignment='left',
-            bbox=dict(boxstyle="round,pad=0.3", edgecolor="gray", facecolor="white", alpha=0.8)
-        )
-
-    # Display metrics in the lower-right corner
-    if metrics:
-        metrics_text = "\n".join([
-            f"{key}: {value * 100:.2f}%" if key in ["Annualized Return", "Volatility"] else
-            (f"{key}: {value:d}" if key == "Drawdowns" else
-             (f"{key}: {value:.4f}" if isinstance(value, (int, float)) else f"{key}: {value}"))
-            for key, value in metrics.items()
-        ])
-        plt.gca().text(
-            0.98, 0.26, metrics_text,
-            fontsize=9, transform=plt.gca().transAxes,
-            verticalalignment='top', horizontalalignment='right',
-            bbox=dict(boxstyle="round,pad=0.3", edgecolor="gray", facecolor="white", alpha=0.8)
-        )
+    ax.axvline(rebase_date_portfolio, color="gray", linestyle=":", label="Rebase Date")
 
     # Highlight drawdown periods
     if max_drawdowns:
         for drawdown in max_drawdowns:
-            plt.axvspan(drawdown['start_date'], drawdown['end_date'], color='red', alpha=0.1)
+            ax.axvspan(drawdown['start_date'], drawdown['end_date'], color='red', alpha=0.1)
+    
+    # Add allocations and metrics inside the figure
+    if allocations is not None:
+        allocations_text = "\n".join([f"{key}: {value * 100:.2f}%" for key, value in allocations.items()])
+        ax.text(0.02, 0.55, allocations_text, fontsize=9, transform=ax.transAxes, verticalalignment='top',
+                bbox=dict(boxstyle="round,pad=0.3", edgecolor="gray", facecolor="white", alpha=0.8))
+    
+    if metrics:
+        metrics_text = "\n".join([f"{key}: {value:.4f}" if isinstance(value, (int, float)) else f"{key}: {value}" for key, value in metrics.items()])
+        ax.text(0.75, 0.55, metrics_text, fontsize=9, transform=ax.transAxes, verticalalignment='top',
+                bbox=dict(boxstyle="round,pad=0.3", edgecolor="gray", facecolor="white", alpha=0.8))
+    
+    # Set labels and title
+    ax.set_title(f"{title}: {portfolio_label}")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Growth of Initial Investment (Base = 100)")
+    ax.grid()
 
-    plt.title(f"{title}: {portfolio_label}")
-    plt.xlabel("Date")
-    plt.ylabel("Growth of Initial Investment (Base = 100)")
-    plt.grid()
+    # Create the legend
+    red_patch = mpatches.Patch(color='red', alpha=0.1, label="Significant Drawdowns")
+    handles, labels = ax.get_legend_handles_labels()
+    handles.append(red_patch)
+    labels.append("Significant Drawdowns")
+    ax.legend(handles=handles, labels=labels, loc='upper left')
 
-    # Optional: define a key-press function to toggle zoom
-    def toggle_zoom(event):
-        ax = plt.gca()
-        if event.key == 'z':
-            ax.set_xlim(pd.Timestamp('2020-01-01'), ax.get_xlim()[1])
-        elif event.key == 'r':
-            ax.set_xlim(rebased_historical.index[0], rebased_historical.index[-1])
-        plt.draw()
-
-    plt.connect('key_press_event', toggle_zoom)
+    # Add asset allocations table in the lower portion
+    ax_table = fig.add_axes([0.1, 0.05, 0.5, 0.3])
+    display_toml_below_figure(ax_table, toml_file)
+    
+    # Show plot
+    plt.tight_layout()
     plt.show()
     plt.close()

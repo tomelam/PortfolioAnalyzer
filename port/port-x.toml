@@ -1,13 +1,13 @@
 label = "Portfolio X: 60% NIFTY50 + 40% Bluechip"
 
 [[funds]]
-name = "ICICI_Nifty_50_Index_Fund"
+name = "ICICI Nifty 50 Index Fund"
 url = "https://api.mfapi.in/mf/120620"
 allocation = 0.60
 asset_allocation = {equity = 99.89, debt = 0.00, real_estate = 0.00, commodities = 0.00, cash = 0.11}
 
 [[funds]]
-name = "ICICI_Prudential_Bluechip_Fund"
+name = "ICICI Prudential Bluechip Fund"
 url = "https://api.mfapi.in/mf/120586"
 allocation = 0.40
 asset_allocation = {equity = 92.69, debt = 0.35, real_estate = 0.00, commodities = 0.00, cash = 6.96}

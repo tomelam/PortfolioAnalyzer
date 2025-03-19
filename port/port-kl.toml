@@ -3,85 +3,85 @@
 label = "Kumar's Portfolio"
 
 [[funds]]
-name = "UTI_Nifty_Next_50_Index_Fund"
+name = "UTI Nifty Next 50 Index Fund"
 url = "https://api.mfapi.in/mf/143341"
 allocation = 0.076923
 asset_allocation = {equity = 92.69, debt = 0.35, real_estate = 0.00, commodities = 0.00, cash = 6.96}
 
 [[funds]]
-name = "Motilal_Oswal_Midcap_Fund"
+name = "Motilal Oswal Midcap Fund"
 url = "https://api.mfapi.in/mf/147704"
 allocation = 0.076923
 asset_allocation = {equity = 98.79, debt = 0.00, real_estate = 0.00, commodities = 0.00, cash = 1.21}
 
 [[funds]]
-name = "HDFC_Balanced_Advantage_Fund"
+name = "HDFC Balanced Advantage Fund"
 url = "https://api.mfapi.in/mf/118968"
 allocation = 0.076923
 asset_allocation = {equity = 53.34, debt = 29.91, real_estate = 1.44, commodities = 0.00, cash = 15.31}
 
 [[funds]]
-name = "Parag_Parikh_Flexicap_Fund"
+name = "Parag Parikh Flexicap Fund"
 url = "https://api.mfapi.in/mf/122639"
 allocation = 0.076923
 asset_allocation = {equity = 0.00, debt = 97.10, real_estate = 0.00, commodities = 0.00, cash = 2.90}
 
 [[funds]]
-name = "Parag_Parikh_Conservative_Hybrid_Fund"
+name = "Parag Parikh Conservative Hybrid Fund"
 url = "https://api.mfapi.in/mf/148958"
 allocation = 0.076923
 asset_allocation = {equity = 21.86, debt = 73.35, real_estate = 0.66, commodities = 0.00, cash = 4.13}
 
 [[funds]]
-name = "Edelweiss_US_Technology_Equity_Fund_of_Fund"
+name = "Edelweiss US Technology Equity Fund of Fund"
 url = "https://api.mfapi.in/mf/148063"
 allocation = 0.076923
 asset_allocation = {equity = 92.69, debt = 0.35, real_estate = 0.00, commodities = 0.00, cash = 6.96}
 
 [[funds]]
-name = "PGIM_India_Global_Equity_Opportunities_Fund"
+name = "PGIM India Global Equity Opportunities Fund"
 url = "https://api.mfapi.in/mf/138528"
 allocation = 0.076923
 asset_allocation = {equity = 98.79, debt = 0.00, real_estate = 0.00, commodities = 0.00, cash = 1.21}
 
 [[funds]]
-name = "ICICI_Prudential_Value_Discovery_Fund"
+name = "ICICI Prudential Value Discovery Fund"
 url = "https://api.mfapi.in/mf/120323"
 allocation = 0.076923
 asset_allocation = {equity = 53.34, debt = 29.91, real_estate = 1.44, commodities = 0.00, cash = 15.31}
 
 [[funds]]
-name = "ICICI_Prudential_Multi-Asset_Fund"
+name = "ICICI Prudential Multi-Asset Fund"
 url = "https://api.mfapi.in/mf/120334"
 allocation = 0.076923
 asset_allocation = {equity = 0.00, debt = 97.10, real_estate = 0.00, commodities = 0.00, cash = 2.90}
 
 [[funds]]
-name = "ICICI_Prudential_Bluechip_Fund"
+name = "ICICI Prudential Bluechip Fund"
 url = "https://api.mfapi.in/mf/120586"
 allocation = 0.076923
 asset_allocation = {equity = 21.86, debt = 73.35, real_estate = 0.66, commodities = 0.00, cash = 4.13}
 
 [[funds]]
-name = "Invesco_Global_Equity_Income_Fund_of_Fund"
+name = "Invesco Global Equity Income Fund of Fund"
 url = "https://api.mfapi.in/mf/129188"
 allocation = 0.076923
 asset_allocation = {equity = 92.69, debt = 0.35, real_estate = 0.00, commodities = 0.00, cash = 6.96}
 
 [[funds]]
-name = "ICICI_Prudential_Retirement_Fund_-_Hybrid_Agressive"
+name = "ICICI Prudential Retirement Fund - Hybrid Agressive"
 url = "https://api.mfapi.in/mf/146721"
 allocation = 0.076923
 asset_allocation = {equity = 98.79, debt = 0.00, real_estate = 0.00, commodities = 0.00, cash = 1.21}
 
 #[[funds]]
-#name = "ICICI_Prudential_Dividend_Yield_Fund"
+#name = "ICICI Prudential Dividend Yield Fund"
 #url = "https://api.mfapi.in/mf/115251"
 #allocation = 0.076923
 #asset_allocation = {equity = 53.34, debt = 29.91, real_estate = 1.44, commodities = 0.00, cash = 15.31}
 
 [[funds]]
-name = "Axis_Gold_Fund"
+name = "Axis Gold Fund"
 url = "https://api.mfapi.in/mf/120473"
 allocation = 0.076923
 asset_allocation = {equity = 0.00, debt = 97.10, real_estate = 0.00, commodities = 0.00, cash = 2.90}

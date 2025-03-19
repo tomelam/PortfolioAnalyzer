@@ -156,12 +156,6 @@ def calculate_alpha_beta(portfolio_returns, benchmark_returns, annualized_return
     port_ret = port_ret.loc[valid_idx]
     bench_ret_shifted = bench_ret_shifted.loc[valid_idx]
 
-    # DEBUG: Print the first 10 rows of the aligned series.
-    print("DEBUG: Portfolio returns (first 10 rows):")
-    print(port_ret.head(10))
-    print("DEBUG: Benchmark returns (shifted, first 10 rows):")
-    print(bench_ret_shifted.head(10))
-    
     # If after dropping NaNs we have insufficient data, return NaN.
     if len(bench_ret_shifted) < 2:
         return np.nan, np.nan
@@ -245,7 +239,6 @@ def calculate_portfolio_metrics(
         "Beta": beta,
     }
 
-    print(f"type(benchmark_returns): {type(benchmark_returns)}")
     return metrics, max_drawdowns
     
 

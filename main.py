@@ -154,6 +154,7 @@ def main():
         portfolio_label,
         cumulative_historical,
         "Historical Performance",
+        toml_file_path,
         cumulative_benchmark,
         benchmark_name,
         calculate_portfolio_allocations(portfolio),

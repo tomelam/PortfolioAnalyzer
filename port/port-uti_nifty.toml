@@ -1,7 +1,7 @@
 label = "Portfolio UTI NIFTY: NIFTY50"
 
 [[funds]]
-name = "UTI_Nifty_50_Index_Fund"
+name = "UTI Nifty 50 Index Fund"
 url = "https://api.mfapi.in/mf/120716"
 allocation = 1.00
 asset_allocation = {equity = 99.9, debt = 0.00, real_estate = 0.00, commodities = 0.00, cash = 0.09}

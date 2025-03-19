@@ -28,8 +28,9 @@ import pandas as pd
 import requests
 import toml
 import os
-import yfinance as yf
 from datetime import timedelta, datetime
+
+import portfolio_calculator
 
 
 def get_aligned_portfolio_civs(portfolio):
@@ -256,10 +257,6 @@ def load_scss_interest_rates():
     rate_df = rate_df.dropna(subset=["date"])
     rate_df = rate_df.set_index("date")
     rate_df.sort_index(inplace=True)
-
-    # DEBUG: print the resulting rate_df to check if it has valid data
-    print("DEBUG: SCSS rate DataFrame head:")
-    print(rate_df.head())
 
     rate_df["interest"] = pd.to_numeric(rate_df["interest"], errors="coerce")
     rate_df = rate_df.dropna(subset=["interest"])

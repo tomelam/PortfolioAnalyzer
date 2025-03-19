@@ -22,37 +22,37 @@
 label = "Portfolio 3 (Mitigate Severe Drawdowns)"
 
 [[funds]]
-name = "ICICI_Prudential_Bluechip_Fund"
+name = "ICICI Prudential Bluechip Fund"
 url = "https://api.mfapi.in/mf/120586"
 allocation = 0.20
 asset_allocation = {equity = 92.69, debt = 0.35, real_estate = 0.00, commodities = 0.00, cash = 6.96}
 
 [[funds]]
-name = "Franklin_US_Opportunities_Fund"
+name = "Franklin US Opportunities Fund"
 url = "https://api.mfapi.in/mf/116633"
 allocation = 0.15
 asset_allocation = {equity = 98.79, debt = 0.00, real_estate = 0.00, commodities = 0.00, cash = 1.21}
 
 [[funds]]
-name = "HDFC_Balanced_Advantage_Fund"
+name = "HDFC Balanced Advantage Fund"
 url = "https://api.mfapi.in/mf/118968"
 allocation = 0.20
 asset_allocation = {equity = 53.34, debt = 29.91, real_estate = 1.44, commodities = 0.00, cash = 15.31}
 
 [[funds]]
-name = "ICICI_Prudential_Corporate_Bond_Fund"
+name = "ICICI Prudential Corporate Bond Fund"
 url = "https://api.mfapi.in/mf/120692"
 allocation = 0.20
 asset_allocation = {equity = 0.00, debt = 97.10, real_estate = 0.00, commodities = 0.00, cash = 2.90}
 
 [[funds]]
-name = "HDFC_Hybrid_Debt_Fund"
+name = "HDFC Hybrid Debt Fund"
 url = "https://api.mfapi.in/mf/119118"
 allocation = 0.15
 asset_allocation = {equity = 21.86, debt = 73.35, real_estate = 0.66, commodities = 0.00, cash = 4.13}
 
 [[funds]]
-name = "SBI_Gold_Fund"
+name = "SBI Gold Fund"
 url = "https://api.mfapi.in/mf/102885"
 allocation = 0.10
 asset_allocation = {equity = 0.00, debt = 0.00, real_estate = 0.00, commodities = 98.37, cash = 1.63}
