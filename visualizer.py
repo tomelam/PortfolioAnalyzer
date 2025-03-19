@@ -150,12 +150,19 @@ def plot_cumulative_returns(
     # Add allocations and metrics inside the figure
     if allocations is not None:
         allocations_text = "\n".join([f"{key}: {value * 100:.2f}%" for key, value in allocations.items()])
-        ax.text(0.02, 0.55, allocations_text, fontsize=9, transform=ax.transAxes, verticalalignment='top',
+        ax.text(0.02, 0.38, allocations_text, fontsize=9, transform=ax.transAxes, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", edgecolor="gray", facecolor="white", alpha=0.8))
-    
+
     if metrics:
-        metrics_text = "\n".join([f"{key}: {value:.4f}" if isinstance(value, (int, float)) else f"{key}: {value}" for key, value in metrics.items()])
-        ax.text(0.75, 0.55, metrics_text, fontsize=9, transform=ax.transAxes, verticalalignment='top',
+        metrics_text = "\n".join([
+            # If key == "Annualized Return", multiply by 100 and format as %.2f%
+            f"{key}: {value * 100:.2f}%" if key == "Annualized Return" 
+            # Otherwise show numeric as before
+            else (f"{key}: {value:.4f}" if isinstance(value, (int, float)) else f"{key}: {value}")
+            for key, value in metrics.items()
+        ])
+        ax.text(0.02, 0.70, metrics_text, fontsize=9, transform=ax.transAxes,
+                verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", edgecolor="gray", facecolor="white", alpha=0.8))
     
     # Set labels and title
@@ -177,5 +184,6 @@ def plot_cumulative_returns(
     
     # Show plot
     plt.tight_layout()
+    plt.subplots_adjust(hspace=0.4)  # bigger gap between subplots
     plt.show()
     plt.close()
