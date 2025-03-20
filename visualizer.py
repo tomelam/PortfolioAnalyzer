@@ -5,6 +5,7 @@ from datetime import datetime
 import os
 import toml
 
+
 def display_toml_below_figure(ax_table, toml_file):
     """
     Reads a TOML file, extracts relevant portfolio data, and displays it as a formatted table inside a subplot.
@@ -88,7 +89,19 @@ def display_toml_below_figure(ax_table, toml_file):
         # Soften border lines
         cell.set_edgecolor("lightgray")
     
-    
+
+def toggle_zoom(event):
+    ax = event.canvas.figure.axes[0]  # or whichever axes you want
+    if event.key == 'z':
+        # Example zoom: set x-limits from 2020-01-01 to current max
+        ax.set_xlim(pd.Timestamp('2020-01-01'), ax.get_xlim()[1])
+    elif event.key == 'r':
+        # 'r' to reset the full range
+        ax.relim()      # recalc limits
+        ax.autoscale()  # reset to full data
+    event.canvas.draw_idle()
+
+
 def plot_cumulative_returns(
         portfolio_label,
         cumulative_historical,
@@ -101,7 +114,6 @@ def plot_cumulative_returns(
         max_drawdowns=None,
         rebase_date=datetime(2008, 1, 1)
 ):
-    #fig = plt.figure(figsize=(10, 10))
     fig = plt.figure(figsize=(10, 6))
 
     gs = fig.add_gridspec(2, 1, height_ratios=[3.5, 1])
@@ -181,9 +193,10 @@ def plot_cumulative_returns(
     # Add asset allocations table in the lower portion
     ax_table = fig.add_axes([0.1, 0.05, 0.5, 0.3])
     display_toml_below_figure(ax_table, toml_file)
-    
+
     # Show plot
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.4)  # bigger gap between subplots
+    fig.canvas.mpl_connect('key_press_event', toggle_zoom)
     plt.show()
     plt.close()
