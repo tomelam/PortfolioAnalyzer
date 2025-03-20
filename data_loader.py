@@ -404,50 +404,6 @@ def validate_allocations(portfolio_details, tol=0.01):
         total_allocation += portfolio_details["rec_bond"].get("allocation", 0)
     if abs(total_allocation - 1.0) > tol:
         raise ValueError(f"Total allocation is {total_allocation:.4f}, but it must sum to 1.00 within tolerance {tol}.")
-        
-# Parse the equity, debt, and cash allocations of the funds in a portfolio
-def extract_fund_allocations(portfolio):
-    """
-    Extract individual fund allocations (equity, debt, real estate, commodities, and cash)
-    from the portfolio data. If a PPF section exists, add it as an allocation with 100% debt.
-    """
-    fund_allocations = []
-    if "funds" in portfolio:
-        for fund in portfolio["funds"]:
-            fund_allocations.append({
-                "name": fund["name"],
-                "allocation": fund["allocation"],
-                "equity": fund["asset_allocation"]["equity"],
-                "debt": fund["asset_allocation"]["debt"],
-                "real_estate": fund["asset_allocation"]["real_estate"],
-                "commodities": fund["asset_allocation"]["commodities"],
-                "cash": fund["asset_allocation"]["cash"],
-            })
-    if "ppf" in portfolio:
-        ppf_name = portfolio["ppf"].get("name", "PPF")
-        ppf_allocation = portfolio["ppf"].get("allocation", 0)
-        fund_allocations.append({
-            "name": ppf_name,
-            "allocation": ppf_allocation,
-            "equity": 0,
-            "debt": 100,      # Count PPF as 100% debt.
-            "real_estate": 0,
-            "commodities": 0,
-            "cash": 0,
-        })
-    if "gold" in portfolio:
-        gold_name = portfolio["gold"].get("name", "Physical Gold")
-        gold_allocation = portfolio["gold"].get("allocation", 0)
-        fund_allocations.append({
-            "name": gold_name,
-            "allocation": gold_allocation,
-            "equity": 0,
-            "debt": 0,
-            "real_estate": 0,
-            "commodities": 100,  # Gold is 100% commodities.
-            "cash": 0,
-        })
-    return fund_allocations
 
 
 # Fetch NAV data

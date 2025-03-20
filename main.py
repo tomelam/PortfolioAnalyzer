@@ -4,9 +4,7 @@ from data_loader import (
     align_portfolio_civs,
     fetch_and_standardize_risk_free_rates,
     align_dynamic_risk_free_rates,
-    fetch_yahoo_finance_data,
     get_benchmark_gain_daily,
-    extract_fund_allocations,
     load_ppf_interest_rates,
 )
 from metrics_calculator import (
@@ -24,7 +22,6 @@ def main():
     import pandas as pd
     args = parse_arguments()
     toml_file_path = args.toml_file
-    benchmark_ticker = args.benchmark_ticker
     benchmark_name = args.benchmark_name
     drawdown_threshold = args.max_drawdown_threshold / 100
 
@@ -169,7 +166,6 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Portfolio Analyzer application.")
     parser.add_argument("toml_file", type=str, help="Path to the TOML file describing the portfolio.")
     parser.add_argument("--benchmark-name", "-bn", type=str, default="NIFTY TRI", help="Benchmark name.")
-    parser.add_argument("--benchmark-ticker", "-bt", type=str, default="^NSEI", help="Benchmark ticker.")
     parser.add_argument("--risk-free-rates-file", "-rf", type=str, default="FRED--INDIRLTLT01STM.csv", help="Risk-free rates file.")
     parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5, help="Drawdown threshold, in percent.")
 

@@ -1,6 +1,6 @@
 # Portfolio Analyzer
 
-This repository contains the Portfolio Analyzer application. It fetches historical NAV data for Indian mutual funds from [mfapi.in](https://mfapi.in), fetches benchmark data from [Yahoo Finance](https://finance.yahoo.com/), uses risk-free rate data from [FRED](https://fred.stlouisfed.org), and uses gold futures prices from [investing.com](https://investing.com), computes key portfolio performance metrics (such as annualized return, volatility, Sharpe/Sortino ratios, Alpha, Beta, and maximum drawdowns), and visualizes historical returns along with benchmark data.
+This repository contains the Portfolio Analyzer application. It fetches historical NAV data for Indian mutual funds from [mfapi.in](https://mfapi.in), uses benchmark data from [investing.com](https://in.investing.com/indices/nifty-total-returns-historical-data), uses risk-free rate data from [FRED](https://fred.stlouisfed.org), and uses gold futures prices from [investing.com](https://investing.com), computes key portfolio performance metrics (such as annualized return, volatility, Sharpe/Sortino ratios, Alpha, Beta, and maximum drawdowns), and visualizes historical returns along with benchmark data.
 
 ---
 
@@ -27,7 +27,7 @@ This repository contains the Portfolio Analyzer application. It fetches historic
   - Overlays benchmark data and highlights significant drawdown periods.
 
 - **Modular Design:**  
-  - Organized into separate modules: `data_loader.py`, `metrics_calculator.py`, and `visualizer.py`.
+  - Organized into separate modules: `bond_calculators.py`, `data_loader.py`, `gold_loader.py`, `metrics_calculator.py`, `portfolio_calculator.py`, `ppf_calculator.py`, `sgb_loader.py`, and `visualizer.py`.
 
 ---
 
@@ -51,10 +51,12 @@ This repository contains the Portfolio Analyzer application. It fetches historic
    _Dependencies include, among others:_
    * pandas
    * numpy
-   * matplotlib
    * requests
    * toml
-   * yfinance
+   * urllib3
+   * beautifulsoup4
+   * statsmodels
+   * matplotlib
 
 ---
 
@@ -62,16 +64,15 @@ This repository contains the Portfolio Analyzer application. It fetches historic
 
 If the portfolio described by the TOML file includes PPF as a component, ensure that the file detailing historical PPF interest rates, `ppf_interest_rates.csv`, is up to date before running the program.
 
-If the portfolio described by the TOML file includes gold as a component, download the CSV file of the gold prices from https://www.investing.com/commodities/gold-historical-data before running the program. Currently, both offshore vaulted gold and gold held in India are priced using the save CSV data.
+If the portfolio described by the TOML file includes gold as a component, download the CSV file of the gold prices from https://www.investing.com/commodities/gold-historical-data before running the program. Currently, both offshore vaulted gold and gold held in India are priced using the same CSV data.
 ```bash
 python main.py <path_to_portfolio_toml_file> [options]
-python main.py portfolio.toml --benchmark-name "NIFTY 50" --benchmark-ticker "^NSEI" --risk-free-rates-file "FRED--INDIRLTLT01STM.csv" --max-drawdown-threshold 
+python main.py portfolio.toml --benchmark-name "NIFTRI" --benchmark-ticker "^NSEI" --risk-free-rates-file "FRED--INDIRLTLT01STM.csv" --max-drawdown-threshold 
 ```
 The `--max-drawdown-threshhold` option (shortcut `-dt`) sets the percentage drawdown that is considered significant to count in the "Drawdowns" statistic. By default, the threshhold is set to `5` (5%).
 
 Other option shortcuts and defaults:
-* `-bn`, short for `--benchmark-name`, default `NIFTY 50`
-* `-bt`, short for `--benchmark-ticker`, default `^NSEI`
+* `-bn`, short for `--benchmark-name`, default `NIFTY Total Returns Index`
 * `-rf`, short for `--risk-free-rates-file`, default `FRED--INDIRLTLT01STM.csv`
 
 Mac users might notice messages like `2025-02-04 20:00:14.220 python[20791:454371] +[IMKClient subclass]: chose IMKClient_Modern` cluttering the terminal output. These are OS Activity Mode messages coming from Apple's Input Method Kit (IMK). They can be suppressed by appending `2> /dev/null` to the command. This is not a perfect solution. Normally, the OS_ACTIVITY_MODE environment variable could be set to "disable" to suppress such messages, but it appears that Apple's Input Method Kit (IMK) framework does not consistently honor that variable.
@@ -84,7 +85,10 @@ Mac users might notice messages like `2025-02-04 20:00:14.220 python[20791:45437
 .
 ├── main.py                  # Entry point for the application
 ├── data_loader.py           # Handles data fetching, standardization, and alignment
+├── sgb_loader.py            # Handles fetching of SGB tranche data
 ├── gold_loader.py           # Handles gold price loading from a CSV file
+├── bond_calculators.py      # Calculates cumulative gains and series for various bonds
+├── ppf_calculator.py        # Calculates the cumulative gains of a PPF account
 ├── ppf_calculator.py        # Calculates the cumulative gains of a PPF account
 ├── metrics_calculator.py    # Computes portfolio metrics and cumulative gains
 ├── visualizer.py            # Generates plots for historical portfolio and benchmark performance
