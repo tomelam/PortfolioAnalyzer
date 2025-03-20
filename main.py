@@ -9,6 +9,7 @@ from data_loader import (
 )
 from metrics_calculator import (
     calculate_portfolio_metrics,
+    print_major_drawdowns,
 )
 from portfolio_calculator import (
     calculate_gains_cumulative,
@@ -142,6 +143,7 @@ def main():
     if "Alpha" in metrics and "Beta" in metrics:
         print(f"Beta: {metrics['Beta']:.4f}")
         print(f"Alpha: {metrics['Alpha']:.4f}")
+    print_major_drawdowns(max_drawdowns)
 
     cumulative_historical, cumulative_benchmark = calculate_gains_cumulative(
         gain_daily_portfolio_series, benchmark_returns

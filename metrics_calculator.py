@@ -58,6 +58,21 @@ def calculate_max_drawdowns(portfolio_gain_series, threshold=0.05):
     # Do not record drawdowns that haven't been recovered.
     return max_drawdowns
 
+
+def print_major_drawdowns(drawdowns):
+    """
+    Prints all drawdowns passed in.
+    
+    Args:
+        drawdowns (list of dict): Each dict has "start_date", "end_date", "drawdown".
+    """
+    for dd in drawdowns:
+        start = dd["start_date"]
+        end = dd["end_date"]
+        pct = dd["drawdown"]
+        print(f"Drawdown from {start} to {end}: {pct:.2f}%")
+
+
 def calculate_annualized_metrics(portfolio_returns: pd.Series):
     """
     Calculate annualized return and volatility.
@@ -71,6 +86,7 @@ def calculate_annualized_metrics(portfolio_returns: pd.Series):
     annualized_return = portfolio_returns.mean() * 252
     volatility = portfolio_returns.std() * (252**0.5)
     return annualized_return, volatility
+
 
 def calculate_downside_deviation(returns, target=0):
     """
@@ -112,6 +128,7 @@ def calculate_risk_adjusted_metrics(annualized_return, volatility, returns, risk
     sortino_ratio = ((annualized_return - risk_free_rate * 252) / annualized_downside_std
                      if annualized_downside_std and annualized_downside_std != 0 else np.nan)
     return sharpe_ratio, sortino_ratio
+
 
 def calculate_alpha_beta(portfolio_returns, benchmark_returns, annualized_return, risk_free_rate):
     """
@@ -167,10 +184,12 @@ def calculate_alpha_beta(portfolio_returns, benchmark_returns, annualized_return
     alpha = port_ret.mean() - risk_free_rate - beta * (bench_ret_shifted.mean() - risk_free_rate)
     return alpha, beta
 
+
 def calculate_benchmark_cumulative(benchmark_returns, earliest_datetime):
     benchmark_cumulative = (1 + benchmark_returns).cumprod() - 1
     benchmark_cumulative -= benchmark_cumulative.loc[earliest_datetime]
     return benchmark_cumulative
+
 
 def calculate_portfolio_metrics(
         gain_daily_series,
@@ -244,7 +263,8 @@ def calculate_portfolio_metrics(
 
 def calculate_ppf_relative_civ(ppf_interest_rates):
     """
-    Calculate the monthly current investment value (CIV) gain for PPF, accruing monthly interest and crediting annually.
+    Calculate the monthly current investment value (CIV) gain for PPF, accruing monthly interest and
+    crediting annually.
 
     Parameters:
         ppf_interest_rates (pd.DataFrame): DataFrame with 'rate' column and 'date' index.
