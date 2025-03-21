@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 
-def load_gold_prices(csv_path="Gold Futures Historical Data.csv"):
+def load_gold_prices(csv_path="data/Gold Futures Historical Data.csv"):
     """
     Loads a gold-futures CSV file and renames its detected price column to "Adjusted Spot Price".
 
