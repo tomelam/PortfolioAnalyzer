@@ -5,4 +5,3 @@ label = "PPF"
 [ppf]
 name = "Public Provident Fund"
 allocation = 1.00
-ppf_interest_rates_file = "ppf_interest_rates.csv"

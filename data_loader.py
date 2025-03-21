@@ -332,8 +332,6 @@ def load_portfolio_details(toml_file_path):
         else:
             if not isinstance(ppf["allocation"], (float, int)) or not (0 <= ppf["allocation"] <= 1):
                 errors.append(f"Invalid allocation value for {ppf_id}: Must be between 0 and 1")
-        if "ppf_interest_rates_file" not in ppf:
-            errors.append(f"Missing required key 'ppf_interest_rates_file' in {ppf_id}")
 
     # Validate Gold if present
     if "gold" in portfolio_details:
@@ -446,7 +444,7 @@ def fetch_navs_of_mutual_fund(url, retries=10, timeout=20):
 
 
 # Load the PPF interest rates from a CSV file
-def load_ppf_interest_rates(csv_file_path="ppf_interest_rates.csv"):
+def load_ppf_interest_rates(csv_file_path="data/ppf_interest_rates.csv"):
     """
     Parameters:
         csv_file_path (str): Path to the CSV file containing PPF interest rates.
@@ -456,7 +454,7 @@ def load_ppf_interest_rates(csv_file_path="ppf_interest_rates.csv"):
     """
     try:
         if csv_file_path is None:
-            csv_file_path = "ppf_interest_rates.csv"
+            csv_file_path = "data/ppf_interest_rates.csv"
 
         # Read the CSV file into a DataFrame
         ppf_data = pd.read_csv(csv_file_path)

@@ -65,7 +65,7 @@ def main():
 
     if "ppf" in portfolio:
         from ppf_calculator import calculate_ppf_cumulative_gain
-        ppf_rates = load_ppf_interest_rates(portfolio["ppf"]["ppf_interest_rates_file"])
+        ppf_rates = load_ppf_interest_rates()
         ppf_series = calculate_ppf_cumulative_gain(ppf_rates)
 
     if "scss" in portfolio:

@@ -1,0 +1,51 @@
+# Kumar's Portfolio
+
+label = "Kumar's Portfolio"
+
+[[funds]]
+name = "HDFC Balanced Advantage Fund"
+url = "https://api.mfapi.in/mf/118968"
+allocation = 0.14285714
+asset_allocation = {equity = 53.34, debt = 29.91, real_estate = 1.44, commodities = 0.00, cash = 15.31}
+
+[[funds]]
+name = "Parag Parikh Flexicap Fund"
+url = "https://api.mfapi.in/mf/122639"
+allocation = 0.14285714
+asset_allocation = {equity = 0.00, debt = 97.10, real_estate = 0.00, commodities = 0.00, cash = 2.90}
+
+[[funds]]
+name = "ICICI Prudential Value Discovery Fund"
+url = "https://api.mfapi.in/mf/120323"
+allocation = 0.14285714
+asset_allocation = {equity = 53.34, debt = 29.91, real_estate = 1.44, commodities = 0.00, cash = 15.31}
+
+[[funds]]
+name = "ICICI Prudential Multi-Asset Fund"
+url = "https://api.mfapi.in/mf/120334"
+allocation = 0.14285714
+asset_allocation = {equity = 0.00, debt = 97.10, real_estate = 0.00, commodities = 0.00, cash = 2.90}
+
+[[funds]]
+name = "ICICI Prudential Bluechip Fund"
+url = "https://api.mfapi.in/mf/120586"
+allocation = 0.14285714
+asset_allocation = {equity = 21.86, debt = 73.35, real_estate = 0.66, commodities = 0.00, cash = 4.13}
+
+[[funds]]
+name = "Invesco Global Equity Income Fund of Fund"
+url = "https://api.mfapi.in/mf/129188"
+allocation = 0.14285714
+asset_allocation = {equity = 92.69, debt = 0.35, real_estate = 0.00, commodities = 0.00, cash = 6.96}
+
+#[[funds]]
+#name = "ICICI Prudential Dividend Yield Fund"
+#url = "https://api.mfapi.in/mf/115251"
+#allocation = 0.14285714
+#asset_allocation = {equity = 53.34, debt = 29.91, real_estate = 1.44, commodities = 0.00, cash = 15.31}
+
+[[funds]]
+name = "Axis Gold Fund"
+url = "https://api.mfapi.in/mf/120473"
+allocation = 0.14285714
+asset_allocation = {equity = 0.00, debt = 97.10, real_estate = 0.00, commodities = 0.00, cash = 2.90}
