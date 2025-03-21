@@ -50,6 +50,16 @@ def main():
             aligned_portfolio_civs.columns = aligned_portfolio_civs.columns.droplevel(1)
         if not aligned_portfolio_civs.empty:
             portfolio_start_date = aligned_portfolio_civs.index.min()
+        fund_start_dates = {
+            fund_name: df.index.min()
+            for fund_name, df in fetch_portfolio_civs(portfolio).items()
+            if not df.empty
+        }
+
+        latest_fund, latest_date = max(fund_start_dates.items(), key=lambda x: x[1])
+
+        print(f"Latest launch date among all mutual funds: {latest_date.date()}")
+        print(f"Fund with the latest launch date: {latest_fund}")
 
     ppf_series = scss_series = rec_bond_series = sgb_series = gold_series = None
 
