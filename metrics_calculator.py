@@ -212,7 +212,6 @@ def calculate_portfolio_metrics(
         dict: Portfolio performance metrics.
         list: List of max drawdowns.
     """
-    from portfolio_calculator import calculate_portfolio_allocations
 
     # Fill NaN values in the daily returns.
     gain_daily_series = gain_daily_series.fillna(0)
