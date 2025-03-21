@@ -23,10 +23,11 @@ def main():
     import pandas as pd
     args = parse_arguments()
     toml_file_path = args.toml_file
+    benchmark_file = args.benchmark_returns_file
     benchmark_name = args.benchmark_name
     drawdown_threshold = args.max_drawdown_threshold / 100
 
-    benchmark_file = "data/NIFTRI.csv"
+    #benchmark_file = "data/NIFTRI.csv"
     benchmark_data = pd.read_csv(benchmark_file, index_col=0)
     benchmark_data.index = pd.to_datetime(benchmark_data.index, format="%d-%m-%Y", errors="coerce")
     benchmark_data.sort_index(inplace=True)
@@ -178,6 +179,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Portfolio Analyzer application.")
     parser.add_argument("toml_file", type=str, help="Path to the TOML file describing the portfolio.")
     parser.add_argument("--benchmark-name", "-bn", type=str, default="NIFTY TRI", help="Benchmark name.")
+    parser.add_argument("--benchmark-returns-file", "-br", type=str, default="data/NIFTRI.csv", help="Risk-free rates file.")
     parser.add_argument("--risk-free-rates-file", "-rf", type=str, default="data/INDIRLTLT01STM.csv", help="Risk-free rates file.")
     parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5, help="Drawdown threshold, in percent.")
 
