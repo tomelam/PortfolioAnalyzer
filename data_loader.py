@@ -20,7 +20,6 @@
 #    - get_dynamic_risk_free_rate
 # 2. Low-Level Functions:
 #    - fetch_yahoo_finance_data
-#    - massage_yahoo_data
 #    - download_csv
 #    - file_modified_within
 
@@ -91,7 +90,7 @@ def align_portfolio_civs(portfolio_civs):
 
 def get_benchmark_gain_daily(benchmark_data):
     """
-    Get usefully indexed benchmark historical NAVs using Yahoo Finance.
+    Get usefully indexed benchmark historical NAVs.
 
     Parameters:
         benchmark_data: pd.DataFrame containing historical data indexed by date.
@@ -554,26 +553,6 @@ def fetch_yahoo_finance_data(ticker, refresh_hours=6, period="max"):
     )  # Drop the old index    if "Date" not in data.columns:
     """
     assert data.index.name == "Date", "Index name mismatch: expected 'Date'"
-    return data
-
-
-def rename_yahoo_data_columns(data):
-    """
-    Ensure proper renaming of columns and consistent index setting.
-    """
-    if "Datetime" in data.columns:
-        data.rename(columns={"Datetime": "Date"}, inplace=True)
-    elif "date" in data.columns:
-        data.rename(columns={"date": "Date"}, inplace=True)
-
-    if "Date" in data.columns:
-        data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
-        data.set_index("Date", inplace=True)
-
-    # Explicitly set the index name to "Date"
-    if data.index.name != "Date":
-        data.index.name = "Date"
-        print(f"Index name corrected to 'Date': {data.index.name}")
     return data
 
 

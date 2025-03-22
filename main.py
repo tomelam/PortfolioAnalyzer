@@ -1,4 +1,5 @@
 from data_loader import (
+    get_aligned_portfolio_civs,
     load_portfolio_details,
     fetch_portfolio_civs,
     align_portfolio_civs,
@@ -27,7 +28,6 @@ def main():
     benchmark_name = args.benchmark_name
     drawdown_threshold = args.max_drawdown_threshold / 100
 
-    #benchmark_file = "data/NIFTRI.csv"
     benchmark_data = pd.read_csv(benchmark_file, index_col=0)
     benchmark_data.index = pd.to_datetime(benchmark_data.index, format="%d-%m-%Y", errors="coerce")
     benchmark_data.sort_index(inplace=True)
@@ -47,6 +47,7 @@ def main():
     if "funds" in portfolio:
         unaligned_portfolio_civs = fetch_portfolio_civs(portfolio)
         aligned_portfolio_civs = align_portfolio_civs(unaligned_portfolio_civs)
+        multiindex_aligned_civs = aligned_portfolio_civs.copy()  # Save in case it's needed for the "golden" data
         if isinstance(aligned_portfolio_civs.columns, pd.MultiIndex):
             aligned_portfolio_civs.columns = aligned_portfolio_civs.columns.droplevel(1)
         if not aligned_portfolio_civs.empty:
@@ -160,18 +161,44 @@ def main():
         gain_daily_portfolio_series, benchmark_returns
     )
 
-    plot_cumulative_returns(
-        portfolio_label,
-        cumulative_historical,
-        "Historical Performance",
-        toml_file_path,
-        cumulative_benchmark,
-        benchmark_name,
-        calculate_portfolio_allocations(portfolio),
-        metrics,
-        max_drawdowns,
-        portfolio_start_date
-    )
+    # Optionally, if the flag is set, dump portfolio data to a pickle file.
+    if args.save_golden_data:
+        import pickle
+        portfolio_data = {
+            "gain_daily": gain_daily_portfolio_series,
+            "allocations": calculate_portfolio_allocations(portfolio),
+            # You can extend this dictionary with other intermediate outputs
+            # such as cumulative returns if desired.
+        }
+        dump_pickle("tests/data/aligned_civs.pkl", multiindex_aligned_civs)
+        dump_pickle("tests/data/aligned_portfolio_civs.pkl", aligned_portfolio_civs)
+        dump_pickle("tests/data/benchmark_data.pkl", benchmark_data)
+        dump_pickle("tests/data/benchmark_returns.pkl", benchmark_returns)
+        dump_pickle("tests/data/portfolio_civs.pkl", unaligned_portfolio_civs)
+        print("Golden portfolio data generated.")
+
+    # For more automated operation, the plotting can be skipped.
+    if not args.do_not_plot:
+        plot_cumulative_returns(
+            portfolio_label,
+            cumulative_historical,
+            "Historical Performance",
+            toml_file_path,
+            cumulative_benchmark,
+            benchmark_name,
+            calculate_portfolio_allocations(portfolio),
+            metrics,
+            max_drawdowns,
+            portfolio_start_date
+        )
+
+
+def dump_pickle(filepath, obj):
+    """Dump data to a Pickle file."""
+    import pickle
+
+    with open(filepath, "wb") as f:
+        return pickle.dump(obj, f)
 
 
 def parse_arguments():
@@ -182,7 +209,7 @@ def parse_arguments():
     parser.add_argument("--benchmark-returns-file", "-br", type=str, default="data/NIFTRI.csv", help="Risk-free rates file.")
     parser.add_argument("--risk-free-rates-file", "-rf", type=str, default="data/INDIRLTLT01STM.csv", help="Risk-free rates file.")
     parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5, help="Drawdown threshold, in percent.")
-
+    parser.add_argument("--do-not-plot", "-np", action="store_true", help="Do not make the plot; only calculate the metrics.")
     parser.add_argument("--save-golden-data", "-sgd", action="store_true", help="Save golden data as a Pickle file for testing.")
     return parser.parse_args()
 

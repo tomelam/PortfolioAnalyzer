@@ -2,19 +2,17 @@ from numpy import result_type
 import pytest
 import pandas as pd
 from pandas.testing import assert_series_equal
-from data_loader import get_benchmark_gain_daily, rename_yahoo_data_columns
+from data_loader import get_benchmark_gain_daily
 from test_utils import load_pickle, assert_identical, series_struct_info
 
 
 @pytest.mark.order(8)  # test_get_benchmark_gain_daily()
 def test_get_benchmark_gain_daily():
     """
-    Test getting of usefully indexed benchmark historical NAV using
-    Yahoo Finance.
+    Test the loading of usefully indexed benchmark historical NAVs.
     """
     # Load Pickled test input data
     mock_benchmark_data = load_pickle("tests/data/benchmark_data.pkl")
-    #mock_benchmark_data = rename_yahoo_data_columns(mock_benchmark_data)
 
     expected_result = load_pickle("tests/data/benchmark_returns.pkl")
     print(f"expected_result: {expected_result}")
