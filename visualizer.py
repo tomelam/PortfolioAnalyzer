@@ -168,9 +168,10 @@ def plot_cumulative_returns(
     if metrics:
         metrics_text = "\n".join([
             # If key == "Annualized Return", multiply by 100 and format as %.2f%
-            f"{key}: {value * 100:.2f}%" if key == "Annualized Return" 
             # Otherwise show numeric as before
-            else (f"{key}: {value:.4f}" if isinstance(value, (int, float)) else f"{key}: {value}")
+            f"{key}: {value * 100:.2f}%" if key in ["Annualized Return", "Volatility"]
+            else (f"{key}: {int(value)}" if key == "Drawdowns" and isinstance(value, (int, float))
+            else (f"{key}: {value:.4f}" if isinstance(value, (int, float)) else f"{key}: {value}"))
             for key, value in metrics.items()
         ])
         ax.text(0.02, 0.70, metrics_text, fontsize=9, transform=ax.transAxes,
