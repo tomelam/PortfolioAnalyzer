@@ -60,13 +60,22 @@ def calculate_max_drawdowns(portfolio_gain_series, threshold=0.05):
     return max_drawdowns
 
 
-def print_major_drawdowns(drawdowns):
+def print_major_drawdowns(drawdowns, compact=False):
     """
-    Prints all drawdowns passed in.
+    Prints drawdowns. If compact=True, only prints max drawdown summary.
     
     Args:
         drawdowns (list of dict): Each dict has "start_date", "end_date", "drawdown".
     """
+    if compact:
+        # Print output suitable for a row of a CSV file.
+        if drawdowns:
+            biggest = min(drawdowns, key=lambda x: x["drawdown"])
+            print(f"Max Drawdown: {biggest['drawdown']:.2f}% on {biggest['trough_date'].strftime('%Y-%m-%d')} ({biggest['days']} days)")
+        else:
+            print("Max Drawdown: None")
+        return
+
     for dd in drawdowns:
         start = dd["start_date"].strftime("%Y-%m-%d")
         end = dd["end_date"].strftime("%Y-%m-%d")

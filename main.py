@@ -18,6 +18,7 @@ from portfolio_calculator import (
     calculate_gain_daily_portfolio_series,
 )
 from visualizer import plot_cumulative_returns
+from utils import info
 
 
 def main():
@@ -39,7 +40,7 @@ def main():
 
     portfolio = load_portfolio_details(toml_file_path)
     portfolio_label = portfolio["label"]
-    print(f"\nCalculating portfolio metrics for {portfolio_label}.")
+    info(f"\nCalculating portfolio metrics for {portfolio_label}.")
 
     aligned_portfolio_civs = pd.DataFrame()
     portfolio_start_date = None
@@ -60,8 +61,8 @@ def main():
 
         latest_fund, latest_date = max(fund_start_dates.items(), key=lambda x: x[1])
 
-        print(f"Latest launch date among all mutual funds: {latest_date.date()}")
-        print(f"Fund with the latest launch date: {latest_fund}")
+        info(f"Latest launch date among all mutual funds: {latest_date.date()}")
+        info(f"Fund with the latest launch date: {latest_fund}")
 
     ppf_series = scss_series = rec_bond_series = sgb_series = gold_series = None
 
@@ -147,16 +148,37 @@ def main():
         benchmark_returns
     )
 
-    print(f"Mean Risk-Free Rate: {risk_free_rate * 100:.4f}%")
-    print(f"Annualized Return: {metrics['Annualized Return'] * 100:.4f}%")
-    print(f"Volatility: {metrics['Volatility'] * 100:.4f}%")
-    print(f"Sharpe Ratio: {metrics['Sharpe Ratio']:.4f}")
-    print(f"Sortino Ratio: {metrics['Sortino Ratio']:.4f}")
-    if "Alpha" in metrics and "Beta" in metrics:
-        print(f"Beta: {metrics['Beta']:.4f}")
-        print(f"Alpha: {metrics['Alpha'] * 100:.3f}%")
-    print(f"Drawdowns: {len(max_drawdowns)}")
-    print_major_drawdowns(max_drawdowns)
+    if args.csv_output:
+        # Compact drawdown summary and single-line CSV output
+        if max_drawdowns:
+            max_dd = min(dd["drawdown"] for dd in max_drawdowns)
+        else:
+            max_dd = 0.0
+
+        print(
+            f"{portfolio_label},"
+            f"{metrics['Annualized Return']:.6f},"
+            f"{metrics['Volatility']:.6f},"
+            f"{metrics['Sharpe Ratio']:.4f},"
+            f"{metrics['Sortino Ratio']:.4f},"
+            f"{len(max_drawdowns)},"
+            f"{max_dd:.2f},"
+            f"{metrics['Alpha']:.6f},"
+            f"{metrics['Beta']:.4f}"
+        )
+
+    else:
+        print(f"Mean Risk-Free Rate: {risk_free_rate * 100:.4f}%")
+        print(f"Annualized Return: {metrics['Annualized Return'] * 100:.4f}%")
+        print(f"Volatility: {metrics['Volatility'] * 100:.4f}%")
+        print(f"Sharpe Ratio: {metrics['Sharpe Ratio']:.4f}")
+        print(f"Sortino Ratio: {metrics['Sortino Ratio']:.4f}")
+        if "Alpha" in metrics and "Beta" in metrics:
+            print(f"Beta: {metrics['Beta']:.4f}")
+            print(f"Alpha: {metrics['Alpha'] * 100:.3f}%")
+        print(f"Drawdowns: {len(max_drawdowns)}")
+        compact_drawdowns = args.csv_output
+        print_major_drawdowns(max_drawdowns, compact=compact_drawdowns)
 
     cumulative_historical, cumulative_benchmark = calculate_gains_cumulative(
         gain_daily_portfolio_series, benchmark_returns
@@ -176,7 +198,7 @@ def main():
         dump_pickle("tests/data/benchmark_data.pkl", benchmark_data)
         dump_pickle("tests/data/benchmark_returns.pkl", benchmark_returns)
         dump_pickle("tests/data/portfolio_civs.pkl", unaligned_portfolio_civs)
-        print("Golden portfolio data generated.")
+        info("Golden portfolio data generated.")
 
     # For more automated operation, the plotting can be skipped.
     if not args.do_not_plot:
@@ -205,13 +227,30 @@ def dump_pickle(filepath, obj):
 def parse_arguments():
     import argparse
     parser = argparse.ArgumentParser(description="Portfolio Analyzer application.")
-    parser.add_argument("toml_file", type=str, help="Path to the TOML file describing the portfolio.")
-    parser.add_argument("--benchmark-name", "-bn", type=str, default="NIFTY TRI", help="Benchmark name.")
-    parser.add_argument("--benchmark-returns-file", "-br", type=str, default="data/NIFTRI.csv", help="Risk-free rates file.")
-    parser.add_argument("--risk-free-rates-file", "-rf", type=str, default="data/INDIRLTLT01STM.csv", help="Risk-free rates file.")
-    parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5, help="Drawdown threshold, in percent.")
-    parser.add_argument("--do-not-plot", "-np", action="store_true", help="Do not make the plot; only calculate the metrics.")
-    parser.add_argument("--save-golden-data", "-sgd", action="store_true", help="Save golden data as a Pickle file for testing.")
+    parser.add_argument("toml_file", type=str,
+                        help="Path to the TOML file describing the portfolio."
+    )
+    parser.add_argument("--benchmark-name", "-bn", type=str, default="NIFTY TRI",
+                        help="Benchmark name."
+    )
+    parser.add_argument("--benchmark-returns-file", "-br", type=str, default="data/NIFTRI.csv",
+                        help="Risk-free rates file."
+    )
+    parser.add_argument("--risk-free-rates-file", "-rf", type=str, default="data/INDIRLTLT01STM.csv",
+                        help="Risk-free rates file."
+    )
+    parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5,
+                        help="Drawdown threshold, in percent."
+    )
+    parser.add_argument("--do-not-plot", "-np", action="store_true",
+                        help="Do not make the plot; only calculate the metrics."
+    )
+    parser.add_argument("--save-golden-data", "-sgd", action="store_true",
+                        help="Save golden data as a Pickle file for testing."
+    )
+    parser.add_argument("--csv-output", "-co", action="store_true",
+                        help="Print metrics in machine-readable CSV format."
+    )
     return parser.parse_args()
 
 if __name__ == "__main__":

@@ -30,6 +30,7 @@ import os
 from datetime import timedelta, datetime
 
 import portfolio_calculator
+from utils import info
 
 
 def get_aligned_portfolio_civs(portfolio):
@@ -223,7 +224,7 @@ def load_scss_interest_rates():
                 interest = float(row["RATE OF INTEREST (%)"])
                 processed.append({"date": start_date, "interest": interest})
             except Exception as e:
-                print(f"Skipping row due to error: {e}")
+                info(f"Skipping row due to error: {e}")
         return processed
 
     url = "https://www.nsiindia.gov.in/(S(2xgxs555qwdlfb2p4ub03n3n))/InternalPage.aspx?Id_Pk=181"
@@ -232,12 +233,12 @@ def load_scss_interest_rates():
     try:
         html = fetch_html(url, verify_ssl=False)
         raw_rate_series = extract_rate_series(html)
-        print("SCSS rate series:")
+        info("SCSS rate series:")
         for row in raw_rate_series:
-            print(row)
+            info(row)
         processed_rates = process_rate_series(raw_rate_series)
     except Exception as e:
-        print(f"Error: {e}")
+        info(f"Error: {e}")
         processed_rates = []
 
     '''
@@ -432,11 +433,11 @@ def fetch_navs_of_mutual_fund(url, retries=10, timeout=20):
             nav_data["nav"] = nav_data["nav"].astype(float)
             return nav_data.set_index("date").sort_index()
         except requests.RequestException as e:
-            print(
+            info(
                 f"[Error] Request failed for {url} (Attempt {attempt + 1}/{retries}): {e}"
             )
         except (ValueError, KeyError) as e:
-            print(
+            info(
                 f"[Error] Data processing error for {url} (Attempt {attempt + 1}/{retries}): {e}"
             )
     raise RuntimeError(f"Failed to fetch NAV data from {url} after {retries} retries")
@@ -534,13 +535,13 @@ def fetch_yahoo_finance_data(ticker, refresh_hours=6, period="max"):
 
     file_path = f"{ticker.replace('^', '').replace('/', '_')}.csv"
     if not file_modified_within(file_path, refresh_hours):
-        print(
+        info(
             f"The data for {ticker} is outdated or missing. Fetching it using yfinance..."
         )
         yf_ticker = yf.Ticker(ticker)
         raw = yf_ticker.history(period=period)
         raw.to_csv(file_path)
-        print(f"Data downloaded successfully and saved to {file_path}.")
+        info(f"Data downloaded successfully and saved to {file_path}.")
     else:
         raw = pd.read_csv(file_path)
 
@@ -569,12 +570,12 @@ def fetch_and_standardize_risk_free_rates(file_path, url=None):
         pd.DataFrame: Risk-free rate data indexed by date.
     """
     if url and not file_modified_within(file_path, 24):
-        print(
+        info(
             "The risk-free-rate data is outdated or missing. Fetching it from the web..."
         )
         download_csv(url, file_path)
     else:
-        print("The risk-free-rate data is fresh. No need to download it again now.")
+        info("The risk-free-rate data is fresh. No need to download it again now.")
 
     risk_free_data = pd.read_csv(file_path)
     risk_free_data.rename(
