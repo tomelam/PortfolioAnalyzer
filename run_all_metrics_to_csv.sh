@@ -18,7 +18,7 @@ for file in "$PORT_DIR"/*.toml; do
     sharpe=$(echo "$metrics" | awk -F: '/Sharpe Ratio/ {gsub(/ /,"",$2); print $2}')
     sortino=$(echo "$metrics" | awk -F: '/Sortino Ratio/ {gsub(/ /,"",$2); print $2}')
     drawdowns=$(echo "$metrics" | awk -F: '/Drawdowns/ {gsub(/ /,"",$2); print $2}')
-    alpha=$(echo "$metrics" | awk -F: '/Alpha/ {gsub(/ /,"",$2); printf "%.2f", $2 * 100}')
+    alpha=$(echo "$metrics" | awk -F: '/Alpha/ {gsub(/ /,"",$2); printf "%.2f%%", $2}')
     beta=$(echo "$metrics" | awk -F: '/Beta/ {gsub(/ /,"",$2); print $2}')
 
     echo "$label,$ret,$vol,$sharpe,$sortino,$drawdowns,$alpha,$beta" >> "$OUTPUT"
