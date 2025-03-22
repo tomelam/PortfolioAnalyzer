@@ -51,9 +51,10 @@ def calculate_max_drawdowns(portfolio_gain_series, threshold=0.05):
                         max_drawdowns.append({
                             "start_date": drawdown_start_date,
                             "trough_date": trough_date,
-                            "end_date": date,
-                            "drawdown": drawdown_percentage * 100,  # as percentage
-                            "days": (date - drawdown_start_date).days + 1,
+                            "recovery_date": date,
+                            "drawdown": drawdown_percentage * 100,
+                            "drawdown_days": (trough_date - drawdown_start_date).days + 1,
+                            "recovery_days": (date - drawdown_start_date).days + 1,
                         })
                     in_drawdown = False
     # Do not record drawdowns that haven't been recovered.

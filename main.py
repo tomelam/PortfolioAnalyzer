@@ -156,13 +156,15 @@ def main():
 
         if max_drawdowns:
             max_dd_info = min(max_drawdowns, key=lambda dd: dd["drawdown"])
+            drawdown_days = max_dd_info["drawdown_days"]
+            recovery_days = max_dd_info["recovery_days"]
             max_dd = max_dd_info["drawdown"]
             max_dd_start = max_dd_info["start_date"].strftime("%Y-%m-%d")
-            max_dd_days = max_dd_info["days"]
         else:
+            drawdown_days = 0
+            recovery_days = 0
             max_dd = 0.0
             max_dd_start = "N/A"
-            max_dd_days = 0
 
         print(
             f"{portfolio_label},"
@@ -173,7 +175,8 @@ def main():
             f"{len(max_drawdowns)},"
             f"{max_dd:.2f}%,"
             f"{max_dd_start},"
-            f"{max_dd_days},"
+            f"{drawdown_days},"
+            f"{recovery_days},"
             f"{alpha:.2f}%,"
             f"{metrics['Beta']:.4f}"
         )

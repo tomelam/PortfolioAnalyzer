@@ -157,7 +157,7 @@ def plot_cumulative_returns(
     # Highlight drawdown periods
     if max_drawdowns:
         for drawdown in max_drawdowns:
-            ax.axvspan(drawdown['start_date'], drawdown['end_date'], color='red', alpha=0.1)
+            ax.axvspan(drawdown['start_date'], drawdown['recovery_date'], color='red', alpha=0.1)
     
     # Add allocations and metrics inside the figure
     if allocations is not None:
