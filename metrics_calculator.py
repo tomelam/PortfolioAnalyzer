@@ -12,7 +12,7 @@ def calculate_max_drawdowns(portfolio_gain_series, threshold=0.05):
         threshold (float): Minimum drawdown percentage to report (e.g., 0.05 for 5%).
 
     Returns:
-        list of dict: Each dict contains 'start_date', 'trough_date', 'end_date',
+        list of dict: Each dict contains 'start_date', 'trough_date', 'recovery_date',
             and 'drawdown' (percentage).
     """
     # Ensure we work with a Series.
@@ -66,7 +66,7 @@ def print_major_drawdowns(drawdowns, compact=False):
     Prints drawdowns. If compact=True, only prints max drawdown summary.
     
     Args:
-        drawdowns (list of dict): Each dict has "start_date", "end_date", "drawdown".
+        drawdowns (list of dict): Each dict has "start_date", "recovery_date", "drawdown".
     """
     if compact:
         # Print output suitable for a row of a CSV file.
@@ -79,9 +79,9 @@ def print_major_drawdowns(drawdowns, compact=False):
 
     for dd in drawdowns:
         start = dd["start_date"].strftime("%Y-%m-%d")
-        end = dd["end_date"].strftime("%Y-%m-%d")
+        end = dd["recovery_date"].strftime("%Y-%m-%d")
         pct = dd["drawdown"]
-        days = dd["days"]
+        days = dd["recovery_days"]
         print(f"Drawdown from {start} to {end} ({days:>4} days): {pct:7.2f}%")
 
 
