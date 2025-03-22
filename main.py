@@ -154,7 +154,8 @@ def main():
     print(f"Sortino Ratio: {metrics['Sortino Ratio']:.4f}")
     if "Alpha" in metrics and "Beta" in metrics:
         print(f"Beta: {metrics['Beta']:.4f}")
-        print(f"Alpha: {metrics['Alpha']:.4f}")
+        print(f"Alpha: {metrics['Alpha'] * 100:.3f}%")
+    print(f"Drawdowns: {len(max_drawdowns)}")
     print_major_drawdowns(max_drawdowns)
 
     cumulative_historical, cumulative_benchmark = calculate_gains_cumulative(

@@ -161,20 +161,28 @@ def plot_cumulative_returns(
     
     # Add allocations and metrics inside the figure
     if allocations is not None:
-        allocations_text = "\n".join([f"{key}: {value * 100:.2f}%" for key, value in allocations.items()])
-        ax.text(0.02, 0.38, allocations_text, fontsize=9, transform=ax.transAxes, verticalalignment='top',
+        #allocations_text = "\n".join([f"{key}: {value * 100:.2f}%" for key, value in allocations.items()])
+        #allocations_text = "\n".join([
+        #    f"{asset + ':':<18}{weight * 100:>6.2f}%"
+        #    for asset, weight in allocations.items()
+        #])
+        allocations_text = "\n".join([
+            f"{asset.replace('_', ' ') + ':':<12}{weight * 100:>6.2f}%"
+            for asset, weight in allocations.items()
+        ])
+        ax.text(0.02, 0.38, allocations_text, fontfamily='monospace', fontsize=9,
+                transform=ax.transAxes, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", edgecolor="gray", facecolor="white", alpha=0.8))
 
     if metrics:
         metrics_text = "\n".join([
-            # If key == "Annualized Return", multiply by 100 and format as %.2f%
-            # Otherwise show numeric as before
-            f"{key}: {value * 100:.2f}%" if key in ["Annualized Return", "Volatility"]
-            else (f"{key}: {int(value)}" if key == "Drawdowns" and isinstance(value, (int, float))
-            else (f"{key}: {value:.4f}" if isinstance(value, (int, float)) else f"{key}: {value}"))
+            f"{key + ':':<18}{value * 100:>6.2f}%" if key in ["Annualized Return", "Volatility", "Alpha"]
+            else f"{key + ':':<18}{int(value):>3}" if key == "Drawdowns" and isinstance(value, (int, float))
+            else f"{key + ':':<18}{value:>8.4f}" if isinstance(value, (int, float))
+            else f"{key + ':':<18}{value}"
             for key, value in metrics.items()
         ])
-        ax.text(0.02, 0.70, metrics_text, fontsize=9, transform=ax.transAxes,
+        ax.text(0.02, 0.70, metrics_text, fontfamily='monospace', fontsize=9, transform=ax.transAxes,
                 verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", edgecolor="gray", facecolor="white", alpha=0.8))
     

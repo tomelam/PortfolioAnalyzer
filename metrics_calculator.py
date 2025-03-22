@@ -53,6 +53,7 @@ def calculate_max_drawdowns(portfolio_gain_series, threshold=0.05):
                             "trough_date": trough_date,
                             "end_date": date,
                             "drawdown": drawdown_percentage * 100,  # as percentage
+                            "days": (date - drawdown_start_date).days + 1,
                         })
                     in_drawdown = False
     # Do not record drawdowns that haven't been recovered.
@@ -67,10 +68,11 @@ def print_major_drawdowns(drawdowns):
         drawdowns (list of dict): Each dict has "start_date", "end_date", "drawdown".
     """
     for dd in drawdowns:
-        start = dd["start_date"]
-        end = dd["end_date"]
+        start = dd["start_date"].strftime("%Y-%m-%d")
+        end = dd["end_date"].strftime("%Y-%m-%d")
         pct = dd["drawdown"]
-        print(f"Drawdown from {start} to {end}: {pct:.2f}%")
+        days = dd["days"]
+        print(f"Drawdown from {start} to {end} ({days:>4} days): {pct:7.2f}%")
 
 
 def calculate_annualized_metrics(portfolio_returns: pd.Series):
@@ -182,6 +184,7 @@ def calculate_alpha_beta(portfolio_returns, benchmark_returns, annualized_return
     variance = np.var(bench_ret_shifted, ddof=1)
     beta = covariance / variance if variance != 0 else np.nan
     alpha = port_ret.mean() - risk_free_rate - beta * (bench_ret_shifted.mean() - risk_free_rate)
+    alpha *= 252  # Annualize alpha
     return alpha, beta
 
 
@@ -252,9 +255,9 @@ def calculate_portfolio_metrics(
         "Volatility": volatility,
         "Sharpe Ratio": sharpe_ratio,
         "Sortino Ratio": sortino_ratio,
-        "Drawdowns": len(max_drawdowns),
         "Alpha": alpha,
         "Beta": beta,
+        "Drawdowns": len(max_drawdowns),
     }
 
     return metrics, max_drawdowns
