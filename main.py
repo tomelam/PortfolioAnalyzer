@@ -150,20 +150,31 @@ def main():
 
     if args.csv_output:
         # Compact drawdown summary and single-line CSV output
+        cagr = metrics["Annualized Return"] * 100
+        vol = metrics["Volatility"] * 100
+        alpha = metrics["Alpha"] * 100
+
         if max_drawdowns:
-            max_dd = min(dd["drawdown"] for dd in max_drawdowns)
+            max_dd_info = min(max_drawdowns, key=lambda dd: dd["drawdown"])
+            max_dd = max_dd_info["drawdown"]
+            max_dd_start = max_dd_info["start_date"].strftime("%Y-%m-%d")
+            max_dd_days = max_dd_info["days"]
         else:
             max_dd = 0.0
+            max_dd_start = "N/A"
+            max_dd_days = 0
 
         print(
             f"{portfolio_label},"
-            f"{metrics['Annualized Return']:.6f},"
-            f"{metrics['Volatility']:.6f},"
+            f"{cagr:.2f}%,"
+            f"{vol:.2f}%,"
             f"{metrics['Sharpe Ratio']:.4f},"
             f"{metrics['Sortino Ratio']:.4f},"
             f"{len(max_drawdowns)},"
-            f"{max_dd:.2f},"
-            f"{metrics['Alpha']:.6f},"
+            f"{max_dd:.2f}%,"
+            f"{max_dd_start},"
+            f"{max_dd_days},"
+            f"{alpha:.2f}%,"
             f"{metrics['Beta']:.4f}"
         )
 

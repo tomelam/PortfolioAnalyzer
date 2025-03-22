@@ -1,27 +1,28 @@
 #!/bin/bash
 
+# Default values
 PORT_DIR="port"
-BENCHMARK="data/NIFTRI.csv"
 OUTPUT="portfolio_metrics.csv"
+BENCHMARK="data/NIFTRI.csv"
+
+# Usage message
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    echo "Usage: $0 [PORT_DIR]"
+    echo "Scans all .toml files in PORT_DIR (default: 'port') and generates a CSV summary."
+    exit 0
+fi
+
+# Allow custom portfolio directory as optional argument
+if [[ -n "$1" ]]; then
+    PORT_DIR="$1"
+fi
 
 # CSV header
-echo "Portfolio,Annualized Return,Volatility,Sharpe Ratio,Sortino Ratio,Drawdowns,Alpha,Beta" > "$OUTPUT"
+echo "Portfolio,CAGR,Volatility,Sharpe,Sortino,Drawdowns,Max Drawdown,Max DD Start,Max DD Days,Alpha,Beta" > "$OUTPUT"
 
+# Loop through portfolios
 for file in "$PORT_DIR"/*.toml; do
-    label=$(grep -m1 'label' "$file" | cut -d'"' -f2)
-
-    # Capture the output and extract metric values
-    metrics=$(python3 main.py "$file" --benchmark-returns-file "$BENCHMARK" --do-not-plot 2>/dev/null)
-
-    ret=$(echo "$metrics" | awk -F: '/Annualized Return/ {gsub(/ /,"",$2); print $2}')
-    vol=$(echo "$metrics" | awk -F: '/Volatility/ {gsub(/ /,"",$2); print $2}')
-    sharpe=$(echo "$metrics" | awk -F: '/Sharpe Ratio/ {gsub(/ /,"",$2); print $2}')
-    sortino=$(echo "$metrics" | awk -F: '/Sortino Ratio/ {gsub(/ /,"",$2); print $2}')
-    drawdowns=$(echo "$metrics" | awk -F: '/Drawdowns/ {gsub(/ /,"",$2); print $2}')
-    alpha=$(echo "$metrics" | awk -F: '/Alpha/ {gsub(/ /,"",$2); printf "%.2f%%", $2}')
-    beta=$(echo "$metrics" | awk -F: '/Beta/ {gsub(/ /,"",$2); print $2}')
-
-    echo "$label,$ret,$vol,$sharpe,$sortino,$drawdowns,$alpha,$beta" >> "$OUTPUT"
+    python3 main.py "$file" --benchmark-returns-file "$BENCHMARK" --do-not-plot --csv-output >> "$OUTPUT"
 done
 
-echo -e "\nSaved full metrics to $OUTPUT"
+echo "Saved: $OUTPUT"
