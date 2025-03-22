@@ -62,7 +62,7 @@ def display_toml_below_figure(ax_table, toml_file):
         cellLoc='left',
         loc='upper left',
         colWidths=[type_ratio, asset_ratio, allocation_ratio],  # <-- Column width ratios
-        bbox=[0, 0, 1.0, 0.6]  # Enough width so none get cut off
+        bbox=[0, 0, 1, 1]
     )
 
     # Optional: reduce row height, fix font size
@@ -114,9 +114,9 @@ def plot_cumulative_returns(
         max_drawdowns=None,
         rebase_date=datetime(2008, 1, 1)
 ):
-    fig = plt.figure(figsize=(10, 6))
+    fig = plt.figure(figsize=(10, 6), constrained_layout=True, dpi=200)  # higher DPI for crisp screen rendering
 
-    gs = fig.add_gridspec(2, 1, height_ratios=[3.5, 1])
+    gs = fig.add_gridspec(2, 1, height_ratios=[4, 1.2])
     ax = fig.add_subplot(gs[0])
 
     # Compute the start dates for each series:
@@ -200,12 +200,13 @@ def plot_cumulative_returns(
     ax.legend(handles=handles, labels=labels, loc='upper left')
 
     # Add asset allocations table in the lower portion
-    ax_table = fig.add_axes([0.1, 0.05, 0.5, 0.3])
+    ax_table = fig.add_subplot(gs[1])
     display_toml_below_figure(ax_table, toml_file)
 
     # Show plot
-    plt.tight_layout()
     plt.subplots_adjust(hspace=0.4)  # bigger gap between subplots
+    plt.tight_layout()
+    # plt.savefig("portfolio_performance.png", dpi=600, bbox_inches="tight")  # For high-res output
     fig.canvas.mpl_connect('key_press_event', toggle_zoom)
     plt.show()
     plt.close()
