@@ -10,11 +10,11 @@ def test_get_aligned_portfolio_civs():
     """Test the aligning of Current Investment Values (CIVs) data."""
 
     # Load mock data from Pickle file for an argument
-    mock_argument_data = toml.load("tests/data/port-x.toml")
-    expected_data.iloc[:1000] = load_pickle("tests/data/aligned_portfolio_civs.pkl")
+    mock_argument_data = toml.load("tests/data/port-1.toml")
+    expected_data = load_pickle("tests/data/aligned_portfolio_civs.pkl").iloc[:1000]
 
     # Call the actual function-under-test with the mocked argument
-    result.iloc[:1000] = get_aligned_portfolio_civs(mock_argument_data)
+    result = get_aligned_portfolio_civs(mock_argument_data).iloc[:1000]
 
     # Compare only the first 1000 rows/items
     compare_with_golden(result, expected_data)

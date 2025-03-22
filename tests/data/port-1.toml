@@ -1,0 +1,55 @@
+# Portfolio 1
+#
+# This portfolio was constructed using funds with the highest returns while trying to limit drawdowns to 10%
+# (which in the end turned out to be impossible). 4 funds providing international exposure were supposedly
+# back-tested by ChatGPT, but I couldn't see it. Finally, ChatGPT just used the Franklin U.S Opportunities
+# Fund for international exposure. Since the gold fund that ChatGPT initially suggested was an ETF, and my wife
+# does not want to have a demat account, I left out the gold fund and had ChatGPT reallocate the funds.
+#
+# As of 1 Dec., 2024, results were:
+#
+# * Cumulative returns of about 380%.
+# * Peak drawdowns for 2020, 2022, and 2024 were about 63%, 61%, and 18%, respectively.
+#
+# Here's the approach:
+# * Diversify across asset class: high-performing equity funds for growth potential, low-volaatility debt
+#   funds like gilt funds and corporate debt funds for stability, gold ETFs or mutual funds as a hedge
+#   against market uncertainty, and alternative investments like REITs or international funds for added
+#   diversification.
+# * Use dynamic asset allocation funds that adjust their equity and debt exposure based on market conditions,
+#   to limit drawdowns by reducing equity exposure during market downturns.
+# * Include assets with low or negative correlation to Indian equities (e.g., global equity funds or gold),
+#   which will reduce overall portfolio volatility.
+#
+
+label = "Portfolio 1 (Targeting Drawdowns <10%)"
+
+[[funds]]
+name = "ICICI Prudential Bluechip Fund"
+url = "https://api.mfapi.in/mf/120586"
+allocation = 0.30
+asset_allocation = {equity = 92.69, debt = 0.35, real_estate = 0.00, commodities = 0.00, cash = 6.96}
+
+[[funds]]
+name = "Franklin US Opportunities Fund"
+url = "https://api.mfapi.in/mf/118551"
+allocation = 0.25
+asset_allocation = {equity = 98.79, debt = 0.00, real_estate = 0.00, commodities = 0.00, cash = 1.21}
+
+[[funds]]
+name = "HDFC Balanced Advantage Fund"
+url = "https://api.mfapi.in/mf/118968"
+allocation = 0.25
+asset_allocation = {equity = 53.34, debt = 29.91, real_estate = 1.44, commodities = 0.00, cash = 15.31}
+
+[[funds]]
+name = "ICICI Prudential Corporate Bond Fund"
+url = "https://api.mfapi.in/mf/120692"
+allocation = 0.10
+asset_allocation = {equity = 0.00, debt = 97.10, real_estate = 0.00, commodities = 0.00, cash = 2.90}
+
+[[funds]]
+name = "HDFC Hybrid Debt Fund"
+url = "https://api.mfapi.in/mf/119118"
+allocation = 0.10
+asset_allocation = {equity = 21.86, debt = 73.35, real_estate = 0.66, commodities = 0.00, cash = 4.13}
