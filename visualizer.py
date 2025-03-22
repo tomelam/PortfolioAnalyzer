@@ -49,9 +49,9 @@ def display_toml_below_figure(ax_table, toml_file):
     # Desired columns: Type (1.25x), Asset (4.0x), Allocation (1.25x)
     # But colWidths must be FRACTIONAL, so let's do ratio = 1.25 : 4.0 : 1.25 => total 6.5
     # Convert to fraction:
-    type_ratio = 1.25 / 6.5      # ~0.1923
-    asset_ratio = 4.0 / 6.5      # ~0.6154
-    allocation_ratio = 1.25 / 6.5 # ~0.1923
+    type_ratio = 0.8 / 4.5
+    asset_ratio = 3.0 / 4.5
+    allocation_ratio = 0.7 / 4.5
 
     col_labels = ["Type", "Asset", "Allocation"]
     ax_table.axis("off")
@@ -62,7 +62,7 @@ def display_toml_below_figure(ax_table, toml_file):
         cellLoc='left',
         loc='upper left',
         colWidths=[type_ratio, asset_ratio, allocation_ratio],  # <-- Column width ratios
-        bbox=[0, 0, 1, 1]
+        bbox=[0.05, 0, 0.65, 1]
     )
 
     # Optional: reduce row height, fix font size
