@@ -204,8 +204,8 @@ def plot_cumulative_returns(
     display_toml_below_figure(ax_table, toml_file)
 
     # Show plot
-    plt.subplots_adjust(hspace=0.4)  # bigger gap between subplots
-    plt.tight_layout()
+    #plt.subplots_adjust(hspace=0.4)  # bigger gap between subplots
+    #plt.tight_layout()
     # plt.savefig("portfolio_performance.png", dpi=600, bbox_inches="tight")  # For high-res output
     fig.canvas.mpl_connect('key_press_event', toggle_zoom)
     plt.show()
