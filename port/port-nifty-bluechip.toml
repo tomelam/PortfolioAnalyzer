@@ -1,4 +1,4 @@
-label = "Portfolio X: 60% NIFTY50 + 40% Bluechip"
+label = "Portfolio Nifty + Bluechip: 60% NIFTY50 + 40% Bluechip"
 
 [[funds]]
 name = "ICICI Nifty 50 Index Fund"

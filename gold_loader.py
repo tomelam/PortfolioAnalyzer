@@ -27,7 +27,7 @@ def load_gold_prices(csv_path="data/Gold Futures Historical Data.csv"):
         )
 
     price_col = possible_price_cols[0]
-    print(f"Detected price column: {price_col}")
+    #print(f"Detected price column: {price_col}")
 
     # 4. Rename the detected price column to "Adjusted Spot Price"
     df.rename(columns={price_col: "Adjusted Spot Price"}, inplace=True)
@@ -38,7 +38,9 @@ def load_gold_prices(csv_path="data/Gold Futures Historical Data.csv"):
         df.set_index("Date", inplace=True)
         df.sort_index(inplace=True)
     else:
-        print(f"Warning: No 'Date' column found in {csv_path}; data won't be time-indexed.")
+        raise RuntimeError(
+            f"No 'Date' column found in {csv_path}; data can't be time-indexed."
+        )
 
     # 6. Clean the Adjusted Spot Price column (remove commas, %), convert to float
     df["Adjusted Spot Price"] = (
@@ -50,8 +52,8 @@ def load_gold_prices(csv_path="data/Gold Futures Historical Data.csv"):
     )
 
     # 7. Optional debug print
-    print(f"Loaded gold data from {csv_path}, DataFrame shape: {df.shape}")
-    print(df.head(3))
+    #print(f"Loaded gold data from {csv_path}, DataFrame shape: {df.shape}")
+    #print(df.head(3))
 
     return df
 

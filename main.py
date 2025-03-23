@@ -165,7 +165,7 @@ def main():
 
     if args.csv_output:
         print(
-            f"{portfolio_label},"
+            f"\"{portfolio_label}\","  # Escape commas in the portfolio label.
             f"{cagr:.2f}%,"
             f"{vol:.2f}%,"
             f"{metrics['Sharpe Ratio']:.4f},"

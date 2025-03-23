@@ -233,25 +233,15 @@ def load_scss_interest_rates():
     try:
         html = fetch_html(url, verify_ssl=False)
         raw_rate_series = extract_rate_series(html)
-        info("SCSS rate series:")
-        for row in raw_rate_series:
-            info(row)
+        #info("SCSS rate series:")
+        #for row in raw_rate_series:
+        #    info(row)
         processed_rates = process_rate_series(raw_rate_series)
     except Exception as e:
         info(f"Error: {e}")
         processed_rates = []
 
-    '''
     # Build a DataFrame with the processed data and ensure proper dtypes.
-    rate_df = pd.DataFrame(processed_rates, columns=["date", "interest"])
-    rate_df["date"] = pd.to_datetime(rate_df["date"])
-    rate_df = rate_df.dropna(subset=["date"])
-    rate_df = rate_df.set_index("date")
-    # Optionally sort the DataFrame by the index.
-    rate_df.sort_index(inplace=True)
-    return rate_df
-    '''
-        # Build a DataFrame with the processed data and ensure proper dtypes.
     rate_df = pd.DataFrame(processed_rates, columns=["date", "interest"])
     rate_df["date"] = pd.to_datetime(rate_df["date"])
     rate_df = rate_df.dropna(subset=["date"])
