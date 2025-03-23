@@ -8,12 +8,12 @@ This repository contains the Portfolio Analyzer application. It fetches historic
 
 - **Data Loading & Alignment:**  
   - Fetches NAV data for each fund via API calls.
-  - Loads risk-free rate data from CSV. The included file INDIRLTLT01STM.csv is one such file downloaded from [fred.stlouisfed.org](https://fred.stlouisfed.org).
+  - Loads risk-free rate data from CSV. The included file INDIRLTLT01STM.csv is one such file manually downloaded from [fred.stlouisfed.org](https://fred.stlouisfed.org).
   - Uses PPF interest rates manually encoded as CSV in the file `data/ppf_interest_rates.csv`.
   - Scrapes the SCSS interest rates from (The National Savings Institute's table "Senior Citizens' Savings Scheme--Interest Rate Since Inception")[https://www.nsiindia.gov.in/(S(2xgxs555qwdlfb2p4ub03n3n))/InternalPage.aspx?Id_Pk=181].
-  - Scrapes the SGB issue price/unit and redemption price/unit from the Wikipedia page (Sovereign Gold Bond)[https://en.wikipedia.org/wiki/Sovereign_Gold_Bond].
+  - Loads the SGB issue price/unit and redemption price/unit data manually copied from the Wikipedia page (Sovereign Gold Bond)[https://en.wikipedia.org/wiki/Sovereign_Gold_Bond].
   - Uses a fixed rate (5.0%) for the REC Limited 5% bond (ISIN: INE020B07MD4).
-  - Uses gold futures (GCJ5) downloaded manually as CSV from [https://www.investing.com/commodities/gold-historical-data](https://www.investing.com/commodities/gold-historical-data).
+  - Uses gold futures (GCJ5) manually downloaded as CSV from [https://www.investing.com/commodities/gold-historical-data](https://www.investing.com/commodities/gold-historical-data) and stored in the file `data/Gold Futures Historical Data.csv`. It is difficult to source the gold spot price for free, but gold futures front-month contracts closely approximate the gold spot price, especially as the contract nears expiration. This is why PortfolioAnalyzer uses the gold futures front-month contract price as a proxy for the gold spot price.
   - Uses benchmark historical data from [https://www.investing.com](https://www.investing.com).
   - Aligns data to a common date range across all data sources.
 
@@ -66,16 +66,32 @@ If the portfolio described by the TOML file includes PPF as a component, ensure 
 
 If the portfolio described by the TOML file includes gold as a component, download the CSV file of the gold prices from https://www.investing.com/commodities/gold-historical-data before running the program. Currently, both offshore vaulted gold and gold held in India are priced using the same CSV data.
 ```bash
+python main.py --help
 python main.py <path_to_portfolio_toml_file> [options]
-python main.py portfolio.toml --benchmark-name "NIFTRI" --benchmark-ticker "^NSEI" --risk-free-rates-file "FRED--INDIRLTLT01STM.csv" --max-drawdown-threshold 
+python main.py portfolio.toml --benchmark-name "NIFTRI" --risk-free-rates-file "INDIRLTLT01STM.csv" --max-drawdown-threshold 10
 ```
 The `--max-drawdown-threshhold` option (shortcut `-dt`) sets the percentage drawdown that is considered significant to count in the "Drawdowns" statistic. By default, the threshhold is set to `5` (5%).
 
 Other option shortcuts and defaults:
 * `-bn`, short for `--benchmark-name`, default `NIFTY Total Returns Index`
-* `-rf`, short for `--risk-free-rates-file`, default `FRED--INDIRLTLT01STM.csv`
+* `-rf`, short for `--risk-free-rates-file`, default `INDIRLTLT01STM.csv`
+
+⚠️ NOTE: Files downloaded from Investing.com sometimes use different date formats (e.g., %d-%m-%Y vs %m/%d/%Y). Always check the format of the first few rows and pass --benchmark-date-format accordingly.
 
 Mac users might notice messages like `2025-02-04 20:00:14.220 python[20791:454371] +[IMKClient subclass]: chose IMKClient_Modern` cluttering the terminal output. These are OS Activity Mode messages coming from Apple's Input Method Kit (IMK). They can be suppressed by appending `2> /dev/null` to the command. This is not a perfect solution. Normally, the OS_ACTIVITY_MODE environment variable could be set to "disable" to suppress such messages, but it appears that Apple's Input Method Kit (IMK) framework does not consistently honor that variable.
+
+---
+
+## Metrics
+
+* A _peak_ is the highest value of an investment before the value began to decline. If the price goes from 80 to 100 to 70 to 95, 100 is the peak. There can be many peaks, but when calculating drawdowns, we typically focus on all-time highs — the highest value seen so far.
+* A _maximum drawdown with full recovery_ is the largest drop that the investment experiences from a peak, followed by a full recovery back to or beyond the original peak. It is measured as a percentage drop from the highest previous value.
+* A _trough date_ is the lowest point after the peak.
+* A _recovery date_ is the date when the portfolio value returns to or exceeds the previous peak.
+* _Drawdown days_ are the number of days from the peak date to the trough date.
+* _Recovery days_ are the number of days from the peak date to the recovery date.
+
+This section is to be expanded.
 
 ---
 

@@ -29,7 +29,7 @@ import toml
 import os
 from datetime import timedelta, datetime
 
-import portfolio_calculator
+#import portfolio_calculator
 from utils import info
 
 
@@ -548,37 +548,66 @@ def fetch_yahoo_finance_data(ticker, refresh_hours=6, period="max"):
 
 
 # Load risk-free rate data
-def fetch_and_standardize_risk_free_rates(file_path, url=None):
+def fetch_and_standardize_risk_free_rates(file_path):
     """
-    Load risk-free rate data from a CSV file, downloading it if a URL is provided.
+    Load risk-free rate data from a CSV file and check if it's outdated based on the date content.
 
     Parameters:
         file_path (str): Path to the CSV file.
-        url (str, optional): URL to download the CSV file from. If provided, the file is downloaded first.
 
     Returns:
         pd.DataFrame: Risk-free rate data indexed by date.
-    """
-    if url and not file_modified_within(file_path, 24):
-        info(
-            "The risk-free-rate data is outdated or missing. Fetching it from the web..."
-        )
-        download_csv(url, file_path)
-    else:
-        info("The risk-free-rate data is fresh. No need to download it again now.")
 
-    risk_free_data = pd.read_csv(file_path)
-    risk_free_data.rename(
-        columns={"observation_date": "date", "INDIRLTLT01STM": "rate"}, inplace=True
-    )
-    risk_free_data["date"] = pd.to_datetime(
-        risk_free_data["date"], format="%Y-%m-%d", errors="coerce"
-    )
-    risk_free_data["rate"] = (
-        risk_free_data["rate"].astype(float) / 100
-    )  # Convert to annualized decimal
-    risk_free_data.set_index("date", inplace=True)
-    return risk_free_data
+    Raises:
+        FileNotFoundError: If the file is missing.
+        ValueError: If the file format is invalid.
+        RuntimeError: If the data is outdated.
+    """
+    import pandas as pd
+    import os
+    from utils import info
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Risk-free rate file '{file_path}' not found.")
+
+    try:
+        df = pd.read_csv(file_path)
+
+        if "observation_date" not in df.columns:
+            raise ValueError("CSV must contain an 'observation_date' column.")
+
+        # Expect exactly one other column
+        rate_cols = [col for col in df.columns if col != "observation_date"]
+        if len(rate_cols) != 1:
+            raise ValueError(f"Expected exactly one rate column besides 'observation_date', found: {rate_cols}")
+
+        rate_col = rate_cols[0]
+        df.rename(columns={rate_col: "rate"}, inplace=True)
+
+        df["date"] = pd.to_datetime(df["observation_date"], errors="coerce")
+        df["rate"] = pd.to_numeric(df["rate"], errors="coerce") / 100
+
+        df.dropna(subset=["date", "rate"], inplace=True)
+        df.set_index("date", inplace=True)
+        df.sort_index(inplace=True)
+
+        # Freshness test
+        last_date = df.index[-1]
+        today = pd.Timestamp.today().normalize()
+        max_allowed_delay = pd.DateOffset(days=61)
+        expected_latest = (today - max_allowed_delay).replace(day=1)
+
+        if last_date < expected_latest:
+            raise RuntimeError(
+                f"Risk-free rate data is outdated (last date: {last_date.date()}). "
+                f"Please fetch a fresh version from the web."
+            )
+
+    except Exception as e:
+        raise ValueError(f"Failed to load risk-free rate data: {e}")
+
+    info("The risk-free-rate data appears up to date.")
+    return df
 
 
 # Interpolate risk-free rates to match portfolio dates
@@ -593,9 +622,8 @@ def align_dynamic_risk_free_rates(portfolio_returns, risk_free_data):
     Returns:
         pd.Series: Interpolated risk-free rates.
     """
-    aligned_rates = risk_free_data.reindex(portfolio_returns.index).interpolate(
-        method="time"
-    )
-    filled_rates = aligned_rates["rate"].ffill().bfill()
+    aligned_rates = risk_free_data.reindex(portfolio_returns.index)
+    rate_series = aligned_rates["rate"].infer_objects(copy=False).interpolate(method="time")
+    filled_rates = rate_series.ffill().bfill()
     # return filled_rates.mean()
     return filled_rates

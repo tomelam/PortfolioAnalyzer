@@ -21,16 +21,35 @@ from visualizer import plot_cumulative_returns
 from utils import info
 
 
-def main():
+def main(args):
     import pandas as pd
-    args = parse_arguments()
     toml_file_path = args.toml_file
     benchmark_file = args.benchmark_returns_file
     benchmark_name = args.benchmark_name
     drawdown_threshold = args.max_drawdown_threshold / 100
 
-    benchmark_data = pd.read_csv(benchmark_file, index_col=0)
-    benchmark_data.index = pd.to_datetime(benchmark_data.index, format="%d-%m-%Y", errors="coerce")
+    benchmark_data = pd.read_csv(benchmark_file)
+    #print("Benchmark columns:", benchmark_data.columns.tolist())
+    benchmark_data["Date"] = pd.to_datetime(
+        benchmark_data["Date"],
+        format=args.benchmark_date_format,
+        errors="coerce"
+    )
+    '''
+    print("\n--- Benchmark Date Index Diagnostics ---")
+    print("First 5 parsed index values:")
+    print(benchmark_data["Date"].head())
+    print("Number of unparsed (NaT) dates:", benchmark_data["Date"].isna().sum())
+    print("Minimum date:", benchmark_data["Date"].min())
+    print("Maximum date:", benchmark_data["Date"].max())
+    print("----------------------------------------\n")
+    '''
+    if benchmark_data["Date"].isna().sum() > 0:
+        info(
+            "Warning: Some dates in the benchmark file could not be parsed. "
+            "Check the --benchmark-date-format value."
+        )
+    benchmark_data.set_index("Date", inplace=True)
     benchmark_data.sort_index(inplace=True)
     if "Close" not in benchmark_data.columns and "Price" in benchmark_data.columns:
         benchmark_data.rename(columns={"Price": "Close"}, inplace=True)
@@ -288,15 +307,27 @@ def parse_arguments():
     parser.add_argument("--output-dir", "-od",
                         help="If specified, save plot image there instead of showing it."
     )
+    parser.add_argument("--benchmark-date-format", "-bdf", type=str,
+                        default="%m/%d/%Y",
+                        help="Date format in benchmark CSV file (e.g. '%%d-%%m-%%Y' or '%%m/%%d/%%Y')"
+    )
+    parser.add_argument("--debug", "-d", action="store_true",
+                        help="Show full tracebacks for debugging."
+    )
 
     return parser.parse_args()
 
 if __name__ == "__main__":
     import sys
     import traceback
+
+    args = parse_arguments()
     try:
-        main()
+        main(args)
     except Exception as e:
-        print(f"\nError: {e}")
-        print(traceback.format_exc())
+        print(f"\nError: {e}", file=sys.stderr)
+        if args.debug:
+            print(traceback.format_exc(), file=sys.stderr)
+        else:
+            print("Run again with --debug for more details.", file=sys.stderr)
         sys.exit(1)
