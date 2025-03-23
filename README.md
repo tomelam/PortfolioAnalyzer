@@ -105,7 +105,6 @@ This section is to be expanded.
 ├── gold_loader.py           # Handles gold price loading from a CSV file
 ├── bond_calculators.py      # Calculates cumulative gains and series for various bonds
 ├── ppf_calculator.py        # Calculates the cumulative gains of a PPF account
-├── ppf_calculator.py        # Calculates the cumulative gains of a PPF account
 ├── metrics_calculator.py    # Computes portfolio metrics and cumulative gains
 ├── visualizer.py            # Generates plots for historical portfolio and benchmark performance
 ├── requirements.txt         # List of required Python packages
