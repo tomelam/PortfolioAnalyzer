@@ -46,6 +46,11 @@ def display_toml_below_figure(ax_table, toml_file):
                     f"{fund['allocation'] * 100:6.2f}%"
                 ])
 
+    max_rows = 15
+    if len(table_data) > max_rows:
+        table_data = table_data[:max_rows - 1] + [["...", "...", "..."]]
+
+
     # Desired columns: Type (1.25x), Asset (4.0x), Allocation (1.25x)
     # But colWidths must be FRACTIONAL, so let's do ratio = 1.25 : 4.0 : 1.25 => total 6.5
     # Convert to fraction:
@@ -68,7 +73,8 @@ def display_toml_below_figure(ax_table, toml_file):
     # Optional: reduce row height, fix font size
     table.scale(1, 0.5)
     table.auto_set_font_size(False)
-    table.set_fontsize(9)
+    font_size = 9 if len(table_data) <= 8 else 7 if len(table_data) <= 12 else 6
+    table.set_fontsize(font_size)
 
     # Format the table
     for (row, col), cell in table._cells.items():
