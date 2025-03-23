@@ -118,7 +118,8 @@ def plot_cumulative_returns(
         allocations=None,
         metrics=None,
         max_drawdowns=None,
-        rebase_date=datetime(2008, 1, 1)
+        rebase_date=datetime(2008, 1, 1),
+        save_path=None,
 ):
     fig = plt.figure(figsize=(10, 6), constrained_layout=True, dpi=200)  # higher DPI for crisp screen rendering
 
@@ -214,5 +215,8 @@ def plot_cumulative_returns(
     #plt.tight_layout()
     # plt.savefig("portfolio_performance.png", dpi=600, bbox_inches="tight")  # For high-res output
     fig.canvas.mpl_connect('key_press_event', toggle_zoom)
-    plt.show()
+    if save_path:
+        plt.savefig(save_path, bbox_inches="tight")
+    else:
+        plt.show()
     plt.close()

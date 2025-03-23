@@ -215,18 +215,39 @@ def main():
 
     # For more automated operation, the plotting can be skipped.
     if not args.do_not_plot:
-        plot_cumulative_returns(
-            portfolio_label,
-            cumulative_historical,
-            "Historical Performance",
-            toml_file_path,
-            cumulative_benchmark,
-            benchmark_name,
-            calculate_portfolio_allocations(portfolio),
-            metrics,
-            max_drawdowns,
-            portfolio_start_date
-        )
+        if args.output_dir:
+            import os
+            os.makedirs(args.output_dir, exist_ok=True)
+            # Strip "port-" prefix and ".toml" suffix
+            base_name = os.path.basename(args.toml_file)
+            image_name = base_name.replace("port-", "").replace(".toml", "") + ".png"
+            image_path = os.path.join(args.output_dir, image_name)
+            plot_cumulative_returns(
+                portfolio_label,
+                cumulative_historical,
+                "Historical Performance",
+                toml_file_path,
+                cumulative_benchmark,
+                benchmark_name,
+                calculate_portfolio_allocations(portfolio),
+                metrics,
+                max_drawdowns,
+                portfolio_start_date,
+                save_path=image_path,
+            )
+        else:
+            plot_cumulative_returns(
+                portfolio_label,
+                cumulative_historical,
+                "Historical Performance",
+                toml_file_path,
+                cumulative_benchmark,
+                benchmark_name,
+                calculate_portfolio_allocations(portfolio),
+                metrics,
+                max_drawdowns,
+                portfolio_start_date,
+            )
 
 
 def dump_pickle(filepath, obj):
@@ -264,6 +285,10 @@ def parse_arguments():
     parser.add_argument("--csv-output", "-co", action="store_true",
                         help="Print metrics in machine-readable CSV format."
     )
+    parser.add_argument("--output-dir", "-od",
+                        help="If specified, save plot image there instead of showing it."
+    )
+
     return parser.parse_args()
 
 if __name__ == "__main__":
