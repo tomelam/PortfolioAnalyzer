@@ -90,6 +90,13 @@ Mac users might notice messages like `2025-02-04 20:00:14.220 python[20791:45437
 * A _recovery date_ is the date when the portfolio value returns to or exceeds the previous peak.
 * _Drawdown days_ are the number of days from the peak date to the trough date.
 * _Recovery days_ are the number of days from the peak date to the recovery date.
+```
+           ▼ peak                    ▼ trough                          ▼ recovery
+Portfolio: ╭─────── decline ────────╮───────── recovery climb ────────╮
+           │                        │                                  │
+           └────── drawdown_days ───┘
+           └────────────────────────────── recovery_days ─────────────┘
+```
 
 This section is to be expanded.
 
