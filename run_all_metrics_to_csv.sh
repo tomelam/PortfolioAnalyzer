@@ -18,7 +18,7 @@ if [[ -n "$1" ]]; then
 fi
 
 # CSV header
-echo "Portfolio,CAGR,Volatility,Sharpe,Sortino,Drawdowns,Max Drawdown,Max DD Start,DD Days,Recovery Days,Alpha,Beta" > "$OUTPUT"
+echo "Portfolio,CAGR,Volatility,Sharpe,Sortino,Alpha,Beta,Drawdowns,Max Drawdown,Max DD Start,DD Days,Recovery Days" > "$OUTPUT"
 
 # Loop through portfolios
 for file in "$PORT_DIR"/*.toml; do

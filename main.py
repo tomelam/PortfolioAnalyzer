@@ -148,52 +148,51 @@ def main():
         benchmark_returns
     )
 
+    cagr = metrics["Annualized Return"] * 100
+    vol = metrics["Volatility"] * 100
+    alpha = metrics["Alpha"] * 100
+    if max_drawdowns:
+        max_dd_info = min(max_drawdowns, key=lambda dd: dd["drawdown"])
+        drawdown_days = max_dd_info["drawdown_days"]
+        recovery_days = max_dd_info["recovery_days"]
+        max_dd = max_dd_info["drawdown"]
+        max_dd_start = max_dd_info["start_date"].strftime("%Y-%m-%d")
+    else:
+        drawdown_days = 0
+        recovery_days = 0
+        max_dd = 0.0
+        max_dd_start = "N/A"
+
     if args.csv_output:
-        # Compact drawdown summary and single-line CSV output
-        cagr = metrics["Annualized Return"] * 100
-        vol = metrics["Volatility"] * 100
-        alpha = metrics["Alpha"] * 100
-
-        if max_drawdowns:
-            max_dd_info = min(max_drawdowns, key=lambda dd: dd["drawdown"])
-            drawdown_days = max_dd_info["drawdown_days"]
-            recovery_days = max_dd_info["recovery_days"]
-            max_dd = max_dd_info["drawdown"]
-            max_dd_start = max_dd_info["start_date"].strftime("%Y-%m-%d")
-        else:
-            drawdown_days = 0
-            recovery_days = 0
-            max_dd = 0.0
-            max_dd_start = "N/A"
-
         print(
             f"{portfolio_label},"
             f"{cagr:.2f}%,"
             f"{vol:.2f}%,"
             f"{metrics['Sharpe Ratio']:.4f},"
             f"{metrics['Sortino Ratio']:.4f},"
+            f"{alpha:.2f}%,"
+            f"{metrics['Beta']:.4f},"
             f"{len(max_drawdowns)},"
             f"{max_dd:.2f}%,"
             f"{max_dd_start},"
             f"{drawdown_days},"
-            f"{recovery_days},"
-            f"{alpha:.2f}%,"
-            f"{metrics['Beta']:.4f}"
+            f"{recovery_days}"
         )
-
     else:
         print(f"Mean Risk-Free Rate: {risk_free_rate * 100:.4f}%")
-        print(f"Annualized Return: {metrics['Annualized Return'] * 100:.4f}%")
-        print(f"Volatility: {metrics['Volatility'] * 100:.4f}%")
+        print(f"Annualized Return (CAGR): {cagr:.2f}%")
+        print(f"Volatility: {vol:.2f}%")
         print(f"Sharpe Ratio: {metrics['Sharpe Ratio']:.4f}")
         print(f"Sortino Ratio: {metrics['Sortino Ratio']:.4f}")
-        if "Alpha" in metrics and "Beta" in metrics:
-            print(f"Beta: {metrics['Beta']:.4f}")
-            print(f"Alpha: {metrics['Alpha'] * 100:.3f}%")
+        print(f"Alpha: {alpha:.2f}%")
+        print(f"Beta: {metrics['Beta']:.4f}")
         print(f"Drawdowns: {len(max_drawdowns)}")
-        compact_drawdowns = args.csv_output
-        print_major_drawdowns(max_drawdowns, compact=compact_drawdowns)
-
+        print(f"Max Drawdown: {max_dd:.2f}%")
+        print(f"Max Drawdown Start: {max_dd_start}")
+        print(f"Drawdown Days: {drawdown_days}")
+        print(f"Recovery Days: {recovery_days}")
+        print_major_drawdowns(max_drawdowns)
+    
     cumulative_historical, cumulative_benchmark = calculate_gains_cumulative(
         gain_daily_portfolio_series, benchmark_returns
     )
