@@ -1,0 +1,4 @@
+output_csv = false
+output_snapshot = true
+show_plot = false
+output_dir = "outputs"

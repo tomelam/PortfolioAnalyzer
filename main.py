@@ -30,13 +30,16 @@ from utils import (
 
 
 def main(args):
+    import os
+    from pathlib import Path
+
     #print("Benchmark columns:", benchmark_data.columns.tolist())
     benchmark_data = load_and_check_freshness(
         settings["benchmark_file"],
         settings["benchmark_date_format"],
         "Benchmark",
         settings["skip_age_check"],
-        quiet=not settings["debug"]
+        quiet=settings["quiet"]
     )
 
     # Optional warning if any dates couldn't be parsed (coerced to NaT)
@@ -178,34 +181,50 @@ def main(args):
         max_dd_start = "N/A"
 
     if settings["output_csv"]:
-        print(
-            f"\"{portfolio_label}\","  # Escape commas in the portfolio label.
-            f"{cagr:.2f}%,"
-            f"{vol:.2f}%,"
-            f"{metrics['Sharpe Ratio']:.4f},"
-            f"{metrics['Sortino Ratio']:.4f},"
-            f"{alpha:.2f}%,"
-            f"{metrics['Beta']:.4f},"
-            f"{len(max_drawdowns)},"
-            f"{max_dd:.2f}%,"
-            f"{max_dd_start},"
-            f"{drawdown_days},"
-            f"{recovery_days}"
-        )
-    else:
-        print(f"Mean Risk-Free Rate: {risk_free_rate * 100:.4f}%")
-        print(f"Annualized Return (CAGR): {cagr:.2f}%")
-        print(f"Volatility: {vol:.2f}%")
-        print(f"Sharpe Ratio: {metrics['Sharpe Ratio']:.4f}")
-        print(f"Sortino Ratio: {metrics['Sortino Ratio']:.4f}")
-        print(f"Alpha: {alpha:.2f}%")
-        print(f"Beta: {metrics['Beta']:.4f}")
-        print(f"Drawdowns: {len(max_drawdowns)}")
-        print(f"Max Drawdown: {max_dd:.2f}%")
-        print(f"Max Drawdown Start: {max_dd_start}")
-        print(f"Drawdown Days: {drawdown_days}")
-        print(f"Recovery Days: {recovery_days}")
-        print_major_drawdowns(max_drawdowns)
+        if settings["output_csv"]:
+            csv_line = (
+                f"\"{portfolio_label}\","  # Escape commas in the portfolio label.
+                f"{cagr:.2f}%,"
+                f"{vol:.2f}%,"
+                f"{metrics['Sharpe Ratio']:.4f},"
+                f"{metrics['Sortino Ratio']:.4f},"
+                f"{alpha:.2f}%,"
+                f"{metrics['Beta']:.4f},"
+                f"{len(max_drawdowns)},"
+                f"{max_dd:.2f}%,"
+                f"{max_dd_start},"
+                f"{drawdown_days},"
+                f"{recovery_days}"
+            )
+
+    # If output_csv is enabled, write to file or stdout
+    if settings["output_csv"]:
+        if settings.get("output_dir"):
+            os.makedirs(settings["output_dir"], exist_ok=True)
+            csv_path = os.path.join(
+                settings["output_dir"],
+                Path(settings["portfolio_file"]).stem + ".csv"
+            )
+            with open(csv_path, "w") as f:
+                f.write(csv_line + "\n")
+            print(f"📄 CSV written to {csv_path}")
+        else:
+            print(csv_line)
+
+    # Always print human-readable summary unless suppressed (optional setting later)
+    print(f"Mean Risk-Free Rate: {risk_free_rate * 100:.4f}%")
+    print(f"Annualized Return (CAGR): {cagr:.2f}%")
+    print(f"Volatility: {vol:.2f}%")
+    print(f"Sharpe Ratio: {metrics['Sharpe Ratio']:.4f}")
+    print(f"Sortino Ratio: {metrics['Sortino Ratio']:.4f}")
+    print(f"Alpha: {alpha:.2f}%")
+    print(f"Beta: {metrics['Beta']:.4f}")
+    print(f"Drawdowns: {len(max_drawdowns)}")
+    print(f"Max Drawdown: {max_dd:.2f}%")
+    print(f"Max Drawdown Start: {max_dd_start}")
+    print(f"Drawdown Days: {drawdown_days}")
+    print(f"Recovery Days: {recovery_days}")
+    print_major_drawdowns(max_drawdowns)
     
     cumulative_historical, cumulative_benchmark = calculate_gains_cumulative(
         gain_daily_portfolio_series, benchmark_returns
@@ -228,40 +247,43 @@ def main(args):
         info("Golden portfolio data generated.")
 
     # For more automated operation, the plotting can be skipped.
-    if not settings["do_not_plot"]:
-        if settings["output_snapshot"]:
-            import os
-            os.makedirs(settings["output_dir"], exist_ok=True)
-            # Strip "port-" prefix and ".toml" suffix
-            base_name = os.path.basename(settings["portfolio_file"])
-            image_name = base_name.replace("port-", "").replace(".toml", "") + ".png"
-            image_path = os.path.join(settings["output_dir"], image_name)
-            plot_cumulative_returns(
-                portfolio_label,
-                cumulative_historical,
-                "Historical Performance",
-                settings["portfolio_file"],
-                cumulative_benchmark,
-                settings["benchmark_name"],
-                calculate_portfolio_allocations(portfolio),
-                metrics,
-                max_drawdowns,
-                portfolio_start_date,
-                save_path=image_path,
-            )
-        else:
-            plot_cumulative_returns(
-                portfolio_label,
-                cumulative_historical,
-                "Historical Performance",
-                settings["portfolio_file"],
-                cumulative_benchmark,
-                settings["benchmark_name"],
-                calculate_portfolio_allocations(portfolio),
-                metrics,
-                max_drawdowns,
-                portfolio_start_date,
-            )
+    if settings["output_snapshot"]:
+        import os
+        os.makedirs(settings["output_dir"], exist_ok=True)
+        # Strip "port-" prefix and ".toml" suffix
+        base_name = os.path.basename(settings["portfolio_file"])
+        image_name = base_name.replace("port-", "").replace(".toml", "") + ".png"
+        image_path = os.path.join(settings["output_dir"], image_name)
+        plot_cumulative_returns(
+            portfolio_label,
+            cumulative_historical,
+            "Historical Performance",
+            settings["portfolio_file"],
+            cumulative_benchmark,
+            settings["benchmark_name"],
+            calculate_portfolio_allocations(portfolio),
+            metrics,
+            max_drawdowns,
+            portfolio_start_date,
+            save_path=image_path,
+        )
+
+    if settings.get("show_plot", True):
+        plot_cumulative_returns(
+            portfolio_label,
+            cumulative_historical,
+            "Historical Performance",
+            settings["portfolio_file"],
+            cumulative_benchmark,
+            settings["benchmark_name"],
+            calculate_portfolio_allocations(portfolio),
+            metrics,
+            max_drawdowns,
+            portfolio_start_date,
+        )
+        
+    if settings["output_dir"] and not (settings["output_csv"] or settings["output_snapshot"]):
+        info(f"⚠️  Warning: output_dir is set to '{settings['output_dir']}' but no output will be written to it.")
 
 
 def dump_pickle(filepath, obj):
@@ -275,28 +297,36 @@ def dump_pickle(filepath, obj):
 def parse_arguments():
     import argparse
     parser = argparse.ArgumentParser(description="Portfolio Analyzer application.")
-    parser.add_argument("--config", "-c", type=str, default="config.toml", help="Optional config file")
+    parser.set_defaults(show_plot=None)
     parser.add_argument("toml_file", type=str,
                         help="Path to the TOML file describing the portfolio."
     )
-    parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5,
-                        help="Drawdown threshold, in percent."
+    parser.add_argument("--config", "-c", type=str, default="config.toml",
+                        help="Optional config file"
     )
-    parser.add_argument("--do-not-plot", "-np", action="store_true",
-                        help="Do not make the plot; only calculate the metrics."
+    parser.add_argument("--disable-plot-display", "-dpd", action="store_false", dest="show_plot",
+                        help="Disables on-screen display of the performance plot (useful in automation or headless mode)"
     )
-    parser.add_argument("--save-golden-data", "-sgd", action="store_true",
-                        help="Save golden data as a Pickle file for testing."
+    parser.add_argument("--output-snapshot", "-os", action="store_true",
+                        help="Saves a snapshot image of the performance plot."
     )
-    parser.add_argument("--csv-output", "-co", action="store_true",
-                        help="Print metrics in machine-readable CSV format."
+    parser.add_argument("--output-csv", "-co", action="store_true",
+                        help="Output metrics in machine-readable CSV format."
     )
     parser.add_argument("--output-dir", "-od",
                         help="If specified, save plot image there instead of showing it."
     )
+    parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5,
+                        help="Drawdown threshold, in percent."
+    )
+    parser.add_argument("--save-golden-data", "-sgd", action="store_true",
+                        help="Save golden data as a Pickle file for testing."
+    )    
     parser.add_argument("--debug", "-d", action="store_true",
                         help="Show full tracebacks for debugging."
     )
+    parser.add_argument("--quiet", "-q", action="store_true",
+                        help="Suppresses the 'Continue anyway?' prompt when stale data is detected, and automatically proceeds as if you answered yes.")
 
     return parser.parse_args()
 
@@ -310,20 +340,26 @@ if __name__ == "__main__":
 
     try:
         settings = {
-            "output_csv": args.csv_output or config.get("output_csv", False),
-            "output_snapshot": bool(args.output_dir),
+            "portfolio_file": args.toml_file,
+            "show_plot": args.show_plot if args.show_plot is not None else config.get("show_plot", True),
+            "output_snapshot": config.get("output_snapshot", False),
+            "output_csv": args.output_csv or config.get("output_csv", False),
             "output_dir": args.output_dir or config.get("output_dir", "outputs"),
-            "save_golden": args.save_golden_data or config.get("save_golden_data", False),
-            "debug": args.debug or config.get("debug", False),
-            "do_not_plot": args.do_not_plot or config.get("do_not_plot", False),
             "drawdown_threshold": args.max_drawdown_threshold or config.get("max_drawdown_threshold", 5.0),
             "skip_age_check": config.get("skip_age_check", False),
-            "portfolio_file": args.toml_file,
-            "benchmark_name": config.get("benchmark_name", "NIFTY Total Returns Index"),
+            "quiet": args.quiet or config.get("quiet", False),            
+            "save_golden": args.save_golden_data or config.get("save_golden_data", False),
+            "debug": args.debug or config.get("debug", False),
             "risk_free_rates_file": config.get("risk_free_rates_file", "data/INDIRLTLT01STM.csv"),
+            "benchmark_name": config.get("benchmark_name", "NIFTY Total Returns Index"),
             "benchmark_file": config.get("benchmark_returns_file", "data/NIFTRI.csv"),
             "benchmark_date_format": config.get("benchmark_date_format", "%m/%d/%Y"),
         }
+        if settings["output_dir"] and not (settings["output_csv"] or settings["output_snapshot"]):
+            print(
+                f"⚠️  Warning: output_dir is set to '{settings['output_dir']}' but no output will be written to it.",
+                file=sys.stderr
+        )
         if settings["debug"]:
             print("Merged settings:")
             for k, v in settings.items():

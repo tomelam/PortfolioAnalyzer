@@ -1,6 +1,6 @@
 # Portfolio Analyzer
 
-This repository contains the Portfolio Analyzer application. It fetches historical NAV data for Indian mutual funds from [mfapi.in](https://mfapi.in), uses benchmark data from [investing.com](https://in.investing.com/indices/nifty-total-returns-historical-data), uses risk-free rate data from [FRED](https://fred.stlouisfed.org), and uses gold futures prices from [investing.com](https://investing.com), computes key portfolio performance metrics (such as annualized return, volatility, Sharpe/Sortino ratios, Alpha, Beta, and maximum drawdowns), and visualizes historical returns along with benchmark data.
+This repository contains the Portfolio Analyzer application. It fetches historical NAV data for Indian mutual funds from [mfapi.in](https://mfapi.in), uses benchmark data from [niftyindices.com](https://in.investing.com/indices/nifty-total-returns-historical-data), uses risk-free rate data from [FRED](https://fred.stlouisfed.org), and uses gold futures prices from [investing.com](https://investing.com), computes key portfolio performance metrics (such as annualized return, volatility, Sharpe/Sortino ratios, Alpha, Beta, and maximum drawdowns), and visualizes historical returns along with benchmark data.
 
 ---
 
@@ -92,30 +92,31 @@ The command-line interface is organized into several categories. Only the portfo
 
 ---
 
-#### 🧾 Input-File & Configuration Options
+#### 🧾 Configuration Options
 
 - `--config` (`-c`):  
   Path to a TOML file containing general runtime settings like output preferences.  
-  Defaults to `config.toml` if not specified.  
+  If omitted, the program looks for a file named config.toml in the current directory by default.  
   *(This option has no config key; it specifies the config file itself.)*
-
-- `--skip-age-check` (`-sa`) → `skip_age_check = true`:  
-  Suppresses the warning and prompt when benchmark or risk-free data appears stale  
-  (i.e., not updated for more than 24 hours on a market day). Useful for automation.
 
 ---
 
 #### 📤 Output Control
 
 - `--output-csv` → `output_csv = true`:  
-  If set, writes metrics to a CSV file. The filename is derived from the portfolio TOML name.
+  If set, outputs metrics in CSV format.
+  - If `--save-output-to` is set (or `output_dir` is defined in the config), the CSV is written to a file in that directory. The filename is derived from the portfolio TOML file name.
+  - Otherwise, the CSV is printed to the terminal (`stdout`).
 
-- `--output-snapshot` → `output_snapshot = true`:  
+  `--output-snapshot` → `output_snapshot = true`:  
   If set, saves a snapshot image of the performance plot.
+  - If --save-output-to <dir> is given, the image is saved to that directory.
+  - Otherwise, it is saved to the default `outputs/` directory.
 
 - `--save-output-to <dir>` → `output_dir = "outputs"`:  
   Specifies the directory where any output file (CSV and/or snapshot image) will be saved.  
-  If not given, any output file will be written to the `outputs/` directory by default.
+  - If not set and `--output-snapshot` is used, output goes to the `outputs/` directory by default.
+  - If not set and `--output-csv` is used, the CSV is printed to the terminal (`stdout`).
 
 ---
 
@@ -126,6 +127,14 @@ The command-line interface is organized into several categories. Only the portfo
 
 - `--do-not-plot` (`-np`) → `do_not_plot = true`:  
   Disables on-screen display of plots. Use this when running from scripts or environments without a graphical display.
+
+- `--skip-age-check` (`-sa`) → `skip_age_check = true`:  
+  Suppresses the warning and prompt when benchmark or risk-free data appears stale  
+  (i.e., not updated for more than 24 hours on a market day). Useful for automation.
+  
+  `--quiet` (`-q`) → `quiet = true`:
+  Suppresses the “Continue anyway?” prompt when stale data is detected, and automatically proceeds as if you answered yes.  
+  Useful for automation, headless runs, or testing where manual input isn’t possible.
 
 - `--max-drawdown-threshold <float>` (`-dt`) → `max_drawdown_threshold = 5.0`:  
   Sets the percentage threshold for reporting drawdowns.
@@ -162,12 +171,14 @@ This section is to be expanded.
 .
 ├── main.py                  # Entry point for the application
 ├── data_loader.py           # Handles data fetching, standardization, and alignment
+├── portfolio_calculator.py  # Calculates whole-portfolio data
 ├── sgb_loader.py            # Handles fetching of SGB tranche data
 ├── gold_loader.py           # Handles gold price loading from a CSV file
 ├── bond_calculators.py      # Calculates cumulative gains and series for various bonds
 ├── ppf_calculator.py        # Calculates the cumulative gains of a PPF account
 ├── metrics_calculator.py    # Computes portfolio metrics and cumulative gains
 ├── visualizer.py            # Generates plots for historical portfolio and benchmark performance
+├── utils.py                 # Functions used by more than one module
 ├── requirements.txt         # List of required Python packages
 └── README.md                # This file
 ```

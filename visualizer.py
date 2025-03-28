@@ -121,7 +121,6 @@ def plot_cumulative_returns(
         rebase_date=datetime(2008, 1, 1),
         save_path=None,
 ):
-    print("Entering plot_cumulative_returns")
     fig = plt.figure(figsize=(10, 6), constrained_layout=True, dpi=200)  # higher DPI for crisp screen rendering
 
     gs = fig.add_gridspec(2, 1, height_ratios=[4, 1.2])
@@ -169,11 +168,6 @@ def plot_cumulative_returns(
     
     # Add allocations and metrics inside the figure
     if allocations is not None:
-        #allocations_text = "\n".join([f"{key}: {value * 100:.2f}%" for key, value in allocations.items()])
-        #allocations_text = "\n".join([
-        #    f"{asset + ':':<18}{weight * 100:>6.2f}%"
-        #    for asset, weight in allocations.items()
-        #])
         allocations_text = "\n".join([
             f"{asset.replace('_', ' ') + ':':<12}{weight * 100:>6.2f}%"
             for asset, weight in allocations.items()
@@ -212,9 +206,6 @@ def plot_cumulative_returns(
     display_toml_below_figure(ax_table, toml_file)
 
     # Show plot
-    #plt.subplots_adjust(hspace=0.4)  # bigger gap between subplots
-    #plt.tight_layout()
-    # plt.savefig("portfolio_performance.png", dpi=600, bbox_inches="tight")  # For high-res output
     fig.canvas.mpl_connect('key_press_event', toggle_zoom)
     if save_path:
         plt.savefig(save_path, bbox_inches="tight")

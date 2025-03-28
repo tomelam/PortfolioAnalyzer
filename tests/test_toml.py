@@ -44,6 +44,7 @@ mock_valid_ppf_toml = {
 
 @pytest.mark.order(1)  # test_valid_toml(mocker)
 def test_valid_toml(mocker):
+    mocker.patch("os.path.exists", return_value=True)
     mocker.patch("toml.load", return_value=mock_valid_toml)
     portfolio = load_portfolio_details("port-x.toml")
 
@@ -60,6 +61,7 @@ def test_valid_toml(mocker):
 @pytest.mark.order(2)  # test_invalid_toml_missing_top_level_key(mocker)
 def test_invalid_toml_missing_top_level_key(mocker):
     """Test loading a TOML file missing top-level keys."""
+    mocker.patch("os.path.exists", return_value=True)
     mocker.patch("toml.load", return_value={"funds": mock_valid_toml["funds"]})
 
     with pytest.raises(ValueError, match="Missing required top-level key: 'label'"):
@@ -86,6 +88,7 @@ def test_invalid_toml_invalid_fund_allocation(mocker):
             }
         ],
     }
+    mocker.patch("os.path.exists", return_value=True)
     mocker.patch("toml.load", return_value=invalid_toml)
 
     # Use (?s) to allow '.' to match newline characters
