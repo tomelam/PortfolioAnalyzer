@@ -314,19 +314,19 @@ def parse_arguments():
                         help="Output metrics in machine-readable CSV format."
     )
     parser.add_argument("--output-dir", "-od",
-                        help="If specified, save plot image there instead of showing it."
+                        help="If specified, save plot image there instead of in the default `outputs/` directory."
     )
     parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5,
                         help="Drawdown threshold, in percent."
     )
     parser.add_argument("--save-golden-data", "-sgd", action="store_true",
                         help="Save golden data as a Pickle file for testing."
-    )    
-    parser.add_argument("--debug", "-d", action="store_true",
-                        help="Show full tracebacks for debugging."
     )
     parser.add_argument("--quiet", "-q", action="store_true",
                         help="Suppresses the 'Continue anyway?' prompt when stale data is detected, and automatically proceeds as if you answered yes.")
+    parser.add_argument("--debug", "-d", action="store_true",
+                        help="Show full tracebacks for debugging."
+    )
 
     return parser.parse_args()
 

@@ -88,7 +88,7 @@ Mac users might notice messages like `2025-02-04 20:00:14.220 python[20791:45437
 
 ### Command-Line Options
 
-The command-line interface is organized into several categories. Only the portfolio TOML file is required; the rest are optional and grouped below for clarity.
+The command-line interface is organized into several categories. Only the portfolio TOML file is required; the rest are optional and grouped below for clarity. Running the command without arguments prints a short help, and running the command with the option `--help` prints extended help.
 
 ---
 
