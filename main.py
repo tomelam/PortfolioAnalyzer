@@ -1,6 +1,8 @@
 import pandas as pd
 from data_loader import (
+    load_config_toml,
     load_and_check_freshness,
+    load_config_toml,
     load_index_data,
     get_aligned_portfolio_civs,
     load_portfolio_details,
@@ -28,25 +30,6 @@ from utils import (
 
 
 def main(args):
-    '''
-    settings["output_csv"] = args.output_csv or config.get("output_csv", False)
-    settings["output_snapshot"] = args.output_snapshot or config.get("output_snapshot", False)
-    settings["output_dir"] = args.save_output_to or config.get("output_dir", "outputs")
-
-    settings["save_golden"] = args.save_golden_data or config.get("save_golden_data", False)
-    settings["debug"] = args.debug or config.get("debug", False)
-    settings["do_not_plot"] = args.do_not_plot or config.get("do_not_plot", False)
-
-    settings["drawdown_threshold"] = (
-        args.max_drawdown_threshold if args.max_drawdown_threshold is not None
-        else (config.get("max_drawdown_threshold", 5.0) / 100)
-    )
-
-    settings["skip_age_check"] = args.skip_age_check or config.get("skip_age_check", False)
-    
-    settings["toml_file_path"] = args.toml_file
-    '''
-
     #print("Benchmark columns:", benchmark_data.columns.tolist())
     benchmark_data = load_and_check_freshness(
         settings["benchmark_file"],
@@ -289,13 +272,6 @@ def dump_pickle(filepath, obj):
         return pickle.dump(obj, f)
 
 
-def load_config(config_path):
-    import os
-    if not os.path.exists(config_path):
-        return {}  # Gracefully handle missing config file
-    return toml.load(config_path)
-
-
 def parse_arguments():
     import argparse
     parser = argparse.ArgumentParser(description="Portfolio Analyzer application.")
@@ -330,7 +306,7 @@ if __name__ == "__main__":
     import traceback
 
     args = parse_arguments()
-    config = load_config(args.config)
+    config = load_config_toml(args.config)
 
     try:
         settings = {
@@ -348,6 +324,10 @@ if __name__ == "__main__":
             "benchmark_file": config.get("benchmark_returns_file", "data/NIFTRI.csv"),
             "benchmark_date_format": config.get("benchmark_date_format", "%m/%d/%Y"),
         }
+        if settings["debug"]:
+            print("Merged settings:")
+            for k, v in settings.items():
+                print(f"  {k}: {v}")
         main(settings)
     except Exception as e:
         print(f"\nError: {e}", file=sys.stderr)

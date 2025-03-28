@@ -36,6 +36,20 @@ from utils import (
 )
 
 
+def load_config_toml(config_path: str) -> dict:
+    """Load general runtime settings from a config TOML file."""
+    if not os.path.exists(config_path):
+        return {}
+    return toml.load(config_path)
+
+
+def load_portfolio_toml(portfolio_path: str) -> dict:
+    """Load portfolio-specific structure and fund metadata."""
+    if not os.path.exists(portfolio_path):
+        raise FileNotFoundError(f"Portfolio file not found: {portfolio_path}")
+    return toml.load(portfolio_path)
+
+
 def load_and_check_freshness(path, date_format, label, skip_age_check, quiet=False):
     df = pd.read_csv(path)
 
@@ -338,7 +352,7 @@ def load_portfolio_details(toml_file_path):
         FileNotFoundError: If the TOML file does not exist.
     """
     try:
-        portfolio_details = toml.load(toml_file_path)
+        portfolio_details = load_portfolio_toml(toml_file_path)
     except FileNotFoundError as e:
         raise FileNotFoundError(f"File not found: {toml_file_path}") from e
     except toml.TomlDecodeError as e:
