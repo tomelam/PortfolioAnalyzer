@@ -1,4 +1,7 @@
+import pandas as pd
 from data_loader import (
+    load_and_check_freshness,
+    load_index_data,
     get_aligned_portfolio_civs,
     load_portfolio_details,
     fetch_portfolio_civs,
@@ -18,46 +21,55 @@ from portfolio_calculator import (
     calculate_gain_daily_portfolio_series,
 )
 from visualizer import plot_cumulative_returns
-from utils import info
+from utils import (
+    info,
+    warn_if_stale,
+)
 
 
 def main(args):
-    import pandas as pd
-    toml_file_path = args.toml_file
-    benchmark_file = args.benchmark_returns_file
-    benchmark_name = args.benchmark_name
-    drawdown_threshold = args.max_drawdown_threshold / 100
+    '''
+    settings["output_csv"] = args.output_csv or config.get("output_csv", False)
+    settings["output_snapshot"] = args.output_snapshot or config.get("output_snapshot", False)
+    settings["output_dir"] = args.save_output_to or config.get("output_dir", "outputs")
 
-    benchmark_data = pd.read_csv(benchmark_file)
-    #print("Benchmark columns:", benchmark_data.columns.tolist())
-    benchmark_data["Date"] = pd.to_datetime(
-        benchmark_data["Date"],
-        format=args.benchmark_date_format,
-        errors="coerce"
+    settings["save_golden"] = args.save_golden_data or config.get("save_golden_data", False)
+    settings["debug"] = args.debug or config.get("debug", False)
+    settings["do_not_plot"] = args.do_not_plot or config.get("do_not_plot", False)
+
+    settings["drawdown_threshold"] = (
+        args.max_drawdown_threshold if args.max_drawdown_threshold is not None
+        else (config.get("max_drawdown_threshold", 5.0) / 100)
     )
+
+    settings["skip_age_check"] = args.skip_age_check or config.get("skip_age_check", False)
+    
+    settings["toml_file_path"] = args.toml_file
     '''
-    print("\n--- Benchmark Date Index Diagnostics ---")
-    print("First 5 parsed index values:")
-    print(benchmark_data["Date"].head())
-    print("Number of unparsed (NaT) dates:", benchmark_data["Date"].isna().sum())
-    print("Minimum date:", benchmark_data["Date"].min())
-    print("Maximum date:", benchmark_data["Date"].max())
-    print("----------------------------------------\n")
-    '''
-    if benchmark_data["Date"].isna().sum() > 0:
+
+    #print("Benchmark columns:", benchmark_data.columns.tolist())
+    benchmark_data = load_and_check_freshness(
+        settings["benchmark_file"],
+        settings["benchmark_date_format"],
+        "Benchmark",
+        settings["skip_age_check"],
+        quiet=not settings["debug"]
+    )
+
+    # Optional warning if any dates couldn't be parsed (coerced to NaT)
+    if benchmark_data["date"].isna().sum() > 0:
         info(
             "Warning: Some dates in the benchmark file could not be parsed. "
             "Check the --benchmark-date-format value."
         )
-    benchmark_data.set_index("Date", inplace=True)
+
+    # Normalize for downstream use
+    benchmark_data.set_index("date", inplace=True)
     benchmark_data.sort_index(inplace=True)
-    if "Close" not in benchmark_data.columns and "Price" in benchmark_data.columns:
-        benchmark_data.rename(columns={"Price": "Close"}, inplace=True)
-    if benchmark_data["Close"].dtype == object:
-        benchmark_data["Close"] = benchmark_data["Close"].str.replace(',', '').astype(float)
+    benchmark_data.rename(columns={"value": "Close"}, inplace=True)
     benchmark_returns = get_benchmark_gain_daily(benchmark_data)
 
-    portfolio = load_portfolio_details(toml_file_path)
+    portfolio = load_portfolio_details(settings["portfolio_file"])
     portfolio_label = portfolio["label"]
     info(f"\nCalculating portfolio metrics for {portfolio_label}.")
 
@@ -155,7 +167,7 @@ def main(args):
         gold_series,
     )
 
-    risk_free_rate_series = fetch_and_standardize_risk_free_rates(args.risk_free_rates_file)
+    risk_free_rate_series = fetch_and_standardize_risk_free_rates(settings["risk_free_rates_file"])
     risk_free_rates = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
     risk_free_rate = risk_free_rates.mean()
     risk_free_rate_daily = (1 + risk_free_rate)**(1/252) - 1
@@ -182,7 +194,7 @@ def main(args):
         max_dd = 0.0
         max_dd_start = "N/A"
 
-    if args.csv_output:
+    if settings["output_csv"]:
         print(
             f"\"{portfolio_label}\","  # Escape commas in the portfolio label.
             f"{cagr:.2f}%,"
@@ -217,7 +229,7 @@ def main(args):
     )
 
     # Optionally, if the flag is set, dump portfolio data to a pickle file.
-    if args.save_golden_data:
+    if settings["save_golden"]:
         import pickle
         portfolio_data = {
             "gain_daily": gain_daily_portfolio_series,
@@ -233,21 +245,21 @@ def main(args):
         info("Golden portfolio data generated.")
 
     # For more automated operation, the plotting can be skipped.
-    if not args.do_not_plot:
-        if args.output_dir:
+    if not settings["do_not_plot"]:
+        if settings["output_snapshot"]:
             import os
-            os.makedirs(args.output_dir, exist_ok=True)
+            os.makedirs(settings["output_dir"], exist_ok=True)
             # Strip "port-" prefix and ".toml" suffix
-            base_name = os.path.basename(args.toml_file)
+            base_name = os.path.basename(settings["portfolio_file"])
             image_name = base_name.replace("port-", "").replace(".toml", "") + ".png"
-            image_path = os.path.join(args.output_dir, image_name)
+            image_path = os.path.join(settings["output_dir"], image_name)
             plot_cumulative_returns(
                 portfolio_label,
                 cumulative_historical,
                 "Historical Performance",
-                toml_file_path,
+                settings["portfolio_file"],
                 cumulative_benchmark,
-                benchmark_name,
+                settings["benchmark_name"],
                 calculate_portfolio_allocations(portfolio),
                 metrics,
                 max_drawdowns,
@@ -259,9 +271,9 @@ def main(args):
                 portfolio_label,
                 cumulative_historical,
                 "Historical Performance",
-                toml_file_path,
+                settings["portfolio_file"],
                 cumulative_benchmark,
-                benchmark_name,
+                settings["benchmark_name"],
                 calculate_portfolio_allocations(portfolio),
                 metrics,
                 max_drawdowns,
@@ -277,20 +289,19 @@ def dump_pickle(filepath, obj):
         return pickle.dump(obj, f)
 
 
+def load_config(config_path):
+    import os
+    if not os.path.exists(config_path):
+        return {}  # Gracefully handle missing config file
+    return toml.load(config_path)
+
+
 def parse_arguments():
     import argparse
     parser = argparse.ArgumentParser(description="Portfolio Analyzer application.")
+    parser.add_argument("--config", "-c", type=str, default="config.toml", help="Optional config file")
     parser.add_argument("toml_file", type=str,
                         help="Path to the TOML file describing the portfolio."
-    )
-    parser.add_argument("--benchmark-name", "-bn", type=str, default="NIFTY TRI",
-                        help="Benchmark name."
-    )
-    parser.add_argument("--benchmark-returns-file", "-br", type=str, default="data/NIFTRI.csv",
-                        help="Risk-free rates file."
-    )
-    parser.add_argument("--risk-free-rates-file", "-rf", type=str, default="data/INDIRLTLT01STM.csv",
-                        help="Risk-free rates file."
     )
     parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5,
                         help="Drawdown threshold, in percent."
@@ -307,26 +318,40 @@ def parse_arguments():
     parser.add_argument("--output-dir", "-od",
                         help="If specified, save plot image there instead of showing it."
     )
-    parser.add_argument("--benchmark-date-format", "-bdf", type=str,
-                        default="%m/%d/%Y",
-                        help="Date format in benchmark CSV file (e.g. '%%d-%%m-%%Y' or '%%m/%%d/%%Y')"
-    )
     parser.add_argument("--debug", "-d", action="store_true",
                         help="Show full tracebacks for debugging."
     )
 
     return parser.parse_args()
 
+
 if __name__ == "__main__":
     import sys
     import traceback
 
     args = parse_arguments()
+    config = load_config(args.config)
+
     try:
-        main(args)
+        settings = {
+            "output_csv": args.csv_output or config.get("output_csv", False),
+            "output_snapshot": bool(args.output_dir),
+            "output_dir": args.output_dir or config.get("output_dir", "outputs"),
+            "save_golden": args.save_golden_data or config.get("save_golden_data", False),
+            "debug": args.debug or config.get("debug", False),
+            "do_not_plot": args.do_not_plot or config.get("do_not_plot", False),
+            "drawdown_threshold": args.max_drawdown_threshold or config.get("max_drawdown_threshold", 5.0),
+            "skip_age_check": config.get("skip_age_check", False),
+            "portfolio_file": args.toml_file,
+            "benchmark_name": config.get("benchmark_name", "NIFTY Total Returns Index"),
+            "risk_free_rates_file": config.get("risk_free_rates_file", "data/INDIRLTLT01STM.csv"),
+            "benchmark_file": config.get("benchmark_returns_file", "data/NIFTRI.csv"),
+            "benchmark_date_format": config.get("benchmark_date_format", "%m/%d/%Y"),
+        }
+        main(settings)
     except Exception as e:
         print(f"\nError: {e}", file=sys.stderr)
-        if args.debug:
+        if settings["debug"]:
             print(traceback.format_exc(), file=sys.stderr)
         else:
             print("Run again with --debug for more details.", file=sys.stderr)

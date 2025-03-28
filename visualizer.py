@@ -121,6 +121,7 @@ def plot_cumulative_returns(
         rebase_date=datetime(2008, 1, 1),
         save_path=None,
 ):
+    print("Entering plot_cumulative_returns")
     fig = plt.figure(figsize=(10, 6), constrained_layout=True, dpi=200)  # higher DPI for crisp screen rendering
 
     gs = fig.add_gridspec(2, 1, height_ratios=[4, 1.2])

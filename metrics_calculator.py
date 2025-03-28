@@ -164,6 +164,8 @@ def calculate_alpha_beta(portfolio_returns, benchmark_returns, annualized_return
     common_start = max(port_ret.index.min(), bench_ret.index.min())
     common_end = min(port_ret.index.max(), bench_ret.index.max())
     port_ret = port_ret.loc[common_start:common_end]
+    print("common_end:", common_end)
+    print("last benchmark date:", bench_ret.index.max())
     bench_ret = bench_ret.loc[common_start:common_end]
 
     # Reintroduce the one-day shift on benchmark returns.

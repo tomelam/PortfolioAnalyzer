@@ -30,7 +30,38 @@ import os
 from datetime import timedelta, datetime
 
 #import portfolio_calculator
-from utils import info
+from utils import (
+    info,
+    warn_if_stale,
+)
+
+
+def load_and_check_freshness(path, date_format, label, skip_age_check, quiet=False):
+    df = pd.read_csv(path)
+
+    # Attempt to parse dates
+    df["date"] = pd.to_datetime(df["Date"], format=date_format, errors="coerce")
+
+    # Standardize columns
+    if "Price" in df.columns:
+        df = df[["date", "Price"]].rename(columns={"Price": "value"})
+    elif "Close" in df.columns:
+        df = df[["date", "Close"]].rename(columns={"Close": "value"})
+    else:
+        raise ValueError(f"Expected column 'Price' or 'Close' in {label} file, but got: {df.columns.tolist()}")
+
+    # Drop unparseable or missing rows
+    df = df.dropna(subset=["date", "value"])
+
+    # Strip commas from numeric strings if necessary
+    if df["value"].dtype == object:
+        df["value"] = df["value"].str.replace(',', '').astype(float)
+
+    # Age check
+    if not skip_age_check:
+        warn_if_stale(df, label=label, quiet=quiet)
+
+    return df
 
 
 def get_aligned_portfolio_civs(portfolio):
@@ -87,6 +118,44 @@ def align_portfolio_civs(portfolio_civs):
     combined_civs = pd.concat({name: civ for name, civ in aligned_civs.items()}, axis=1)
     aligned_combined_civs = combined_civs.ffill()
     return aligned_combined_civs
+
+
+def load_index_data(filepath, source, skip_age_check=False):
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"Index data file not found: {filepath}")
+
+    df = pd.read_csv(filepath)
+
+    if source == "investing.com":
+        expected_cols = {"Date", "Price"}
+        if not expected_cols.issubset(df.columns):
+            raise ValueError(f"Expected columns {expected_cols} in file from investing.com, got {df.columns.tolist()}")
+
+        df["Date"] = pd.to_datetime(df["Date"], dayfirst=True, errors="raise")
+        df = df.rename(columns={"Date": "date", "Price": "value"})
+
+    elif source == "niftyindices.com":
+        expected_cols = {"Date", "Close", "Index Name"}
+        if not expected_cols.issubset(df.columns):
+            raise ValueError(f"Expected columns {expected_cols} in file from niftyindices.com, got {df.columns.tolist()}")
+
+        try:
+            df["Date"] = pd.to_datetime(df["Date"], format="%d %b %Y", errors="raise")
+        except Exception as e:
+            raise ValueError(f"Date parsing failed for niftyindices.com data: {e}")
+
+        df = df.rename(columns={"Date": "date", "Close": "value"})
+        df = df[["date", "value"]]  # Drop other columns
+
+    else:
+        raise ValueError(f"Unrecognized data source: {source}")
+
+    df = df.sort_values("date").reset_index(drop=True)
+
+    if not skip_age_check:
+        _warn_if_stale(df, label=source)
+
+    return df
 
 
 def get_benchmark_gain_daily(benchmark_data):

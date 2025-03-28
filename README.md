@@ -10,11 +10,11 @@ This repository contains the Portfolio Analyzer application. It fetches historic
   - Fetches NAV data for each fund via API calls.
   - Loads risk-free rate data from CSV. The included file INDIRLTLT01STM.csv is one such file manually downloaded from [fred.stlouisfed.org](https://fred.stlouisfed.org).
   - Uses PPF interest rates manually encoded as CSV in the file `data/ppf_interest_rates.csv`.
-  - Scrapes the SCSS interest rates from (The National Savings Institute's table "Senior Citizens' Savings Scheme--Interest Rate Since Inception")[https://www.nsiindia.gov.in/(S(2xgxs555qwdlfb2p4ub03n3n))/InternalPage.aspx?Id_Pk=181].
-  - Loads the SGB issue price/unit and redemption price/unit data manually copied from the Wikipedia page (Sovereign Gold Bond)[https://en.wikipedia.org/wiki/Sovereign_Gold_Bond].
+  - Scrapes the SCSS interest rates from [The National Savings Institute's table "Senior Citizens' Savings Scheme--Interest Rate Since Inception"](https://www.nsiindia.gov.in/(S(2xgxs555qwdlfb2p4ub03n3n))/InternalPage.aspx?Id_Pk=181).
+  - Loads the SGB issue price/unit and redemption price/unit data manually copied from the Wikipedia page [Sovereign Gold Bond](https://en.wikipedia.org/wiki/Sovereign_Gold_Bond).
   - Uses a fixed rate (5.0%) for the REC Limited 5% bond (ISIN: INE020B07MD4).
-  - Uses gold futures (GCJ5) manually downloaded as CSV from [https://www.investing.com/commodities/gold-historical-data](https://www.investing.com/commodities/gold-historical-data) and stored in the file `data/Gold Futures Historical Data.csv`. It is difficult to source the gold spot price for free, but gold futures front-month contracts closely approximate the gold spot price, especially as the contract nears expiration. This is why PortfolioAnalyzer uses the gold futures front-month contract price as a proxy for the gold spot price.
-  - Uses benchmark historical data from [https://www.investing.com](https://www.investing.com).
+  - Uses gold futures (GCJ5) manually downloaded as CSV from [https://www.investing.com/commodities/gold-historical-data](https://www.investing.com/commodities/gold-historical-data) and stored in the file `"data/Gold Futures Historical Data.csv"`. It is difficult to source the gold spot price for free, but gold futures front-month contracts closely approximate the gold spot price, especially as the contract nears expiration. This is why PortfolioAnalyzer uses the gold futures front-month contract price as a proxy for the gold spot price.
+  - Uses benchmark historical data from [niftyindices.com](https://www.niftyindices.com) or [investing.com](https://investing.com) (deprecated).
   - Aligns data to a common date range across all data sources.
 
 - **Portfolio Metrics Calculation:**  
@@ -43,10 +43,16 @@ This repository contains the Portfolio Analyzer application. It fetches historic
    python3 -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
+   If you're using `asdf` to manage Python versions, run:
+   ```bash
+   asdf install
+   asdf reshim python
+   ```
 3. **Install dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
+   
 &nbsp;
    _Dependencies include, among others:_
    * pandas
@@ -79,6 +85,54 @@ Other option shortcuts and defaults:
 ⚠️ NOTE: Files downloaded from Investing.com sometimes use different date formats (e.g., %d-%m-%Y vs %m/%d/%Y). Always check the format of the first few rows and pass --benchmark-date-format accordingly.
 
 Mac users might notice messages like `2025-02-04 20:00:14.220 python[20791:454371] +[IMKClient subclass]: chose IMKClient_Modern` cluttering the terminal output. These are OS Activity Mode messages coming from Apple's Input Method Kit (IMK). They can be suppressed by appending `2> /dev/null` to the command. This is not a perfect solution. Normally, the OS_ACTIVITY_MODE environment variable could be set to "disable" to suppress such messages, but it appears that Apple's Input Method Kit (IMK) framework does not consistently honor that variable.
+
+### Command-Line Options
+
+The command-line interface is organized into several categories. Only the portfolio TOML file is required; the rest are optional and grouped below for clarity.
+
+---
+
+#### 🧾 Input-File & Configuration Options
+
+- `--config` (`-c`):  
+  Path to a TOML file containing general runtime settings like output preferences.  
+  Defaults to `config.toml` if not specified.  
+  *(This option has no config key; it specifies the config file itself.)*
+
+- `--skip-age-check` (`-sa`) → `skip_age_check = true`:  
+  Suppresses the warning and prompt when benchmark or risk-free data appears stale  
+  (i.e., not updated for more than 24 hours on a market day). Useful for automation.
+
+---
+
+#### 📤 Output Control
+
+- `--output-csv` → `output_csv = true`:  
+  If set, writes metrics to a CSV file. The filename is derived from the portfolio TOML name.
+
+- `--output-snapshot` → `output_snapshot = true`:  
+  If set, saves a snapshot image of the performance plot.
+
+- `--save-output-to <dir>` → `output_dir = "outputs"`:  
+  Specifies the directory where any output file (CSV and/or snapshot image) will be saved.  
+  If not given, any output file will be written to the `outputs/` directory by default.
+
+---
+
+#### 🛠️ Execution Behavior
+
+- `--debug` (`-d`) → `debug = true`:  
+  Enables debug mode, which may trigger additional logging or relaxed error handling.
+
+- `--do-not-plot` (`-np`) → `do_not_plot = true`:  
+  Disables on-screen display of plots. Use this when running from scripts or environments without a graphical display.
+
+- `--max-drawdown-threshold <float>` (`-dt`) → `max_drawdown_threshold = 5.0`:  
+  Sets the percentage threshold for reporting drawdowns.
+
+---
+
+Each of these options (except of course `--config`) can also be set in the config TOML, allowing you to reuse the same settings across multiple runs without cluttering your CLI commands. When both the CLI and the config file specify the same setting, the CLI takes precedence.
 
 ---
 
@@ -119,7 +173,15 @@ This section is to be expanded.
 ```
 ---
 
-## Testing
+## Running Tests
+
+To prepare to run the tests:
+```bash
+pip install pytest
+pip install pytest-mock
+pip install pytest-order
+```
+To run the test suite:
 
 ```bash
 PYTHONPATH=. pytest tests/
