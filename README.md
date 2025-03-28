@@ -152,7 +152,7 @@ Each of the options (except for `--config`) can also be set in the config TOML, 
   Sets the filename of the benchmark data.
   
   `benchmark_date_format = "%d %b %Y"`:  
-  Sets the date format for the dates in the benchmark data CSV file. "dd-MMM-yyyy" is the format that Niftyindices.com typically uses. "%m/%d/%Y" is the format that Investing.com typically uses for Indian indices, since they changed the format in the first quarter of 2025.
+  Sets the date format for the dates in the benchmark data CSV file. "%d %b %Y" is the format that Niftyindices.com typically uses. "%m/%d/%Y" is the format that Investing.com typically uses for Indian indices, since they changed the format in the first quarter of 2025.
 
 ## Metrics
 
