@@ -352,8 +352,8 @@ if __name__ == "__main__":
             "debug": args.debug or config.get("debug", False),
             "risk_free_rates_file": config.get("risk_free_rates_file", "data/INDIRLTLT01STM.csv"),
             "benchmark_name": config.get("benchmark_name", "NIFTY Total Returns Index"),
-            "benchmark_file": config.get("benchmark_returns_file", "data/NIFTRI.csv"),
-            "benchmark_date_format": config.get("benchmark_date_format", "%m/%d/%Y"),
+            "benchmark_file": config.get("benchmark_returns_file", "data/NIFTY TOTAL MARKET_Historical_PR_01012007to28032025.csv"),
+            "benchmark_date_format": config.get("benchmark_date_format", "%d %b %Y"),
         }
         if settings["output_dir"] and not (settings["output_csv"] or settings["output_snapshot"]):
             print(

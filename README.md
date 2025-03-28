@@ -90,6 +90,8 @@ Mac users might notice messages like `2025-02-04 20:00:14.220 python[20791:45437
 
 The command-line interface is organized into several categories. Only the portfolio TOML file is required; the rest are optional and grouped below for clarity. Running the command without arguments prints a short help, and running the command with the option `--help` prints extended help.
 
+Each of the options (except for `--config`) can also be set in the config TOML, allowing you to reuse the same settings across multiple runs without cluttering your CLI commands. When both the CLI and the config file specify the same setting, the CLI takes precedence.
+
 ---
 
 #### 🧾 Configuration Options
@@ -141,9 +143,16 @@ The command-line interface is organized into several categories. Only the portfo
 
 ---
 
-Each of these options (except of course `--config`) can also be set in the config TOML, allowing you to reuse the same settings across multiple runs without cluttering your CLI commands. When both the CLI and the config file specify the same setting, the CLI takes precedence.
+#### Benchmark Indices (config-file only, not in command-line options)
 
----
+  `benchmark_name = "NIFTY Total Returns Index"`
+  Sets the name of the benchmark index in the outputs.
+  
+  `benchmark_file = "data/NIFTY TOTAL MARKET_Historical_PR_01012007to28032025.csv"`
+  Sets the filename of the benchmark data.
+  
+  `benchmark_date_format = "%d %b %Y"
+  Sets the date format for the dates in the benchmark data CSV file. "dd-MMM-yyyy" is the format that Niftyindices.com typically uses. "%m/%d/%Y" is the format that Investing.com typically uses for Indian indices, since they changed the format in the first quarter of 2025.
 
 ## Metrics
 
