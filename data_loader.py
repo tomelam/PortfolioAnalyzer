@@ -27,13 +27,22 @@ import pandas as pd
 import requests
 import toml
 import os
-from datetime import timedelta, datetime
+from datetime import (
+    timedelta,
+    datetime,
+)
 
-#import portfolio_calculator
 from utils import (
     info,
     warn_if_stale,
 )
+
+from timeseries import TimeseriesFrame
+
+try:
+    from main import DEBUG
+except ImportError:
+    DEBUG = False  # fallback default if main hasn't been run yet
 
 
 def load_config_toml(config_path: str) -> dict:
@@ -50,32 +59,111 @@ def load_portfolio_toml(portfolio_path: str) -> dict:
     return toml.load(portfolio_path)
 
 
-def load_and_check_freshness(path, date_format, label, skip_age_check, quiet=False):
-    df = pd.read_csv(path)
+def check_time_index_cleanliness(df, name="DataFrame"):
+    from utils import info
+    import pandas as pd
 
-    # Attempt to parse dates
-    df["date"] = pd.to_datetime(df["Date"], format=date_format, errors="coerce")
+    idx = df.index
+    problems = []
 
-    # Standardize columns
-    if "Price" in df.columns:
-        df = df[["date", "Price"]].rename(columns={"Price": "value"})
-    elif "Close" in df.columns:
-        df = df[["date", "Close"]].rename(columns={"Close": "value"})
+    if not isinstance(idx, pd.DatetimeIndex):
+        problems.append("Index is not a DatetimeIndex — possibly string-based. Was date_format applied correctly?")
+
+    if idx.hasnans:
+        problems.append("Index contains NaT values — likely due to failed date parsing.")
+
+    if not idx.is_monotonic_increasing:
+        problems.append("Index is not sorted.")
+
+    if not idx.is_unique:
+        problems.append("Index contains duplicate timestamps.")
+
+    if problems:
+        info(f"⚠️  {name} time index issues detected:")
+        for p in problems:
+            info(f"   - {p}")
+        # Show sample of problematic index
+        sample = list(idx[:5])
+        info(f"   → First few index values: {sample}")
     else:
-        raise ValueError(f"Expected column 'Price' or 'Close' in {label} file, but got: {df.columns.tolist()}")
+        info(f"{name} time index appears clean.")
 
-    # Drop unparseable or missing rows
-    df = df.dropna(subset=["date", "value"])
 
-    # Strip commas from numeric strings if necessary
-    if df["value"].dtype == object:
-        df["value"] = df["value"].str.replace(',', '').astype(float)
+def load_timeseries_csv(
+    file_path,
+    date_format,
+    max_delay_days=None,
+):
+    df = pd.read_csv(file_path)
 
-    # Age check
-    if not skip_age_check:
-        warn_if_stale(df, label=label, quiet=quiet)
+    # Identify the date column
+    date_cols = [c for c in df.columns if "date" in c.lower()]
+    if len(date_cols) != 1:
+        raise ValueError(f"Expected exactly one date column containing 'date'; found: {date_cols}")
+    date_column = date_cols[0]
 
-    return df
+    # Parse dates safely, without coercion
+    parsed_dates = pd.to_datetime(df[date_column], format=date_format, errors="coerce")
+    bad_rows = df[parsed_dates.isna()]
+    if len(bad_rows):
+        info(f"❗ Found {len(bad_rows)} bad date(s) in '{date_column}'. Sample:")
+        info(bad_rows.head(min(5, len(bad_rows))).to_string(index=False))
+        raise ValueError(f"{file_path}: date parsing failed. Check format: {date_format}")
+
+    df[date_column] = parsed_dates
+    df.set_index(date_column, inplace=True)
+    df.sort_index(inplace=True)
+    if not isinstance(df.index, pd.DatetimeIndex):
+        raise TypeError(f"Expected DatetimeIndex, got {type(df.index)}")
+    if DEBUG:
+        info(f"Date index now ranges from {df.index.min().date()} to {df.index.max().date()}")
+
+    # Find the value column and rename it "value"
+    col_priority = ["rate", "price", "close"]
+    candidates = [
+        col for name in col_priority
+        for col in df.columns
+        if name in col.lower() and col != date_column
+    ]
+    if not candidates:
+        raise ValueError(f"{file_path}: no column found containing 'rate', 'price', or 'close'")
+    if len(candidates) > 1:
+        raise ValueError(f"{file_path}: multiple candidate value columns: {candidates}")
+    value_column = candidates[0]
+    df.rename(columns={value_column: "value"}, inplace=True)
+
+    # Strip commas and try to convert to float
+    try:
+        df["value"] = df["value"].astype(str).str.replace(",", "").astype(float)
+    except ValueError as e:
+        # Attempt to show a sample of bad values
+        bad_rows = df[
+            ~df["value"]
+            .astype(str)
+            .str.replace(".", "", 1)
+            .str.replace("-", "", 1)
+            .str.isnumeric()
+        ]
+        info(f"❗ Could not convert 'value' column to float. Sample of bad rows:")
+        info(bad_rows.head(5).to_string(index=False))
+        raise ValueError(f"{file_path}: 'value' column contains non-numeric entries.") from e
+
+    # Check freshness, if required
+    if max_delay_days is not None:
+        last_date = df.index[-1]
+        today = pd.Timestamp.today().normalize()
+        expected_latest = (today - pd.Timedelta(days=max_delay_days)).replace(day=1)
+
+        info(f"Latest date in {os.path.basename(file_path)}: {last_date.date()}")
+        info(f"Required minimum date: {expected_latest.date()}")
+
+        if last_date < expected_latest:
+            raise RuntimeError(
+                f"{file_path}: data is outdated (last date: {last_date.date()}) — "
+                f"fetch a fresh copy"
+            )
+
+    return TimeseriesFrame(df[["value"]])
 
 
 def get_aligned_portfolio_civs(portfolio):
@@ -189,7 +277,7 @@ def get_benchmark_gain_daily(benchmark_data):
     # Assign the index name to "date"
     benchmark_data.index.name = "date"
     # Calculate daily returns
-    benchmark_gain_daily = benchmark_data["Close"].pct_change().fillna(0)
+    benchmark_gain_daily = benchmark_data.value_series().pct_change().fillna(0)
     # Set the index name to "date" so it matches expected_result
     benchmark_gain_daily.index.name = "date"
     return benchmark_gain_daily
@@ -631,12 +719,18 @@ def fetch_yahoo_finance_data(ticker, refresh_hours=6, period="max"):
 
 
 # Load risk-free rate data
-def fetch_and_standardize_risk_free_rates(file_path):
+def fetch_and_standardize_risk_free_rates(
+    file_path,
+    date_format,
+    max_allowed_delay_days,
+):
     """
     Load risk-free rate data from a CSV file and check if it's outdated based on the date content.
 
     Parameters:
         file_path (str): Path to the CSV file.
+        date_format (str): Format string to match the date components (day, month, year)
+        max_allowed_delay_days: Maximum acceptable age in days of the latest date in the CSV
 
     Returns:
         pd.DataFrame: Risk-free rate data indexed by date.
@@ -646,55 +740,19 @@ def fetch_and_standardize_risk_free_rates(file_path):
         ValueError: If the file format is invalid.
         RuntimeError: If the data is outdated.
     """
-    import pandas as pd
-    import os
-    from utils import info
-
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Risk-free rate file '{file_path}' not found.")
-
     try:
-        df = pd.read_csv(file_path)
-
-        if "observation_date" not in df.columns:
-            raise ValueError("CSV must contain an 'observation_date' column.")
-
-        # Expect exactly one other column
-        rate_cols = [col for col in df.columns if col != "observation_date"]
-        if len(rate_cols) != 1:
-            raise ValueError(f"Expected exactly one rate column besides 'observation_date', found: {rate_cols}")
-
-        rate_col = rate_cols[0]
-        df.rename(columns={rate_col: "rate"}, inplace=True)
-
-        df["date"] = pd.to_datetime(df["observation_date"], errors="coerce")
-        df["rate"] = pd.to_numeric(df["rate"], errors="coerce") / 100
-
-        df.dropna(subset=["date", "rate"], inplace=True)
-        df.set_index("date", inplace=True)
-        df.sort_index(inplace=True)
-
-        # Freshness test
-        last_date = df.index[-1]
-        today = pd.Timestamp.today().normalize()
-        max_allowed_delay = pd.DateOffset(days=61)
-        expected_latest = (today - max_allowed_delay).replace(day=1)
-
-        if last_date < expected_latest:
-            raise RuntimeError(
-                f"Risk-free rate data is outdated (last date: {last_date.date()}). "
-                f"Please fetch a fresh version from the web."
-            )
-
+        df = load_timeseries_csv(file_path, date_format, max_delay_days=max_allowed_delay_days)
+        df["value"] = df["value"] / 100.0  # Convert from percent to decimal
+        return df["value"]
     except Exception as e:
         raise ValueError(f"Failed to load risk-free rate data: {e}")
 
-    info("The risk-free-rate data appears up to date.")
-    return df
-
 
 # Interpolate risk-free rates to match portfolio dates
-def align_dynamic_risk_free_rates(portfolio_returns, risk_free_data):
+def align_dynamic_risk_free_rates(
+        portfolio_returns,
+        risk_free_data,
+):
     """
     Align and interpolate risk-free rates to match portfolio return dates.
 
@@ -705,8 +763,37 @@ def align_dynamic_risk_free_rates(portfolio_returns, risk_free_data):
     Returns:
         pd.Series: Interpolated risk-free rates.
     """
+
+    # Debug diagnostics
+    assert isinstance(risk_free_data.index, pd.DatetimeIndex), (
+        "Risk-free rate data index must be a DatetimeIndex. "
+        f"Got: {type(risk_free_data.index).__name__}"
+    )
+    overlap = portfolio_returns.index.intersection(risk_free_data.index)
+    if DEBUG:
+        info(f"Risk-free rate series shape: {risk_free_data.shape}")
+
+        idx = risk_free_data.index
+        start = pd.to_datetime(idx.min(), errors="coerce")
+        end = pd.to_datetime(idx.max(), errors="coerce")
+        info(f"Index range: {start.date() if pd.notna(start) else 'NaT'} → {end.date() if pd.notna(end) else 'NaT'}")
+        info(f"First few rows:\n{risk_free_data.head(3)}")
+        info(f"Last few rows:\n{risk_free_data.tail(3)}")
+        info(f"NaNs in risk-free series: {risk_free_data['rate'].isna().sum()}")
+        info(f"Non-zero values: {(risk_free_data['value'] != 0).sum()}")
+        info(f"Common dates between portfolio and risk-free: {len(overlap)}")
+
+    if len(overlap) < 10:
+        info("⚠️ Very few or no overlapping dates — risk-free may not be aligned.")
+
+    aligned_rates = (
+        risk_free_data
+        .reindex(portfolio_returns.index)
+        .interpolate(method="time")
+    )
+
     aligned_rates = risk_free_data.reindex(portfolio_returns.index)
-    rate_series = aligned_rates["rate"].infer_objects(copy=False).interpolate(method="time")
+    rate_series = aligned_rates.infer_objects(copy=False).interpolate(method="time")
     filled_rates = rate_series.ffill().bfill()
     # return filled_rates.mean()
     return filled_rates

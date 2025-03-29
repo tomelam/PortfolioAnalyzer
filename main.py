@@ -1,8 +1,8 @@
+from re import DEBUG
 import pandas as pd
 from data_loader import (
     load_config_toml,
-    load_and_check_freshness,
-    load_config_toml,
+    load_timeseries_csv,
     load_index_data,
     get_aligned_portfolio_civs,
     load_portfolio_details,
@@ -29,30 +29,19 @@ from utils import (
 )
 
 
+DEBUG = False  # Default
+
 def main(args):
     import os
     from pathlib import Path
 
-    #print("Benchmark columns:", benchmark_data.columns.tolist())
-    benchmark_data = load_and_check_freshness(
+    benchmark_data = load_timeseries_csv(
         settings["benchmark_file"],
         settings["benchmark_date_format"],
-        "Benchmark",
-        settings["skip_age_check"],
-        quiet=settings["quiet"]
+        max_delay_days=None if settings["skip_age_check"] else 2,
     )
+    assert "value" in benchmark_data.columns, "Expected column 'value' missing from timeseries"
 
-    # Optional warning if any dates couldn't be parsed (coerced to NaT)
-    if benchmark_data["date"].isna().sum() > 0:
-        info(
-            "Warning: Some dates in the benchmark file could not be parsed. "
-            "Check the --benchmark-date-format value."
-        )
-
-    # Normalize for downstream use
-    benchmark_data.set_index("date", inplace=True)
-    benchmark_data.sort_index(inplace=True)
-    benchmark_data.rename(columns={"value": "Close"}, inplace=True)
     benchmark_returns = get_benchmark_gain_daily(benchmark_data)
 
     portfolio = load_portfolio_details(settings["portfolio_file"])
@@ -153,16 +142,30 @@ def main(args):
         gold_series,
     )
 
-    risk_free_rate_series = fetch_and_standardize_risk_free_rates(settings["risk_free_rates_file"])
+    info(f"Using risk-free date format: {settings['riskfree_date_format']}")
+
+    risk_free_rate_series = fetch_and_standardize_risk_free_rates(
+        settings["risk_free_rates_file"],
+        date_format=settings["riskfree_date_format"],
+        max_allowed_delay_days=settings["max_riskfree_delay"],
+    )
     risk_free_rates = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
     risk_free_rate = risk_free_rates.mean()
     risk_free_rate_daily = (1 + risk_free_rate)**(1/252) - 1
+
+    print("→ Portfolio return sample:")
+    print(gain_daily_portfolio_series.head(5))
+
+    print("→ Risk-free rate sample:")
+    print(risk_free_rate_series.head(5))
+
+    print("→ Aligned shape:", gain_daily_portfolio_series.shape, risk_free_rate_series.shape)
 
     metrics, max_drawdowns = calculate_portfolio_metrics(
         gain_daily_portfolio_series,
         portfolio,
         risk_free_rate_daily,
-        benchmark_returns
+        benchmark_returns,
     )
 
     cagr = metrics["Annualized Return"] * 100
@@ -281,8 +284,8 @@ def main(args):
             max_drawdowns,
             portfolio_start_date,
         )
-        
-    if settings["output_dir"] and not (settings["output_csv"] or settings["output_snapshot"]):
+
+    if settings["output_dir_explicit"] and not (settings["output_csv"] or settings["output_snapshot"]):
         info(f"⚠️  Warning: output_dir is set to '{settings['output_dir']}' but no output will be written to it.")
 
 
@@ -319,6 +322,9 @@ def parse_arguments():
     parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5,
                         help="Drawdown threshold, in percent."
     )
+    parser.add_argument("--max-riskfree-delay", "-mrd", type=int,
+                        help="Maximum allowed delay (in days) for the most recent risk-free rate entry."
+    )
     parser.add_argument("--save-golden-data", "-sgd", action="store_true",
                         help="Save golden data as a Pickle file for testing."
     )
@@ -328,7 +334,11 @@ def parse_arguments():
                         help="Show full tracebacks for debugging."
     )
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    global DEBUG
+    DEBUG = args.debug
+
+    return args
 
 
 if __name__ == "__main__":
@@ -345,21 +355,19 @@ if __name__ == "__main__":
             "output_snapshot": config.get("output_snapshot", False),
             "output_csv": args.output_csv or config.get("output_csv", False),
             "output_dir": args.output_dir or config.get("output_dir", "outputs"),
+            "output_dir_explicit": bool(args.output_dir),
             "drawdown_threshold": args.max_drawdown_threshold or config.get("max_drawdown_threshold", 5.0),
             "skip_age_check": config.get("skip_age_check", False),
             "quiet": args.quiet or config.get("quiet", False),            
             "save_golden": args.save_golden_data or config.get("save_golden_data", False),
             "debug": args.debug or config.get("debug", False),
-            "risk_free_rates_file": config.get("risk_free_rates_file", "data/INDIRLTLT01STM.csv"),
+            "risk_free_rates_file": config.get("risk_free_rates_file", "data/India 10-Year Bond Yield Historical Data.csv"),
             "benchmark_name": config.get("benchmark_name", "NIFTY Total Returns Index"),
-            "benchmark_file": config.get("benchmark_returns_file", "data/NIFTY TOTAL MARKET_Historical_PR_01012007to28032025.csv"),
-            "benchmark_date_format": config.get("benchmark_date_format", "%d %b %Y"),
+            "benchmark_file": config.get("benchmark_returns_file", "data/NIFTY Total Returns Historical Data.csv"),
+            "benchmark_date_format": config.get("benchmark_date_format", "%m/%d/%Y"),
+            "riskfree_date_format": config.get("riskfree_date_format", "%d/%m/%Y"),
+            "max_riskfree_delay": args.max_riskfree_delay or config.get("max_riskfree_delay", 61),
         }
-        if settings["output_dir"] and not (settings["output_csv"] or settings["output_snapshot"]):
-            print(
-                f"⚠️  Warning: output_dir is set to '{settings['output_dir']}' but no output will be written to it.",
-                file=sys.stderr
-        )
         if settings["debug"]:
             print("Merged settings:")
             for k, v in settings.items():

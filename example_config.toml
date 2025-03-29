@@ -1,0 +1,3 @@
+# Data from Investing.com
+risk_free_rates_file = "data/India 10-Year Bond Yield Historical Data.csv"
+riskfree_date_format = "%m/%d/%Y"

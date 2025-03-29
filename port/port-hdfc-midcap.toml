@@ -1,15 +1,19 @@
 label = "HDFC Mid-Cap Opportunities Fund"
 
 benchmark_name = "NIFTY Total Returns Index"
-benchmark_returns_file = "data/NIFTRI.csv"
-benchmark_date_format = "%d/%m/%Y"
 
+# Data from Investing.com
+benchmark_returns_file = "data/NIFTY Total Returns Historical Data.csv"
+benchmark_date_format = "%d %b %Y"
+
+# Data from fred.stlouisfed.org
 risk_free_rates_file = "data/INDIRLTLT01STM.csv"
 
 drawdown_threshold = 4.0  # override config.toml if desired
 
 [[funds]]
 name = "HDFC Mid-Cap Opportunities Fund"
-url = "https://api.mfapi.in/mf/118989"
+url = "https://api.mfapi.in/mf/118989"  # See mfapi.in
 allocation = 1.00
+# Allocations from ValueResearchOnline.com
 asset_allocation = {equity = 92.47, debt = 0.00, real_estate = 0.00, commodities = 0.00, cash = 7.53}
