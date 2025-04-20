@@ -12,6 +12,18 @@ def info(msg):
     print(msg, file=sys.stderr)
 
 
+def dbg(msg):
+    """Print only if DEBUG is enabled (stderr, like info())."""
+    try:
+        from main import DEBUG        # Import lazily to avoid circular refs
+    except ImportError:
+        DEBUG = False
+    else:
+        DEBUG = DEBUG
+    if DEBUG:
+        print(msg, file=sys.stderr)
+
+
 def warn_if_stale(df, label="Data", quiet=False):
     now = datetime.datetime.now()
     last_date = df["date"].max()

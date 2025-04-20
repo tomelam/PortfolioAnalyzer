@@ -1,3 +1,4 @@
+from logging import debug
 from re import DEBUG
 import pandas as pd
 from data_loader import (
@@ -25,6 +26,7 @@ from portfolio_calculator import (
 from visualizer import plot_cumulative_returns
 from utils import (
     info,
+    dbg,
     warn_if_stale,
     to_cutoff_date,
 )
@@ -68,8 +70,8 @@ def main(args):
 
         latest_fund, latest_date = max(fund_start_dates.items(), key=lambda x: x[1])
 
-        info(f"Latest launch date among all mutual funds: {latest_date.date()}")
-        info(f"Fund with the latest launch date: {latest_fund}")
+        dbg(f"Latest launch date among all mutual funds: {latest_date.date()}")
+        dbg(f"Fund with the latest launch date: {latest_fund}")
 
     ppf_series = scss_series = rec_bond_series = sgb_series = gold_series = None
 
@@ -143,7 +145,7 @@ def main(args):
         gold_series,
     )
 
-    info(f"Using risk-free date format: {settings['riskfree_date_format']}")
+    dbg(f"Using risk-free date format: {settings['riskfree_date_format']}")
 
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(
         settings["risk_free_rates_file"],

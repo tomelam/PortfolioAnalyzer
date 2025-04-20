@@ -23,12 +23,13 @@
 #    - download_csv
 #    - file_modified_within
 
+from logging import debug
 import pandas as pd
 import requests
 import toml
 import os
 from datetime import timedelta, datetime
-from utils import info, warn_if_stale
+from utils import info, dbg, warn_if_stale
 from timeseries import TimeseriesFrame
 
 # DEBUG flag is set by main.py (‑d/‑‑debug). Fallback = False.
@@ -157,8 +158,8 @@ def load_timeseries_csv(
         today = pd.Timestamp.today().normalize()
         expected_latest = (today - pd.Timedelta(days=max_delay_days)).replace(day=1)
 
-        info(f"Latest date in {os.path.basename(file_path)}: {last_date.date()}")
-        info(f"Required minimum date: {expected_latest.date()}")
+        dbg(f"Latest date in {os.path.basename(file_path)}: {last_date.date()}")
+        dbg(f"Required minimum date: {expected_latest.date()}")
 
         if last_date < expected_latest:
             raise RuntimeError(
@@ -743,9 +744,8 @@ def fetch_and_standardize_risk_free_rates(
         ValueError: If the file format is invalid.
         RuntimeError: If the data is outdated.
     """
-    if DEBUG:
-        info(f"📂  Loading risk‑free series «{file_path}» "
-             f"(max staleness {max_allowed_delay_days} days)")
+    dbg(f"📂  Loading risk‑free series «{file_path}» "
+        f"(max staleness {max_allowed_delay_days} days)")
     try:
         df = load_timeseries_csv(file_path, date_format, max_delay_days=max_allowed_delay_days)
         df["value"] = df["value"] / 100.0  # Convert from percent to decimal
