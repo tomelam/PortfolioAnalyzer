@@ -26,6 +26,7 @@ from visualizer import plot_cumulative_returns
 from utils import (
     info,
     warn_if_stale,
+    to_cutoff_date,
 )
 
 
@@ -153,13 +154,13 @@ def main(args):
     risk_free_rate = risk_free_rates.mean()
     risk_free_rate_daily = (1 + risk_free_rate)**(1/252) - 1
 
-    print("→ Portfolio return sample:")
-    print(gain_daily_portfolio_series.head(5))
-
-    print("→ Risk-free rate sample:")
-    print(risk_free_rate_series.head(5))
-
-    print("→ Aligned shape:", gain_daily_portfolio_series.shape, risk_free_rate_series.shape)
+    if settings.get("lookback"):
+        cutoff = to_cutoff_date(settings["lookback"])
+        if settings["debug"]:
+            print(f"📅 Look‑back window {settings['lookback']} → cutting data at {cutoff.date()}")
+        gain_daily_portfolio_series = gain_daily_portfolio_series[gain_daily_portfolio_series.index >= cutoff]
+        benchmark_returns          = benchmark_returns[benchmark_returns.index >= cutoff]
+        risk_free_rate_series      = risk_free_rate_series[risk_free_rate_series.index >= cutoff]
 
     metrics, max_drawdowns = calculate_portfolio_metrics(
         gain_daily_portfolio_series,
@@ -325,6 +326,10 @@ def parse_arguments():
     parser.add_argument("--max-riskfree-delay", "-mrd", type=int,
                         help="Maximum allowed delay (in days) for the most recent risk-free rate entry."
     )
+    parser.add_argument("--lookback", "-lb",
+                        choices=["YTD", "1M", "3M", "6M", "1Y", "3Y", "5Y", "10Y"],
+                        help=("Trim all series to the chosen trailing period "
+                              "(e.g. 3M = last 3 months) before calculating metrics."))
     parser.add_argument("--save-golden-data", "-sgd", action="store_true",
                         help="Save golden data as a Pickle file for testing."
     )
@@ -361,11 +366,12 @@ if __name__ == "__main__":
             "quiet": args.quiet or config.get("quiet", False),            
             "save_golden": args.save_golden_data or config.get("save_golden_data", False),
             "debug": args.debug or config.get("debug", False),
+            "lookback": args.lookback or config.get("lookback"),  # None → full history
             "risk_free_rates_file": config.get("risk_free_rates_file", "data/India 10-Year Bond Yield Historical Data.csv"),
             "benchmark_name": config.get("benchmark_name", "NIFTY Total Returns Index"),
             "benchmark_file": config.get("benchmark_returns_file", "data/NIFTY Total Returns Historical Data.csv"),
-            "benchmark_date_format": config.get("benchmark_date_format", "%m/%d/%Y"),
-            "riskfree_date_format": config.get("riskfree_date_format", "%d/%m/%Y"),
+            "benchmark_date_format": config.get("benchmark_date_format", "%d-%m-%Y"),
+            "riskfree_date_format": config.get("riskfree_date_format", "%m/%d/%Y"),
             "max_riskfree_delay": args.max_riskfree_delay or config.get("max_riskfree_delay", 61),
         }
         if settings["debug"]:

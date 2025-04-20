@@ -150,6 +150,13 @@ Each of the options (except for `--config`) can also be set in the config TOML, 
 - `--max-drawdown-threshold <float>` (`-dt`) → `max_drawdown_threshold = 5.0`:  
   Sets the percentage threshold for reporting drawdowns.
 
+- `--lookback` (`-lb`) *YTD | 1M | 3M | 6M | 1Y | 3Y | 5Y | 10Y*
+  Trims every series to the chosen trailing period before metrics are
+  calculated, letting you compare the results directly with sites such as
+  ValueResearchOnline (which publish 1 M, 3 M, … numbers). Example:
+
+      python main.py -lb 6M -d portfolio.toml
+
 ---
 
 #### Benchmark Indices (config-file only, not in command-line options)

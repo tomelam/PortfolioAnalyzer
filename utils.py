@@ -1,4 +1,5 @@
 import sys, datetime
+import pandas as pd
 
 # DEBUG is injected by main.py when the ‑d/‑‑debug flag is used; the fallback is `False` for unit tests
 try:
@@ -39,3 +40,23 @@ def warn_if_stale(df, label="Data", quiet=False):
         if answer not in ("y", "yes", ""):
             print("Aborting.")
             sys.exit(1)
+
+
+def to_cutoff_date(tag: str) -> pd.Timestamp:
+    """
+    Convert a look‑back tag ('YTD', '3M', '5Y', …) to the cutoff date.
+    """
+    from pandas.tseries.offsets import DateOffset
+    
+    today = pd.Timestamp.today().normalize()
+
+    if tag == "YTD":
+        return pd.Timestamp(today.year, 1, 1)
+
+    number, unit = int(tag[:-1]), tag[-1].upper()
+    if unit == "M":
+        return today - DateOffset(months=number)
+    if unit == "Y":
+        return today - DateOffset(years=number)
+
+    raise ValueError(f"Unsupported look‑back tag: {tag}")
