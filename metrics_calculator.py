@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
 from utils import info
+
 
 def calculate_max_drawdowns(portfolio_gain_series, threshold=0.05):
     """
@@ -75,21 +75,6 @@ def print_major_drawdowns(drawdowns):
         pct = dd["drawdown"]
         days = dd["recovery_days"]
         print(f"Drawdown from {start} to {end} ({days:>4} days): {pct:7.2f}%")
-
-
-def calculate_annualized_metrics(portfolio_returns: pd.Series):
-    """
-    Calculate annualized return and volatility.
-    
-    Parameters:
-        portfolio_returns (pd.Series): Daily portfolio returns
-
-    Returns:
-        tuple: Annualized return (float), volatility (float).
-    """
-    annualized_return = portfolio_returns.mean() * 252
-    volatility = portfolio_returns.std() * (252**0.5)
-    return annualized_return, volatility
 
 
 def calculate_downside_deviation(returns, target=0):
@@ -229,6 +214,13 @@ def calculate_portfolio_metrics(
     # Total return over the period.
     total_return = cumulative.iloc[-1] / cumulative.iloc[0] - 1
     num_years = (gain_daily_series.index[-1] - gain_daily_series.index[0]).days / 365.25
+
+    # ─── diagnostic for 1‑Y mismatch ───────────────────────────────
+    nav_start = cumulative.iloc[0].squeeze()
+    nav_end   = cumulative.iloc[-1].squeeze()
+    print("start NAV", nav_start, "end NAV", nav_end, "ratio", nav_end / nav_start)
+    # ───────────────────────────────────────────────────────────────
+    
     annualized_return = (1 + total_return) ** (1 / num_years) - 1
 
     # Annualized volatility.
