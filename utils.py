@@ -1,5 +1,10 @@
-import sys
-import datetime
+import sys, datetime
+
+# DEBUG is injected by main.py when the ‑d/‑‑debug flag is used; the fallback is `False` for unit tests
+try:
+    from main import DEBUG          # noqa: E402
+except ImportError:
+    DEBUG = False
 
 def info(msg):
     '''Print informational messages to stderr so that structured output (stdout e.g. CSV) stays clean'''
@@ -15,6 +20,9 @@ def warn_if_stale(df, label="Data", quiet=False):
         return
 
     age = (now.date() - last_date.date()).days
+    if DEBUG:
+        info(f"⏳ Freshness check for {label}: "
+             f"last date {last_date.date()}, {age} days old (limit 1 day).")
     if age > 1:
         print(f"\n⚠️  {label} data is {age} days old. Last date: {last_date.date()}")
 

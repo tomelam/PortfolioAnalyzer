@@ -126,6 +126,15 @@ Each of the options (except for `--config`) can also be set in the config TOML, 
 
 - `--debug` (`-d`) → `debug = true`:  
   Enables debug mode, which may trigger additional logging or relaxed error handling.
+  * Every CSV that is loaded (benchmark, risk‑free, NAV, PPF rates, …) is echoed:  
+    ```
+    📂  Loading «path/to/file.csv»
+        ↳ last record 2025‑04‑18 (2 days old, max allowed 2)
+    ```
+  * Default freshness limits are **2 days for the benchmark** and the value of
+    `max_riskfree_delay` (default 61) for the risk‑free series.  
+  * If a series is staler than its limit, the `utils.warn_if_stale` prompt is
+    triggered.
 
 - `--do-not-plot` (`-np`) → `do_not_plot = true`:  
   Disables on-screen display of plots. Use this when running from scripts or environments without a graphical display.

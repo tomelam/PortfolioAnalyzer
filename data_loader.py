@@ -27,18 +27,11 @@ import pandas as pd
 import requests
 import toml
 import os
-from datetime import (
-    timedelta,
-    datetime,
-)
-
-from utils import (
-    info,
-    warn_if_stale,
-)
-
+from datetime import timedelta, datetime
+from utils import info, warn_if_stale
 from timeseries import TimeseriesFrame
 
+# DEBUG flag is set by main.py (‑d/‑‑debug). Fallback = False.
 try:
     from main import DEBUG
 except ImportError:
@@ -95,6 +88,9 @@ def load_timeseries_csv(
     max_delay_days=None,
 ):
     df = pd.read_csv(file_path)
+    if DEBUG:
+        info(f"📂  Loading time‑series «{file_path}»")
+    df = pd.read_csv(file_path)
 
     # Identify the date column
     date_cols = [c for c in df.columns if "date" in c.lower()]
@@ -111,6 +107,13 @@ def load_timeseries_csv(
         raise ValueError(f"{file_path}: date parsing failed. Check format: {date_format}")
 
     df[date_column] = parsed_dates
+    last_date = parsed_dates.max()
+    if DEBUG:
+        today   = pd.Timestamp.today().normalize()
+        last    = parsed_dates.max()
+        age     = (today - last).days
+        info(f"    ↳ last record {last_date.date()} "
+             f"({age} days old, max allowed {max_delay_days if max_delay_days is not None else '∞'})")
     df.set_index(date_column, inplace=True)
     df.sort_index(inplace=True)
     if not isinstance(df.index, pd.DatetimeIndex):
@@ -255,7 +258,7 @@ def load_index_data(filepath, source, skip_age_check=False):
     df = df.sort_values("date").reset_index(drop=True)
 
     if not skip_age_check:
-        _warn_if_stale(df, label=source)
+        warn_if_stale(df, label=source)
 
     return df
 
@@ -740,6 +743,9 @@ def fetch_and_standardize_risk_free_rates(
         ValueError: If the file format is invalid.
         RuntimeError: If the data is outdated.
     """
+    if DEBUG:
+        info(f"📂  Loading risk‑free series «{file_path}» "
+             f"(max staleness {max_allowed_delay_days} days)")
     try:
         df = load_timeseries_csv(file_path, date_format, max_delay_days=max_allowed_delay_days)
         df["value"] = df["value"] / 100.0  # Convert from percent to decimal
