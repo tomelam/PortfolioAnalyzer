@@ -122,19 +122,6 @@ class TimeseriesFrame(pd.DataFrame):
             "annualized_volatility": ann_vol
         }
 
-    def sharpe(self, risk_free_rate=0.0, frequency="daily"):
-        """
-        Compute the Sharpe ratio of the 'value' return series.
-        risk_free_rate should be annualized (e.g., 0.04 for 4%).
-        """
-        freq_map = {"daily": 252, "weekly": 52, "monthly": 12}
-        if frequency not in freq_map:
-            raise ValueError(f"Unknown frequency: {frequency}")
-        s = self.value_series().dropna()
-        scale = freq_map[frequency]
-        excess_return = s - (risk_free_rate / scale)
-        return excess_return.mean() / excess_return.std()
-
     def cagr(self):
         """
         Compute the compound annual growth rate from the first to last 'value'.

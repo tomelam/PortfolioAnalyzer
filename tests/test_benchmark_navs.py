@@ -3,6 +3,7 @@ import pytest
 import pandas as pd
 from pandas.testing import assert_series_equal
 from data_loader import get_benchmark_gain_daily
+from timeseries import TimeseriesFrame
 from test_utils import load_pickle, assert_identical, series_struct_info
 
 
@@ -12,8 +13,11 @@ def test_get_benchmark_gain_daily():
     Test the loading of usefully indexed benchmark historical NAVs.
     """
     # Load Pickled test input data
-    mock_benchmark_data = load_pickle("tests/data/benchmark_data.pkl")
-
+    raw_df = load_pickle("tests/data/benchmark_data.pkl")
+    series = raw_df["Close"]
+    series.name = "value"
+    mock_benchmark_data = TimeseriesFrame(series)
+        
     expected_result = load_pickle("tests/data/benchmark_returns.pkl")
     print(f"expected_result: {expected_result}")
     print(f"type(expected_result): {type(expected_result)}")
