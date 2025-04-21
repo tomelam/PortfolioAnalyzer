@@ -6,7 +6,7 @@ from metrics_calculator import calculate_portfolio_metrics
 import pickle
 
 
-@pytest.mark.order(9)  # test_calculate_portfolio_metrics()
+@pytest.mark.order(10)  # test_calculate_portfolio_metrics()
 def test_calculate_portfolio_metrics():
     """Test calculation of portfolio metrics."""
     portfolio_returns = pd.DataFrame(
