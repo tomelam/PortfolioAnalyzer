@@ -128,23 +128,39 @@ def plot_cumulative_returns(
 
     # Compute the start dates for each series:
     portfolio_start = cumulative_historical.index.min()
-    benchmark_start = benchmark_cumulative.index.min()
-    rebase_date = max(portfolio_start, benchmark_start)
-    
-    # Find the nearest dates in each series if rebase_date is not exactly present:
+    if benchmark_cumulative is not None:
+        benchmark_start = benchmark_cumulative.index.min()
+        rebase_date = max(portfolio_start, benchmark_start)
+    else:
+        rebase_date = portfolio_start
+
+    # Determine the actual rebase dates used in each series (portfolio and benchmark).
+    # These will usually be the same or nearly the same date,
+    # but we compute them separately to account for potential
+    # mismatches in available trading days (e.g., missing NAVs or holidays).
+    # Rebase the portfolio and benchmark series so they equal 100 at the proper rebase date.
     if rebase_date not in cumulative_historical.index:
-        rebase_date_portfolio = cumulative_historical.index[cumulative_historical.index.get_loc(rebase_date, method='ffill')]
+        rebase_date_portfolio = cumulative_historical.index[
+            cumulative_historical.index.get_loc(rebase_date, method='ffill')
+        ]
     else:
         rebase_date_portfolio = rebase_date
 
-    if rebase_date not in benchmark_cumulative.index:
-        rebase_date_benchmark = benchmark_cumulative.index[benchmark_cumulative.index.get_loc(rebase_date, method='ffill')]
-    else:
-        rebase_date_benchmark = rebase_date
-
-    # Rebase the portfolio and benchmark series so they equal 100 at the proper rebase date.
+    # Rebase portfolio to 100
     rebased_historical = cumulative_historical / cumulative_historical.loc[rebase_date_portfolio] * 100
-    rebased_benchmark = benchmark_cumulative / benchmark_cumulative.loc[rebase_date_benchmark] * 100
+
+    # Rebase benchmark only if it exists
+    if benchmark_cumulative is not None:
+        if rebase_date not in benchmark_cumulative.index:
+            rebase_date_benchmark = benchmark_cumulative.index[
+                benchmark_cumulative.index.get_loc(rebase_date, method='ffill')
+            ]
+        else:
+            rebase_date_benchmark = rebase_date
+
+        rebased_benchmark = benchmark_cumulative / benchmark_cumulative.loc[rebase_date_benchmark] * 100
+    else:
+        rebased_benchmark = None
 
     # Plot the rebased portfolio returns
     ax.plot(
@@ -178,9 +194,10 @@ def plot_cumulative_returns(
 
     if metrics:
         metrics_text = "\n".join([
-            f"{key + ':':<18}{value * 100:>6.2f}%" if key in ["Annualized Return", "Volatility", "Alpha"]
+            f"{key + ':':<18}{value * 100:>6.2f}%" if key in ["Annualized Return", "Volatility", "Alpha"] and isinstance(value, (int, float))
             else f"{key + ':':<18}{int(value):>3}" if key == "Drawdowns" and isinstance(value, (int, float))
             else f"{key + ':':<18}{value:>8.4f}" if isinstance(value, (int, float))
+            else f"{key + ':':<18}N/A" if value is None
             else f"{key + ':':<18}{value}"
             for key, value in metrics.items()
         ])

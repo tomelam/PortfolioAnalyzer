@@ -36,14 +36,16 @@ def main(args):
     import os
     from pathlib import Path
 
-    benchmark_data = load_timeseries_csv(
-        settings["benchmark_file"],
-        settings["benchmark_date_format"],
-        max_delay_days=None if settings["skip_age_check"] else 2,
-    )
-    assert "value" in benchmark_data.columns, "Expected column 'value' missing from timeseries"
-
-    benchmark_returns = get_benchmark_gain_daily(benchmark_data)
+    benchmark_returns = None
+    if settings.get("use_benchmark"):
+        dbg("Loading benchmark timeseries")
+        benchmark_data = load_timeseries_csv(
+            settings["benchmark_file"],
+            settings["benchmark_date_format"],
+            max_delay_days=None if settings["skip_age_check"] else 2,
+        )
+        assert "value" in benchmark_data.columns, "Expected column 'value' missing from timeseries"
+        benchmark_returns = get_benchmark_gain_daily(benchmark_data)
 
     portfolio = load_portfolio_details(settings["portfolio_file"])
     portfolio_label = portfolio["label"]
@@ -171,7 +173,11 @@ def main(args):
 
     cagr = metrics["Annualized Return"] * 100
     vol = metrics["Volatility"] * 100
-    alpha = metrics["Alpha"] * 100
+    if metrics["Alpha"] is not None:
+        alpha = metrics["Alpha"] * 100
+    else:
+        alpha = None
+    beta = metrics["Beta"]
     if max_drawdowns:
         max_dd_info = min(max_drawdowns, key=lambda dd: dd["drawdown"])
         drawdown_days = max_dd_info["drawdown_days"]
@@ -192,8 +198,8 @@ def main(args):
                 f"{vol:.2f}%,"
                 f"{metrics['Sharpe Ratio']:.4f},"
                 f"{metrics['Sortino Ratio']:.4f},"
-                f"{alpha:.2f}%,"
-                f"{metrics['Beta']:.4f},"
+                f"{f'{alpha:.2f}%' if alpha is not None else 'N/A'},"
+                f"{f'{beta:.4f}'   if beta  is not None else 'N/A'},"
                 f"{len(max_drawdowns)},"
                 f"{max_dd:.2f}%,"
                 f"{max_dd_start},"
@@ -221,8 +227,8 @@ def main(args):
     print(f"Volatility: {vol:.2f}%")
     print(f"Sharpe Ratio: {metrics['Sharpe Ratio']:.4f}")
     print(f"Sortino Ratio: {metrics['Sortino Ratio']:.4f}")
-    print(f"Alpha: {alpha:.2f}%")
-    print(f"Beta: {metrics['Beta']:.4f}")
+    print(f"Alpha: {alpha:.2f}%" if alpha is not None else "Alpha: N/A")
+    print(f"Beta:  {beta:.4f}"   if beta  is not None else "Beta:  N/A")
     print(f"Drawdowns: {len(max_drawdowns)}")
     print(f"Max Drawdown: {max_dd:.2f}%")
     print(f"Max Drawdown Start: {max_dd_start}")
@@ -350,6 +356,8 @@ if __name__ == "__main__":
     import traceback
 
     args = parse_arguments()
+
+    # If config file is missing, fallback to empty config dict (intended behavior)
     config = load_config_toml(args.config)
 
     try:
@@ -367,6 +375,7 @@ if __name__ == "__main__":
             "debug": args.debug or config.get("debug", False),
             "lookback": args.lookback or config.get("lookback"),  # None → full history
             "risk_free_rates_file": config.get("risk_free_rates_file", "data/India 10-Year Bond Yield Historical Data.csv"),
+            "use_benchmark": config.get("use_benchmark", True),
             "benchmark_name": config.get("benchmark_name", "NIFTY Total Returns Index"),
             "benchmark_file": config.get("benchmark_returns_file", "data/NIFTY Total Returns Historical Data.csv"),
             "benchmark_date_format": config.get("benchmark_date_format", "%d-%m-%Y"),

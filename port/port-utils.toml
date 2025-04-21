@@ -1,0 +1,14 @@
+label = "Portfolio Utilities: SBI Energy Opportunities Fund"
+
+# Data from Investing.com
+benchmark_returns_file = "data/NIFTY Total Returns Historical Data.csv"
+benchmark_date_format = "%d-%m-%Y"
+
+# Data from fred.stlouisfed.org
+risk_free_rates_file = "data/INDIRLTLT01STM.csv"
+
+[[funds]]
+name = "SBI Energy Opportunities Fund"
+url = "https://api.mfapi.in/mf/152417"
+allocation = 1.00
+asset_allocation = {equity = 96.43, debt = 0.05, real_estate = 0.00, commodities = 0.00, cash = 3.52}

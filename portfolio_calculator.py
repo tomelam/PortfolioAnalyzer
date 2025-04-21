@@ -80,6 +80,9 @@ def calculate_gain_daily_portfolio_series(
 
 def calculate_gains_cumulative(gain_daily_portfolio_series, gain_daily_benchmark_series):
     gain_cumulative_returns = (1 + gain_daily_portfolio_series).cumprod()
-    gain_cumulative_benchmark = (1 + gain_daily_benchmark_series).cumprod()
+    if gain_daily_benchmark_series is not None:
+        gain_cumulative_benchmark = (1 + gain_daily_benchmark_series).cumprod()
+    else:
+        gain_cumulative_benchmark = None
 
     return gain_cumulative_returns, gain_cumulative_benchmark
