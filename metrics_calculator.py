@@ -9,6 +9,10 @@ def geometric_annualized_return(daily_returns: pd.Series, periods_per_year=252):
     CAGR from a Series of *daily* simple returns.
     Works for any length ≥ 1 day (handles holidays automatically).
     """
+    # If a DataFrame is passed, use its first column
+    if isinstance(daily_returns, pd.DataFrame):
+        daily_returns = daily_returns.iloc[:, 0]
+
     daily_returns = daily_returns.dropna()
     if daily_returns.empty:
         return float("nan")
@@ -17,7 +21,7 @@ def geometric_annualized_return(daily_returns: pd.Series, periods_per_year=252):
     # Use calendar‑day span for exact annualisation
     days_span = (daily_returns.index[-1] - daily_returns.index[0]).days
     years = days_span / 365.25
-    return gross**(1 / years) - 1
+    return float(gross**(1 / years) - 1)   # always a Python float
 
 
 def calculate_max_drawdowns(portfolio_gain_series, threshold=0.05):
@@ -203,7 +207,7 @@ def calculate_benchmark_cumulative(benchmark_returns, earliest_datetime):
 def calculate_portfolio_metrics(
         gain_daily_series,
         portfolio,
-        risk_free_rate,
+        risk_free_rate_daily,
         benchmark_returns=None,
         drawdown_threshold=0.05
 ):
@@ -223,7 +227,7 @@ def calculate_portfolio_metrics(
     """
 
     # Fill NaN values in the daily returns.
-    gain_daily_series = gain_daily_series.fillna(0)
+    gain_daily_series = gain_daily_series.dropna()
 
     # Compute cumulative returns.
     cumulative = (1 + gain_daily_series).cumprod()
@@ -235,9 +239,12 @@ def calculate_portfolio_metrics(
     volatility = gain_daily_series.std() * (252 ** 0.5)
 
     # Convert to floats.
-    annualized_return = float(annualized_return.iloc[0])
-    risk_free_rate = float(risk_free_rate)
+    annualized_return = float(annualized_return)
+    risk_free_rate = float(risk_free_rate_daily)
+    if len(volatility) != 1:
+        raise ValueError(f"Expected Series with 1 element, got {len(volatility)}")
     volatility = float(volatility.iloc[0])
+
 
     sharpe_ratio, sortino_ratio = calculate_risk_adjusted_metrics(
         annualized_return, volatility, gain_daily_series, risk_free_rate
