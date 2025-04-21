@@ -1,11 +1,13 @@
 import sys, datetime
 import pandas as pd
 
+"""
 # DEBUG is injected by main.py when the ‑d/‑‑debug flag is used; the fallback is `False` for unit tests
 try:
     from main import DEBUG          # noqa: E402
 except ImportError:
-    DEBUG = False
+"""
+DEBUG = False
 
 def info(msg):
     '''Print informational messages to stderr so that structured output (stdout e.g. CSV) stays clean'''
@@ -14,12 +16,14 @@ def info(msg):
 
 def dbg(msg):
     """Print only if DEBUG is enabled (stderr, like info())."""
+    """
     try:
         from main import DEBUG        # Import lazily to avoid circular refs
     except ImportError:
         DEBUG = False
     else:
         DEBUG = DEBUG
+    """
     if DEBUG:
         print(msg, file=sys.stderr)
 

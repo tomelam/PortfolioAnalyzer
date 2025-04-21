@@ -1,5 +1,4 @@
 from logging import debug
-from re import DEBUG
 import pandas as pd
 from data_loader import (
     load_config_toml,
@@ -24,6 +23,7 @@ from portfolio_calculator import (
     calculate_gain_daily_portfolio_series,
 )
 from visualizer import plot_cumulative_returns
+import utils
 from utils import (
     info,
     dbg,
@@ -31,8 +31,6 @@ from utils import (
     to_cutoff_date,
 )
 
-
-DEBUG = False  # Default
 
 def main(args):
     import os
@@ -342,9 +340,8 @@ def parse_arguments():
     )
 
     args = parser.parse_args()
-    global DEBUG
-    DEBUG = args.debug
-
+    # overwrite the module‑level debug flag so utils.dbg() can see it
+    utils.DEBUG = args.debug
     return args
 
 

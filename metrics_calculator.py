@@ -1,6 +1,23 @@
+from logging import debug
 import numpy as np
 import pandas as pd
-from utils import info
+from utils import dbg
+
+
+def geometric_annualized_return(daily_returns: pd.Series, periods_per_year=252):
+    """
+    CAGR from a Series of *daily* simple returns.
+    Works for any length ≥ 1 day (handles holidays automatically).
+    """
+    daily_returns = daily_returns.dropna()
+    if daily_returns.empty:
+        return float("nan")
+
+    gross = (1 + daily_returns).prod()           # geometric link = end / start
+    # Use calendar‑day span for exact annualisation
+    days_span = (daily_returns.index[-1] - daily_returns.index[0]).days
+    years = days_span / 365.25
+    return gross**(1 / years) - 1
 
 
 def calculate_max_drawdowns(portfolio_gain_series, threshold=0.05):
@@ -150,8 +167,8 @@ def calculate_alpha_beta(portfolio_returns, benchmark_returns, annualized_return
     common_start = max(port_ret.index.min(), bench_ret.index.min())
     common_end = min(port_ret.index.max(), bench_ret.index.max())
     port_ret = port_ret.loc[common_start:common_end]
-    #info("Last Overlapping Date of Portfolio and Benchmark:", common_end)
-    #info("Last Benchmark Date:", bench_ret.index.max())
+    dbg(f"Last Overlapping Date of Portfolio and Benchmark: {common_end}")
+    dbg(f"Last Benchmark Date: {bench_ret.index.max()}")
     bench_ret = bench_ret.loc[common_start:common_end]
 
     # Reintroduce the one-day shift on benchmark returns.
@@ -211,18 +228,9 @@ def calculate_portfolio_metrics(
     # Compute cumulative returns.
     cumulative = (1 + gain_daily_series).cumprod()
 
-    # Total return over the period.
-    total_return = cumulative.iloc[-1] / cumulative.iloc[0] - 1
-    num_years = (gain_daily_series.index[-1] - gain_daily_series.index[0]).days / 365.25
-
-    # ─── diagnostic for 1‑Y mismatch ───────────────────────────────
-    nav_start = cumulative.iloc[0].squeeze()
-    nav_end   = cumulative.iloc[-1].squeeze()
-    print("start NAV", nav_start, "end NAV", nav_end, "ratio", nav_end / nav_start)
-    # ───────────────────────────────────────────────────────────────
+    # Annualised return.
+    annualized_return = geometric_annualized_return(gain_daily_series)
     
-    annualized_return = (1 + total_return) ** (1 / num_years) - 1
-
     # Annualized volatility.
     volatility = gain_daily_series.std() * (252 ** 0.5)
 
