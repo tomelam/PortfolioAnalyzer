@@ -27,6 +27,35 @@ def geometric_annualized_return(daily_returns: pd.Series, periods_per_year=252):
     return float(gross**(1 / years) - 1)   # always a Python float
 
 
+def sortino_ratio(daily_returns: pd.Series, risk_free_annual: float, periods_per_year=252):
+    """
+    Calculate Sortino ratio using an annualized risk-free rate.
+    """
+    excess_daily_returns = daily_returns - (risk_free_annual / periods_per_year)
+    downside_returns = excess_daily_returns[excess_daily_returns < 0]
+
+    if downside_returns.empty:
+        return float("nan")
+
+    downside_std = downside_returns.std()
+    mean_excess_return = excess_daily_returns.mean()
+    sortino = mean_excess_return / downside_std * (periods_per_year**0.5)
+    return sortino
+
+
+def sharpe_ratio(daily_returns: pd.Series, risk_free_annual: float, periods_per_year=252):
+    """
+    Calculate Sharpe ratio using an annualized risk-free rate.
+    """
+    excess_daily_returns = daily_returns - (risk_free_annual / periods_per_year)
+
+    if excess_daily_returns.std() == 0:
+        return float("nan")
+
+    sharpe = excess_daily_returns.mean() / excess_daily_returns.std() * (periods_per_year**0.5)
+    return sharpe
+
+
 def annualized_volatility(daily_returns: pd.Series, periods_per_year=252) -> float:
     """
     Calculate annualized volatility from a Series of daily returns.
@@ -214,6 +243,7 @@ def calculate_benchmark_cumulative(benchmark_returns, earliest_datetime):
     return benchmark_cumulative
 
 
+"""
 def calculate_portfolio_metrics(
         gain_daily_series,
         portfolio,
@@ -221,7 +251,7 @@ def calculate_portfolio_metrics(
         benchmark_returns=None,
         drawdown_threshold=0.05
 ):
-    """
+    
     Calculate various performance metrics.
 
     Parameters:
@@ -234,7 +264,7 @@ def calculate_portfolio_metrics(
     Returns:
         dict: Portfolio performance metrics.
         list: List of max drawdowns.
-    """
+    
 
     # Fill NaN values in the daily returns.
     gain_daily_series = gain_daily_series.dropna()
@@ -282,6 +312,7 @@ def calculate_portfolio_metrics(
     }
 
     return metrics, max_drawdowns
+"""
     
 
 def calculate_ppf_relative_civ(ppf_interest_rates):

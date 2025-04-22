@@ -14,7 +14,6 @@ from data_loader import (
     load_ppf_interest_rates,
 )
 from metrics_calculator import (
-    calculate_portfolio_metrics,
     print_major_drawdowns,
 )
 from portfolio_calculator import (
