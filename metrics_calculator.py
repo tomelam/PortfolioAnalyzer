@@ -27,6 +27,13 @@ def geometric_annualized_return(daily_returns: pd.Series, periods_per_year=252):
     return float(gross**(1 / years) - 1)   # always a Python float
 
 
+def annualized_volatility(daily_returns: pd.Series, periods_per_year=252) -> float:
+    """
+    Calculate annualized volatility from a Series of daily returns.
+    """
+    return daily_returns.std() * (periods_per_year ** 0.5)
+
+
 def calculate_max_drawdowns(portfolio_gain_series, threshold=0.05):
     """
     Calculate maximum drawdowns with full retracements.
@@ -239,7 +246,7 @@ def calculate_portfolio_metrics(
     annualized_return = geometric_annualized_return(gain_daily_series)
     
     # Annualized volatility.
-    volatility = gain_daily_series.std() * (252 ** 0.5)
+    volatility = annualized_volatility(gain_daily_series)
 
     # Convert to floats.
     annualized_return = float(annualized_return)
