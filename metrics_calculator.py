@@ -15,12 +15,15 @@ def geometric_annualized_return(daily_returns: pd.Series, periods_per_year=252):
 
     daily_returns = daily_returns.dropna()
     if daily_returns.empty:
-        return float("nan")
+        raise ValueError("Insufficient data for annualized return calculation.")
 
     gross = (1 + daily_returns).prod()           # geometric link = end / start
     # Use calendar‑day span for exact annualisation
     days_span = (daily_returns.index[-1] - daily_returns.index[0]).days
-    years = days_span / 365.25
+    if days_span == 0:
+        raise ValueError("Zero-day span in daily returns; cannot annualize.")
+
+    years = len(daily_returns) / periods_per_year
     return float(gross**(1 / years) - 1)   # always a Python float
 
 
