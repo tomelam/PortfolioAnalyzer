@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import pytest
 from timeseries import TimeseriesFrame
+from asset_timeseries import from_nav, AssetTimeseries
 
 @pytest.mark.order(10)
 def test_timeseriesframe_cagr_two_years():
@@ -145,3 +146,77 @@ def test_sharpe_ratio_with_normalized_sample():
     result = frame.sharpe(risk_free_rate=0.0, periods_per_year=1)
     assert abs(result - 1.0) < 1e-6  # Very tight: test must be deterministic
 
+
+@pytest.mark.order(21)
+def test_from_nav_creates_asset_timeseries_correctly():
+    """
+    Validate from_nav() creates an AssetTimeseries with aligned Series.
+    """
+    dates = pd.date_range("2022-01-01", periods=5, freq="D")
+    navs = pd.Series([100.0, 102.0, 101.0, 104.0, 106.0], index=dates)
+
+    ts = from_nav(navs)
+
+    # Ensure correct types
+    assert isinstance(ts, AssetTimeseries)
+    assert isinstance(ts.civ, TimeseriesFrame)
+    assert isinstance(ts.ret, TimeseriesFrame)
+    assert isinstance(ts.cumret, TimeseriesFrame)
+
+    # Check index alignment
+    assert (ts.civ.index == ts.ret.index).all()
+    assert (ts.civ.index == ts.cumret.index).all()
+
+    # Check value content
+    assert ts.civ.value_series().iloc[0] == 100.0
+    assert ts.civ.value_series().iloc[-1] == 106.0
+    assert ts.ret.value_series().iloc[1] == pytest.approx(0.02)
+    assert ts.cumret.value_series().iloc[-1] == pytest.approx((106/100))
+
+
+@pytest.mark.order(22)
+def test_asset_timeseries_metrics_cagr_and_sharpe():
+    """
+    Confirm that the AssetTimeseries object works with .cagr() and .sharpe() metrics.
+    """
+    # Create a 2-year NAV growth from 100 to 121 (implies CAGR ≈ 10%)
+    dates = pd.to_datetime(["2020-01-01", "2022-01-01"])
+    navs = pd.Series([100.0, 121.0], index=dates)
+
+    ts = from_nav(navs)
+
+    cagr = ts.civ.cagr()
+    assert abs(cagr - 0.10) < 1e-6
+
+    # Rebuild with enough data to make Sharpe meaningful
+    navs_full = pd.Series(
+        [100.0 * (1.0005) ** i for i in range(252)],
+        index=pd.bdate_range(start="2023-01-01", periods=252)
+    )
+    ts_full = from_nav(navs_full)
+
+    sharpe = ts_full.ret.sharpe(risk_free_rate=0.0, periods_per_year=1)
+    assert sharpe > 0.0  # Loose sanity check
+
+
+@pytest.mark.order(23)
+def test_asset_timeseries_sortino_ratio():
+    """
+    Test .sortino() method on the return series of AssetTimeseries.
+    Construct a series with steady positive returns and zero downside.
+    """
+    # 252 business days, 1% constant daily return (exceeds any realistic risk-free rate)
+    returns = pd.Series(
+        [0.01] * 252,
+        index=pd.bdate_range("2023-01-01", periods=252)
+    )
+    navs = (1 + returns).cumprod()
+    nav_series = pd.Series(navs.values, index=returns.index)
+
+    ts = from_nav(nav_series)
+
+    sortino = ts.ret.sortino(risk_free_rate=0.005, frequency="daily")
+    print("Min excess return:", (ts.ret.value_series() - 0.005 / 252).min())
+    print("Downside stddev:", (ts.ret.value_series() - 0.005 / 252)[(ts.ret.value_series() - 0.005 / 252) < 0].std())
+    assert sortino > 0
+    assert sortino != float("nan")

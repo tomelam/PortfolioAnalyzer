@@ -1,5 +1,6 @@
 from logging import debug
 import pandas as pd
+from timeseries import TimeseriesFrame
 from data_loader import (
     load_config_toml,
     load_timeseries_csv,
@@ -163,12 +164,24 @@ def main(args):
         benchmark_returns          = benchmark_returns[benchmark_returns.index >= cutoff]
         risk_free_rate_series      = risk_free_rate_series[risk_free_rate_series.index >= cutoff]
 
+    """
     metrics, max_drawdowns = calculate_portfolio_metrics(
         gain_daily_portfolio_series,
         portfolio,
         risk_free_rate_daily,
         benchmark_returns,
     )
+    """
+
+    print(gain_daily_portfolio_series.head(10))
+    tsf = TimeseriesFrame(gain_daily_portfolio_series)
+
+    metrics = {
+        "Annualized Return": tsf.cagr(),
+        "Volatility": tsf.volatility(),
+        "Sharpe Ratio": tsf.sharpe(risk_free_rate=risk_free_rate_daily),
+        "Sortino Ratio": tsf.sortino(risk_free_rate=risk_free_rate_daily),
+    }
 
     cagr = metrics["Annualized Return"] * 100
     vol = metrics["Volatility"] * 100
