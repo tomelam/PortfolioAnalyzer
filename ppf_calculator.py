@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 
+
 def calculate_ppf_cumulative_gain(ppf_interest_rates):
     """
     Calculate the daily cumulative gain series for a PPF investment.

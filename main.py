@@ -135,6 +135,7 @@ def main(args):
         gold_series = gold_series[gold_series.index >= portfolio_start_date]
     # === END OF ROBUST LOGIC ===
 
+    """
     gain_daily_portfolio_series = calculate_gain_daily_portfolio_series(
         portfolio,
         aligned_portfolio_civs,
@@ -144,6 +145,47 @@ def main(args):
         sgb_series,
         gold_series,
     )
+    """
+
+
+    print("Just finished setting up the series for the different asset types")
+    for name, var in [
+        ("aligned_portfolio_civs", aligned_portfolio_civs),
+        ("ppf_series", ppf_series),
+        ("scss_series", scss_series),
+        ("rec_bond_series", rec_bond_series),
+        ("sgb_series", sgb_series),
+        ("gold_series", gold_series),
+    ]:
+        print(f"{name}: {type(var)}")
+    print("aligned_portfolio_civs.columns:", aligned_portfolio_civs.columns)
+    assert aligned_portfolio_civs is not None and not aligned_portfolio_civs.empty, "aligned_portfolio_civs is missing or empty"
+
+
+    # Convert to Series format before passing to from_multiple_nav_series
+    nav_inputs = {
+        "MutualFunds": aligned_portfolio_civs,
+        "PPF": ppf_series["value"] if ppf_series is not None else None,
+        "SCSS": scss_series["value"] if scss_series is not None else None,
+        "REC": rec_bond_series["value"] if rec_bond_series is not None else None,
+        "SGB": sgb_series["price"] if sgb_series is not None else None,
+        "Gold": gold_series["price"] if gold_series is not None else None,
+    }
+
+    exit(1)
+
+    # Clean out None values before constructing portfolio
+    nav_inputs = {k: v for k, v in nav_inputs.items() if v is not None}
+    portfolio = from_multiple_nav_series(nav_inputs)
+
+    # Replaces calculate_gain_daily_portfolio_series
+    print("Type of gain_daily_portfolio_series:", type(gain_daily_portfolio_series))
+    gain_daily_portfolio_series = portfolio.combined_daily_returns()
+    print("Type of gain_daily_portfolio_series:", type(gain_daily_portfolio_series))
+
+
+    exit(1)
+    
 
     dbg(f"Using risk-free date format: {settings['riskfree_date_format']}")
 
@@ -164,6 +206,8 @@ def main(args):
         benchmark_returns          = benchmark_returns[benchmark_returns.index >= cutoff]
         risk_free_rate_series      = risk_free_rate_series[risk_free_rate_series.index >= cutoff]
 
+        
+
     """
     metrics, max_drawdowns = calculate_portfolio_metrics(
         gain_daily_portfolio_series,
@@ -173,6 +217,7 @@ def main(args):
     )
     """
 
+    exit(1)
     print(gain_daily_portfolio_series.head(10))
     tsf = TimeseriesFrame(gain_daily_portfolio_series)
 

@@ -1,9 +1,16 @@
 import pandas as pd
+import numpy as np
+import warnings
 from dateutil.relativedelta import relativedelta
 from utils import info  # if you use `info()` for logging
 
 
 class TimeseriesFrame(pd.DataFrame):
+    """
+    Extended DataFrame for time series with strict data hygiene enforcement.
+    """
+    _metadata = ["_name"]
+
     @property
     def _constructor(self):
         return TimeseriesFrame
@@ -14,6 +21,29 @@ class TimeseriesFrame(pd.DataFrame):
         # Auto-rename single column to "value"
         if len(self.columns) == 1 and self.columns[0] != "value":
             self.columns = ["value"]
+
+    def _validate_series(self):
+        if not isinstance(self.index, pd.DatetimeIndex):
+            raise TimeseriesValidationError(f"{self._name} index must be a DatetimeIndex.")
+        if self.isna().any().any():
+            raise TimeseriesValidationError(f"{self._name} contains NaN values.")
+        if not self.index.is_monotonic_increasing:
+            raise TimeseriesValidationError(f"{self._name} index must be sorted by date.")
+
+    def align_with(self, other: pd.Series | pd.DataFrame, how="inner"):
+        """Align with another series or DataFrame."""
+        aligned_self, aligned_other = self.align(other, join=how)
+        return TimeseriesFrame(aligned_self), aligned_other
+
+    def clip_to_overlap(self, other: pd.Series | pd.DataFrame):
+        """
+        Clip to the overlapping date range.
+        NaNs are allowed post-alignment.
+        """
+        overlap = self.index.intersection(other.index)
+        if overlap.empty:
+            raise TimeseriesValidationError("No overlapping dates between series.")
+        return self.loc[overlap], other.loc[overlap]
 
     def value_series(self):
         if "value" not in self.columns:
@@ -201,6 +231,108 @@ class TimeseriesFrame(pd.DataFrame):
         drawdowns = (s - cumulative_max) / cumulative_max
         return drawdowns.min()  # most negative value
 
+    def max_drawdowns(self, threshold=0.05):
+        """
+        Calculate maximum drawdowns with full retracements.
+        A drawdown is recorded only after the series has fully recovered to the peak from which it fell.
+        
+        Parameters:
+            cumulative (TimeseriesFrame): Cumulative portfolio returns.
+            threshold (float): Minimum drawdown percentage to report (e.g., 0.05 for 5%).
+
+        Returns:
+            list of dict: Each dict contains 'start_date', 'trough_date', 'recovery_date',
+                and 'drawdown' (percentage).
+        """
+        # Ensure we work with a Series.
+        cumulative = self.value_series()
+
+        gain_peak = cumulative.cummax()
+        max_drawdowns = []
+        in_drawdown = False
+        drawdown_start_date = None
+        drawdown_start_value = None
+        trough_date = None
+        trough_value = None
+
+        for date, value in cumulative.items():
+            current_peak = gain_peak.at[date]
+            if value < current_peak:
+                # We're in a drawdown.
+                if not in_drawdown:
+                    in_drawdown = True
+                    drawdown_start_date = date
+                    drawdown_start_value = current_peak  # Record the peak value at drawdown start
+                    trough_date = date
+                    trough_value = value
+                else:
+                    # Update trough if value falls further.
+                    if value < trough_value:
+                        trough_date = date
+                        trough_value = value
+            else:
+                # Recovery: series has reached (or exceeded) the previous peak.
+                if in_drawdown:
+                    if value >= drawdown_start_value:  # Full retracement to the initial peak
+                        drawdown_percentage = (trough_value - drawdown_start_value) / drawdown_start_value
+                        if abs(drawdown_percentage) >= threshold:
+                            max_drawdowns.append({
+                                "start_date": drawdown_start_date,
+                                "trough_date": trough_date,
+                                "recovery_date": date,
+                                "depth_pct": drawdown_percentage,
+                                "trough_value": trough_value,
+                                "recovery_value": self.value_series().loc[date],
+                                "drawdown": drawdown_percentage * 100,
+                                "drawdown_days": (trough_date - drawdown_start_date).days + 1,
+                                "recovery_days": (date - drawdown_start_date).days + 1,
+                            })
+                        in_drawdown = False
+        # Do not record drawdowns that haven't been recovered.
+        return max_drawdowns
+
+    def alpha(self, benchmark_ret: "TimeseriesFrame") -> float:
+        """
+        Calculate Jensen's alpha: excess return unexplained by benchmark.
+        Assumes daily returns. Aligned by date.
+        """
+        x = benchmark_ret.value_series()
+        y = self.value_series()
+        if x.empty or y.empty:
+            raise ValueError("Cannot compute alpha: input series is empty.")
+
+        if np.allclose(x, x.iloc[0]) or np.allclose(y, y.iloc[0]):
+            raise ValueError("Cannot compute alpha: no variation in returns.")
+
+        # Align series and warn if any mismatch occurred
+        x_aligned, y_aligned = x.align(y, join="inner")
+        num_trimmed = max(len(x) - len(x_aligned), len(y) - len(y_aligned))
+        if num_trimmed > 0:
+            dbg(f"alpha(): alignment trimmed {num_trimmed} entries from return series.")
+
+        if len(x_aligned) < 3:
+            raise ValueError("Too few aligned data points after trimming. Cannot compute alpha.")
+
+        # Linear regression: y = alpha + beta * x
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", np.RankWarning)
+            coeffs = np.polyfit(x_aligned, y_aligned, 1)
+
+        return float(coeffs[1])  # Intercept = alpha
+
+    def beta(self, benchmark_ret: "TimeseriesFrame") -> float:
+        """
+        Calculate beta: sensitivity of returns to benchmark returns.
+        Assumes daily returns. Aligned by date.
+        """
+        x = benchmark_ret.value_series()
+        y = self.value_series()
+        x, y = x.align(y, join="inner")
+        if len(x) < 2:
+            raise ValueError("Beta requires at least two aligned data points")
+        coeffs = np.polyfit(x, y, 1)
+        return float(coeffs[0])
+
     def as_rolling(self, window=30, method="mean"):
         """
         Return a new TimeseriesFrame with rolling metric applied to 'value'.
@@ -293,3 +425,18 @@ class TimeseriesFrame(pd.DataFrame):
             v1 = f"{p1[k]*100:.2f}%" if 'drawdown' in k.lower() or 'return' in k.lower() else f"{p1[k]:.2f}"
             v2 = f"{p2[k]*100:.2f}%" if 'drawdown' in k.lower() or 'return' in k.lower() else f"{p2[k]:.2f}"
             info(f"{k:<20} | {v1:<12} | {v2}")
+
+
+def print_major_drawdowns(drawdowns):
+    """
+    Prints drawdowns.
+    
+    Args:
+        drawdowns (list of dict): Each dict has "start_date", "recovery_date", "drawdown".
+    """
+    for dd in drawdowns:
+        start = dd["start_date"].strftime("%Y-%m-%d")
+        end = dd["recovery_date"].strftime("%Y-%m-%d")
+        pct = dd["drawdown"]
+        days = dd["recovery_days"]
+        print(f"Drawdown from {start} to {end} ({days:>4} days): {pct:7.2f}%")

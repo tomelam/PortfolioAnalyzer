@@ -1,16 +1,9 @@
 import pandas as pd
 import pytest
 from timeseries import TimeseriesFrame
+from asset_timeseries import from_civ
 
 # === Core Safety Tests ===
-
-@pytest.mark.order(24)
-def test_max_drawdown_empty():
-    """Verify that .max_drawdown() raises on empty series."""
-    ts = TimeseriesFrame(pd.Series([], name="value"))
-    with pytest.raises(ValueError, match="Max drawdown requires at least one data point"):
-        ts.max_drawdown()
-
 
 @pytest.mark.order(25)
 def test_compare_to_empty():

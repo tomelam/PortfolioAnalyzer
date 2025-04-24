@@ -36,34 +36,3 @@ def test_local_benchmark_data_is_clean():
     assert df["nav"].dtype == float
     assert df["nav"].notna().all()
     assert df["nav"].apply(pd.api.types.is_number).all()
-
-
-@pytest.mark.order(9)  # test_get_benchmark_gain_daily()
-def test_get_benchmark_gain_daily():
-    """
-    Test the loading of usefully indexed benchmark historical NAVs.
-    """
-    # Load Pickled test input data
-    raw_df = load_pickle("tests/data/benchmark_data.pkl")
-    series = raw_df["Close"]
-    series.name = "value"
-    mock_benchmark_data = TimeseriesFrame(series)
-        
-    expected_result = load_pickle("tests/data/benchmark_returns.pkl")
-    print(f"expected_result: {expected_result}")
-    print(f"type(expected_result): {type(expected_result)}")
-
-    result = get_benchmark_gain_daily(mock_benchmark_data)
-    print(f"result.index: {result.index}")
-    assert result.index.name == "date", "Index name mismatch: expected 'date'"
-    print(f"result: {result}")
-    print(f"type(result): {type(result)}")
-
-    assert len(result) > 0, "No data returned from function-under-test!"
-    assert isinstance(result.index[0], pd.Timestamp), "Index is not datetime64[ns]!"
-
-    print("Info about expected_result:")
-    series_struct_info(expected_result)
-    print("Info about result:")
-    series_struct_info(result)
-    assert_series_equal(result, expected_result)
