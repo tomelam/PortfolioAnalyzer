@@ -167,10 +167,14 @@ def main(args):
 
     # Clean out None values before constructing portfolio
     nav_inputs = {k: v for k, v in nav_inputs.items() if v is not None}
-    portfolio = from_multiple_nav_series(nav_inputs)
+    portfolio_ts = from_multiple_nav_series(nav_inputs,
+                    weights={f['name']: f['allocation'] for f in portfolio['funds']})
 
-    # Replaces calculate_gain_daily_portfolio_series
-    gain_daily_portfolio_series = portfolio.combined_daily_returns()
+    # Get true CIV series (weighted NAVs)
+    portfolio_civ_series   = portfolio_ts.combined_civ_series()
+
+    # Get combined daily returns from our PortfolioTimeseries
+    gain_daily_portfolio_series = portfolio_ts.combined_daily_returns()
 
     dbg(f"Using risk-free date format: \"{settings['riskfree_date_format']}\"")
 
@@ -194,7 +198,7 @@ def main(args):
 
     # Build a true portfolio CIV from your aligned NAVs + weights
     portfolio_civ_series = (
-        aligned_portfolio_civs * pd.Series(portfolio.weights)
+        aligned_portfolio_civs * pd.Series(portfolio_ts.weights)
     ).sum(axis=1)
 
     # Now derive proper daily returns
@@ -329,7 +333,7 @@ def main(args):
             settings["portfolio_file"],
             cumulative_benchmark,
             settings["benchmark_name"],
-            calculate_portfolio_allocations(portfolio),
+            calculate_portfolio_allocations(portfolio_ts),
             metrics,
             max_drawdowns,
             portfolio_start_date,
@@ -344,7 +348,7 @@ def main(args):
             settings["portfolio_file"],
             cumulative_benchmark,
             settings["benchmark_name"],
-            calculate_portfolio_allocations(portfolio),
+            calculate_portfolio_allocations(portfolio_ts),
             metrics,
             max_drawdowns,
             portfolio_start_date,
