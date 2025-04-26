@@ -14,9 +14,7 @@ from data_loader import (
     get_benchmark_gain_daily,
     load_ppf_interest_rates,
 )
-from asset_timeseries import (
-    from_multiple_nav_series,
-)
+from portfolio_timeseries import from_multiple_nav_series
 from portfolio_calculator import (
     calculate_gains_cumulative,
     calculate_portfolio_allocations,
