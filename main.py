@@ -34,8 +34,8 @@ def main(args):
     import os
     from pathlib import Path
 
-    portfolio = load_portfolio_details(settings["portfolio_file"])
-    portfolio_label = portfolio["label"]
+    portfolio_dict = load_portfolio_details(settings["portfolio_file"])
+    portfolio_label = portfolio_dict["label"]
     print(f"\nCalculating portfolio metrics for {portfolio_label}.\n")
     if settings["debug"]:
         info(f"Portfolio label: {portfolio_label}.")
@@ -56,8 +56,8 @@ def main(args):
 
     aligned_portfolio_civs = pd.DataFrame()
     portfolio_start_date = None
-    if "funds" in portfolio:
-        unaligned_portfolio_civs = fetch_portfolio_civs(portfolio)
+    if "funds" in portfolio_dict:
+        unaligned_portfolio_civs = fetch_portfolio_civs(portfolio_dict)
         aligned_portfolio_civs = align_portfolio_civs(unaligned_portfolio_civs)
         multiindex_aligned_civs = aligned_portfolio_civs.copy()  # Save in case it's needed for the "golden" data
         if isinstance(aligned_portfolio_civs.columns, pd.MultiIndex):
@@ -66,7 +66,7 @@ def main(args):
             portfolio_start_date = aligned_portfolio_civs.index.min()
         fund_start_dates = {
             fund_name: df.index.min()
-            for fund_name, df in fetch_portfolio_civs(portfolio).items()
+            for fund_name, df in fetch_portfolio_civs(portfolio_dict).items()
             if not df.empty
         }
 
@@ -77,27 +77,27 @@ def main(args):
 
     ppf_series = scss_series = rec_bond_series = sgb_series = gold_series = None
 
-    if "ppf" in portfolio:
+    if "ppf" in portfolio_dict:
         from ppf_calculator import calculate_ppf_cumulative_gain
         ppf_rates = load_ppf_interest_rates()
         ppf_series = calculate_ppf_cumulative_gain(ppf_rates)
 
-    if "scss" in portfolio:
+    if "scss" in portfolio_dict:
         from data_loader import load_scss_interest_rates
         from bond_calculators import calculate_variable_bond_cumulative_gain
         scss_rates = load_scss_interest_rates()
         scss_series = calculate_variable_bond_cumulative_gain(scss_rates, scss_rates.index.min())
 
-    if "rec_bond" in portfolio:
+    if "rec_bond" in portfolio_dict:
         from bond_calculators import calculate_variable_bond_cumulative_gain
         rec_bond_rates = pd.DataFrame({'rate': [5.25]}, index=pd.date_range("2000-01-01", pd.Timestamp.today(), freq='D'))
         rec_bond_series = calculate_variable_bond_cumulative_gain(rec_bond_rates, rec_bond_rates.index.min())
 
-    if "sgb" in portfolio:
+    if "sgb" in portfolio_dict:
         from sgb_loader import create_sgb_daily_returns
         sgb_series = create_sgb_daily_returns("data/sgb_data.csv")
 
-    if "gold" in portfolio:
+    if "gold" in portfolio_dict:
         from gold_loader import load_gold_prices
         gold_series = load_gold_prices()
 
@@ -168,7 +168,7 @@ def main(args):
     # Clean out None values before constructing portfolio
     nav_inputs = {k: v for k, v in nav_inputs.items() if v is not None}
     portfolio_ts = from_multiple_nav_series(nav_inputs,
-                    weights={f['name']: f['allocation'] for f in portfolio['funds']})
+                    weights={f['name']: f['allocation'] for f in portfolio_dict['funds']})
 
     # Get true CIV series (weighted NAVs)
     portfolio_civ_series   = portfolio_ts.combined_civ_series()
