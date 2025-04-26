@@ -78,9 +78,7 @@ def main(args):
     ppf_series = scss_series = rec_bond_series = sgb_series = gold_series = None
 
     if "ppf" in portfolio_dict:
-        from ppf_calculator import calculate_ppf_cumulative_gain
-        ppf_rates = load_ppf_interest_rates()
-        ppf_series = calculate_ppf_cumulative_gain(ppf_rates)
+        aligned_portfolio_civs["PPF"] = load_ppf_civ()
 
     if "scss" in portfolio_dict:
         from data_loader import load_scss_interest_rates

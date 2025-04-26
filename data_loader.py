@@ -648,6 +648,12 @@ def load_ppf_interest_rates(csv_file_path="data/ppf_interest_rates.csv"):
         raise FileNotFoundError
 
 
+def load_ppf_civ() -> pd.Series:
+    """Load PPF interest rates and return synthetic CIV series."""
+    from synthetic_civ import calculate_ppf_relative_civ
+    return calculate_ppf_relative_civ(load_ppf_interest_rates())["civ"]
+
+
 def calculate_gold_cumulative_gain(gold_data, portfolio_start_date):
     """
     Compute a relative cumulative gain series from a gold price series.
