@@ -167,7 +167,7 @@ def load_timeseries_csv(
                 f"fetch a fresh copy"
             )
 
-    return TimeseriesFrame(df[["value"]])
+    return TimeseriesFrame(df["value"])
 
 
 def get_aligned_portfolio_civs(portfolio):
@@ -275,11 +275,9 @@ def get_benchmark_gain_daily(benchmark_data):
         pd.Series: Benchmark daily returns indexed by date.
     """
     # Ensure the index (dates) is treated as a datetime column
-    benchmark_data.index = pd.to_datetime(benchmark_data.index, errors="coerce").tz_localize(None)
-    if "Close" in benchmark_data.columns:
-        benchmark_data.rename(columns={"Close": "Close"}, inplace=True)
+    benchmark_data.value_series().index = pd.to_datetime(benchmark_data.value_series().index, errors="coerce").tz_localize(None)
     # Assign the index name to "date"
-    benchmark_data.index.name = "date"
+    benchmark_data.value_series().index.name = "date"
     # Calculate daily returns
     benchmark_gain_daily = benchmark_data.value_series().pct_change().fillna(0)
     # Set the index name to "date" so it matches expected_result
@@ -754,8 +752,8 @@ def fetch_and_standardize_risk_free_rates(
         f"(max staleness {max_allowed_delay_days} days)")
     try:
         df = load_timeseries_csv(file_path, date_format, max_delay_days=max_allowed_delay_days)
-        df["value"] = df["value"] / 100.0  # Convert from percent to decimal
-        return df["value"]
+        df.set_series(df.value_series() / 100.0)  # Convert from percent to decimal
+        return df.value_series()
     except Exception as e:
         raise ValueError(f"Failed to load risk-free rate data: {e}")
 

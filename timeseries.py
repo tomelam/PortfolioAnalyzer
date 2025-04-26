@@ -6,30 +6,73 @@ from dateutil.relativedelta import relativedelta
 from utils import info  # if you use `info()` for logging
 
 
-class TimeseriesFrame(pd.DataFrame):
+class TimeseriesFrame:
     """
-    Extended DataFrame for time series with strict data hygiene enforcement.
+    Lightweight wrapper around a Pandas Series for strict, validated time series analysis.
+
+    Provides methods for performance metrics like CAGR, Sharpe, Sortino, alpha, beta, and max drawdowns,
+    assuming the internal series represents daily returns or cumulative NAVs.
+    
+    Only accepts a pandas Series as input. Fails fast on incorrect types.
     """
-    _metadata = ["_name"]
+    @property
+    def name(self) -> str:
+        """
+        Return the name of the underlying series.
+        """
+        return self._series.name
 
     @property
-    def _constructor(self):
-        return TimeseriesFrame
+    def index(self) -> pd.Index:
+        """
+        Return the index of the underlying series.
+        """
+        return self._series.index
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    @property
+    def values(self) -> np.ndarray:
+        """
+        Return the raw numpy array of the underlying series values.
+        """
+        return self._series.values
 
-        # Auto-rename single column to "value"
-        if len(self.columns) == 1 and self.columns[0] != "value":
-            self.columns = ["value"]
+    @property
+    def iloc(self):
+        """
+        Integer-location based indexing (like Series.iloc).
+        """
+        return self._series.iloc
 
-    def _validate_series(self):
-        if not isinstance(self.index, pd.DatetimeIndex):
-            raise TimeseriesValidationError(f"{self._name} index must be a DatetimeIndex.")
-        if self.isna().any().any():
-            raise TimeseriesValidationError(f"{self._name} contains NaN values.")
-        if not self.index.is_monotonic_increasing:
-            raise TimeseriesValidationError(f"{self._name} index must be sorted by date.")
+    @property
+    def loc(self):
+        """
+        Label-based indexing (like Series.loc).
+        """
+        return self._series.loc
+
+    def set_series(self, new_series: pd.Series):
+        if not isinstance(new_series, pd.Series):
+            raise TypeError("Timeseries expects a pd.Series")
+        self._series = new_series.sort_index()
+
+    def dropna(self) -> "TimeseriesFrame":
+        """
+        Return a new TimeseriesFrame with missing values dropped.
+        """
+        return TimeseriesFrame(self._series.dropna())
+
+    def mean(self) -> float:
+        """
+        Return the mean of the underlying series.
+        """
+        return self._series.mean()
+
+    def __init__(self, series: pd.Series):
+        if not isinstance(series, pd.Series):
+            raise TypeError(f"TimeseriesFrame expects a pd.Series, got {type(series)}")
+        if series.name != "value":
+            series = series.rename("value")
+        self._series = series.sort_index()
 
     def align_with(self, other: pd.Series | pd.DataFrame, how="inner"):
         """Align with another series or DataFrame."""
@@ -47,9 +90,9 @@ class TimeseriesFrame(pd.DataFrame):
         return self.loc[overlap], other.loc[overlap]
 
     def value_series(self):
-        if "value" not in self.columns:
-            raise KeyError("Expected column 'value' not found.")
-        return self.loc[:, "value"]
+        if self._series.name != "value":
+            raise ValueError(f"Expected series name to be 'value', got {self._series.name}")
+        return self._series
 
     def info_summary(self, name="Timeseries"):
         from utils import info
@@ -177,27 +220,46 @@ class TimeseriesFrame(pd.DataFrame):
             raise ValueError("Volatility calculation requires at least two data points.")
         return s.std() * (periods_per_year ** 0.5)
 
-    def sortino(self, risk_free_rate=0.0, frequency="daily"):
+    def sortino(
+        self,
+        risk_free_rate: float = 0.0,
+        periods_per_year: int = None,
+        frequency: str = None
+    ) -> float:
         """
         Compute the Sortino ratio: excess return over downside deviation.
         When testing for exact Sortino values (e.g., == 1.0), set frequency to
         a 1:1 match (e.g., 'daily') and ensure inputs are crafted to give clean
         ratio matches. This avoids distortion from annualization.
         """
-        freq_map = {"daily": 252, "weekly": 52, "monthly": 12}
-        if frequency not in freq_map:
-            raise ValueError(f"Unknown frequency: {frequency}")
+        if self._series.empty:
+            raise ValueError("Empty series")
+
+        if periods_per_year is None:
+            freq_map = {"daily": 252, "weekly": 52, "monthly": 12}
+            if frequency is None:
+                frequency = "daily"
+            if frequency not in freq_map:
+                raise ValueError(f"Unknown frequency: {frequency}")
+            periods_per_year = freq_map[frequency]
+
+        rf_period = risk_free_rate / periods_per_year
+        excess_returns = self._series - rf_period
+
+        fuzz = -1e-10
+        downside_returns = excess_returns[excess_returns < fuzz]
+        if downside_returns.empty:
+            return float('inf')
+
         s = self.value_series().dropna()
-        scale = freq_map[frequency]
-        # Fuzzy threshold to treat tiny negatives as zero
-        excess_return = s - (risk_free_rate / scale)
-        downside = excess_return[excess_return < -1e-10]
-        if len(downside) <= 1:
-            # Perfectly positive or almost perfectly positive returns → Sortino = ∞ (ideal)
-            # Zero or negative mean → undefined → NaN
-            return float("inf") if excess_return.mean() > 0 else float("nan")
-        downside_std = downside.std()
-        return excess_return.mean() / downside_std
+
+        downside_std = downside_returns.std(ddof=1)
+        if downside_std == 0:
+            return float('inf')
+
+        mean_excess = excess_returns.mean()
+
+        return mean_excess / downside_std * np.sqrt(periods_per_year)
 
     def sharpe(self, risk_free_rate=0.0, periods_per_year=252):
         """

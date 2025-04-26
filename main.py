@@ -1,5 +1,6 @@
 from logging import debug
 import pandas as pd
+import numpy as np
 from timeseries import TimeseriesFrame, print_major_drawdowns
 from data_loader import (
     load_config_toml,
@@ -51,7 +52,6 @@ def main(args):
             settings["benchmark_date_format"],
             max_delay_days=None if settings["skip_age_check"] else 2,
         )
-        assert "value" in benchmark_data.columns, "Expected column 'value' missing from timeseries"
         benchmark_returns = get_benchmark_gain_daily(benchmark_data)
 
     aligned_portfolio_civs = pd.DataFrame()
