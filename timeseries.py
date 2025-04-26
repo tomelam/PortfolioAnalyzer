@@ -1,3 +1,4 @@
+from matplotlib.lines import drawStyles
 import pandas as pd
 import numpy as np
 import warnings
@@ -154,9 +155,8 @@ class TimeseriesFrame(pd.DataFrame):
         start_date = s.index[0]
         end_date = s.index[-1]
 
-        delta = relativedelta(end_date, start_date)
-        years = delta.years + delta.months / 12 + delta.days / 365
-        print("Start date:", start_date, "End date:", end_date, years)
+        days = (end_date - start_date).days
+        years = days / 365.25
         
         if years <= 0:
             raise ValueError("CAGR calculation requires a positive time span.")
@@ -291,10 +291,17 @@ class TimeseriesFrame(pd.DataFrame):
         # Do not record drawdowns that haven't been recovered.
         return max_drawdowns
 
-    def alpha(self, benchmark_ret: "TimeseriesFrame") -> float:
+    def alpha_regression(self, benchmark_ret: "TimeseriesFrame") -> float:
         """
-        Calculate Jensen's alpha: excess return unexplained by benchmark.
-        Assumes daily returns. Aligned by date.
+        Calculate regression alpha (not Jensen's alpha).
+
+        This uses a linear regression of the portfolio's daily returns against the benchmark's:
+            y = alpha + beta * x
+
+        The intercept (alpha) represents the portfolio's average daily return
+        when the benchmark's return is zero.
+
+        Assumes both series are daily returns and aligned by date.
         """
         x = benchmark_ret.value_series()
         y = self.value_series()
@@ -320,7 +327,51 @@ class TimeseriesFrame(pd.DataFrame):
 
         return float(coeffs[1])  # Intercept = alpha
 
-    def beta(self, benchmark_ret: "TimeseriesFrame") -> float:
+    def alpha_capm(
+            self,
+            benchmark_ret: "TimeseriesFrame",
+            risk_free_rate: float = 0.0,
+            fallback_to_simple_beta: bool = False
+    ) -> float:
+        """
+        Calculate Jensen's alpha using CAPM:
+
+            alpha = mean(Rp) - [Rf + beta * (mean(Rb) - Rf)]
+
+        Where:
+        - Rp = portfolio daily returns (self)
+        - Rb = benchmark daily returns (benchmark_ret)
+        - Rf = scalar risk-free daily return
+        - beta = covariance(Rp, Rb) / variance(Rb)
+
+        Assumes both series are aligned on dates and expressed as daily returns.
+        Falls back to simple beta() if beta_capm() fails and fallback is enabled.
+        """
+        x = benchmark_ret.value_series()
+        y = self.value_series()
+
+        if x.empty or y.empty:
+            raise ValueError("Cannot compute alpha_capm: input series is empty.")
+
+        x_aligned, y_aligned = x.align(y, join="inner")
+        if len(x_aligned) < 3:
+            raise ValueError("Too few aligned data points to compute alpha_capm.")
+
+        try:
+            beta = self.beta_capm(benchmark_ret, risk_free_rate=risk_free_rate)
+        except Exception as e:
+            if fallback_to_simple_beta:
+                dbg(f"⚠️ beta_capm() failed, falling back to beta(): {e}")
+                beta = self.beta(benchmark_ret)
+            else:
+                raise
+
+        excess_x = x_aligned - risk_free_rate
+        expected_return = risk_free_rate + beta * excess_x.mean()
+        actual_return = y_aligned.mean()
+        return actual_return - expected_return
+
+    def beta_regression(self, benchmark_ret: "TimeseriesFrame") -> float:
         """
         Calculate beta: sensitivity of returns to benchmark returns.
         Assumes daily returns. Aligned by date.
@@ -332,6 +383,34 @@ class TimeseriesFrame(pd.DataFrame):
             raise ValueError("Beta requires at least two aligned data points")
         coeffs = np.polyfit(x, y, 1)
         return float(coeffs[0])
+
+    def beta_capm(self, benchmark_ret: "TimeseriesFrame", risk_free_rate: float = 0.0) -> float:
+        """
+        Calculate CAPM-style beta:
+
+        beta = Cov(Rp - Rf, Rb - Rf) / Var(Rb - Rf)
+
+        Where:
+        - Rp = portfolio daily returns (self)
+        - Rb = benchmark daily returns (benchmark_ret)
+        - Rf = scalar risk-free daily return
+
+        Assumes both series are aligned on dates and expressed as daily returns.
+        """
+        x = benchmark_ret.value_series()
+        y = self.value_series()
+
+        if x.empty or y.empty:
+            raise ValueError("Cannot compute beta_capm: input series is empty.")
+
+        x_aligned, y_aligned = x.align(y, join="inner")
+        if len(x_aligned) < 3:
+            raise ValueError("Too few aligned data points to compute beta_capm.")
+
+        excess_x = x_aligned - risk_free_rate
+        excess_y = y_aligned - risk_free_rate
+
+        return excess_y.cov(excess_x) / excess_x.var()
 
     def as_rolling(self, window=30, method="mean"):
         """

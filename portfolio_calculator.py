@@ -1,5 +1,6 @@
 import pandas as pd
 
+"""
 def calculate_portfolio_allocations(portfolio):
     aggregated = {"equity": 0.0, "debt": 0.0, "real_estate": 0.0, "commodities": 0.0, "cash": 0.0}
 
@@ -17,6 +18,20 @@ def calculate_portfolio_allocations(portfolio):
         aggregated["commodities"] += portfolio["gold"].get("allocation", 0)
 
     return pd.Series(aggregated)
+"""
+def calculate_portfolio_allocations(portfolio: "PortfolioTimeseries") -> dict[str, float]:
+    """
+    Calculate allocation percentages by asset name.
+    Assumes portfolio.assets is a dict of {name: AssetTimeseries}
+    and portfolio.weights contains user-defined weights or defaults to equal.
+    """
+    allocations = {}
+
+    for name, asset in portfolio.assets.items():
+        weight = portfolio.weights.get(name)
+        allocations[name] = weight  # Already normalized earlier
+
+    return allocations
 
 
 def calculate_gain_daily_portfolio_series(

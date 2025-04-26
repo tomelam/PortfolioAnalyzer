@@ -33,3 +33,7 @@ def beta_from_series(ret: TimeseriesFrame, benchmark_ret: TimeseriesFrame) -> fl
         raise ValueError("Beta requires at least two aligned data points")
     coeffs = np.polyfit(x, y, 1)
     return float(coeffs[0])
+
+
+def print_major_drawdowns():
+    return

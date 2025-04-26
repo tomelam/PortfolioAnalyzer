@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import warnings
 import pytest
 from timeseries import TimeseriesFrame
 from asset_timeseries import from_civ, AssetTimeseries
@@ -223,10 +224,10 @@ def test_asset_timeseries_sortino_ratio():
 
 
 @pytest.mark.order(40)
-def test_alpha_known_series():
+def test_alpha_capm_known_series():
     """
     A portfolio with 1% daily returns and benchmark with 0.5% daily returns
-    should have a positive alpha.
+    should have a positive alpha_capm.
     """
     dates = pd.bdate_range(start="2023-01-01", periods=5)
     # Slightly rising returns
@@ -236,12 +237,12 @@ def test_alpha_known_series():
     portfolio = TimeseriesFrame(pd.Series(port_returns, index=dates, name="value"))
     benchmark = TimeseriesFrame(pd.Series(bench_returns, index=dates, name="value"))
 
-    alpha = portfolio.alpha(benchmark)
-    assert alpha > 0
+    alpha_capm = portfolio.alpha_capm(benchmark)
+    assert alpha_capm > 0
 
 
 @pytest.mark.order(41)
-def test_alpha_with_external_benchmark():
+def test_alpha_capm_with_external_benchmark():
     """
     Alpha = Portfolio excess return - Beta × Benchmark excess return
     This test isolates the logic: Portfolio and Benchmark are independent.
@@ -257,17 +258,17 @@ def test_alpha_with_external_benchmark():
     bench_navs = pd.Series([100, 100.5, 101.0, 101.5, 102.0], index=dates)
     benchmark = from_civ(bench_navs)
 
-    alpha = portfolio.ret.alpha(benchmark.ret)
-    beta = portfolio.ret.beta(benchmark.ret)
+    alpha_capm = portfolio.ret.alpha_capm(benchmark.ret)
+    beta = portfolio.ret.beta_capm(benchmark.ret)
 
-    assert isinstance(alpha, float)
+    assert isinstance(alpha_capm, float)
     assert isinstance(beta, float)
-    assert alpha > 0    # Our synthetic portfolio outperformed the benchmark
+    assert alpha_capm > 0    # Our synthetic portfolio outperformed the benchmark
     assert 0 < beta < 2  # Should be a reasonable positive correlation
 
 
 @pytest.mark.order(42)
-def test_beta_known_series():
+def test_beta_capm_known_series():
     """
     A portfolio that is exactly 2x the benchmark should have beta = 2.0.
     """
@@ -278,20 +279,61 @@ def test_beta_known_series():
     bench = TimeseriesFrame(pd.Series(bench_returns, index=dates, name="value"))
     port = TimeseriesFrame(pd.Series(port_returns, index=dates, name="value"))
 
-    beta = port.beta(bench)
+    beta = port.beta_capm(bench)
     assert abs(beta - 2.0) < 0.01
 
 
 @pytest.mark.order(43)
-def test_alpha_beta_empty_inputs():
+def test_alpha_beta_capm_empty_inputs():
     """
     Empty return series should raise an error.
     """
     empty = TimeseriesFrame(pd.Series(dtype=float))
     with pytest.raises(ValueError):
-        empty.alpha(empty)
+        empty.alpha_capm(empty)
     with pytest.raises(ValueError):
-        empty.beta(empty)
+        empty.beta_capm(empty)
+
+
+
+@pytest.mark.order(44)
+def test_alpha_regression_known_series():
+    """
+    A portfolio with consistently higher returns than the benchmark
+    should have a positive regression alpha.
+
+    ⚠️ NOTE: This is a **minimal** test of alpha_regression(). Add edge-case and robustness tests later.
+    """
+    warnings.warn("⚠️ test_alpha_regression_known_series() is a minimal test — not full coverage.", UserWarning)
+
+    dates = pd.bdate_range("2023-01-01", periods=5)
+    port_returns = [0.012, 0.011, 0.013, 0.012, 0.014]
+    bench_returns = [0.007, 0.006, 0.008, 0.007, 0.006]
+
+    portfolio = TimeseriesFrame(pd.Series(port_returns, index=dates, name="value"))
+    benchmark = TimeseriesFrame(pd.Series(bench_returns, index=dates, name="value"))
+
+    alpha = portfolio.alpha_regression(benchmark)
+    assert isinstance(alpha, float)
+    assert alpha > 0
+
+
+@pytest.mark.order(45)
+def test_beta_regression_known_series():
+    """
+    A portfolio that is exactly 3x the benchmark should have regression beta = 3.
+    """
+    warnings.warn("⚠️ test_alpha_regression_known_series() is a minimal test — not full coverage.", UserWarning)
+    dates = pd.bdate_range("2023-01-01", periods=5)
+    bench_returns = np.random.normal(0.005, 0.001, size=5)
+    port_returns = 3 * bench_returns
+
+    benchmark = TimeseriesFrame(pd.Series(bench_returns, index=dates, name="value"))
+    portfolio = TimeseriesFrame(pd.Series(port_returns, index=dates, name="value"))
+
+    beta = portfolio.beta_regression(benchmark)
+    assert isinstance(beta, float)
+    assert abs(beta - 3.0) < 0.01
 
 
 @pytest.mark.order(50)

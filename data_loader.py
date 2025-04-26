@@ -90,7 +90,7 @@ def load_timeseries_csv(
 ):
     df = pd.read_csv(file_path)
     if DEBUG:
-        info(f"📂  Loading time‑series «{file_path}»")
+        info(f"📂 Loading time‑series «{file_path}»")
     df = pd.read_csv(file_path)
 
     # Identify the date column
@@ -158,7 +158,7 @@ def load_timeseries_csv(
         today = pd.Timestamp.today().normalize()
         expected_latest = (today - pd.Timedelta(days=max_delay_days)).replace(day=1)
 
-        dbg(f"Latest date in {os.path.basename(file_path)}: {last_date.date()}")
+        dbg(f"Latest date in \"{os.path.basename(file_path)}\": {last_date.date()}")
         dbg(f"Required minimum date: {expected_latest.date()}")
 
         if last_date < expected_latest:
@@ -744,7 +744,7 @@ def fetch_and_standardize_risk_free_rates(
         ValueError: If the file format is invalid.
         RuntimeError: If the data is outdated.
     """
-    dbg(f"📂  Loading risk‑free series «{file_path}» "
+    dbg(f"📂 Loading risk‑free series \"{file_path}\" "
         f"(max staleness {max_allowed_delay_days} days)")
     try:
         df = load_timeseries_csv(file_path, date_format, max_delay_days=max_allowed_delay_days)

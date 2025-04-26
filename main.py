@@ -1,6 +1,6 @@
 from logging import debug
 import pandas as pd
-from timeseries import TimeseriesFrame
+from timeseries import TimeseriesFrame, print_major_drawdowns
 from data_loader import (
     load_config_toml,
     load_timeseries_csv,
@@ -14,8 +14,8 @@ from data_loader import (
     get_benchmark_gain_daily,
     load_ppf_interest_rates,
 )
-from metrics_calculator import (
-    print_major_drawdowns,
+from asset_timeseries import (
+    from_multiple_nav_series,
 )
 from portfolio_calculator import (
     calculate_gains_cumulative,
@@ -36,9 +36,18 @@ def main(args):
     import os
     from pathlib import Path
 
+    portfolio = load_portfolio_details(settings["portfolio_file"])
+    portfolio_label = portfolio["label"]
+    print(f"\nCalculating portfolio metrics for {portfolio_label}.\n")
+    if settings["debug"]:
+        info(f"Portfolio label: {portfolio_label}.")
+        info("Merged settings:")
+        for k, v in settings.items():
+            info(f"  {k}: {v}")
+
     benchmark_returns = None
     if settings.get("use_benchmark"):
-        dbg("Loading benchmark timeseries")
+        dbg(f"📂 Loading benchmark timeseries from \"{settings['benchmark_file']}\"")
         benchmark_data = load_timeseries_csv(
             settings["benchmark_file"],
             settings["benchmark_date_format"],
@@ -47,13 +56,8 @@ def main(args):
         assert "value" in benchmark_data.columns, "Expected column 'value' missing from timeseries"
         benchmark_returns = get_benchmark_gain_daily(benchmark_data)
 
-    portfolio = load_portfolio_details(settings["portfolio_file"])
-    portfolio_label = portfolio["label"]
-    info(f"\nCalculating portfolio metrics for {portfolio_label}.")
-
     aligned_portfolio_civs = pd.DataFrame()
     portfolio_start_date = None
-
     if "funds" in portfolio:
         unaligned_portfolio_civs = fetch_portfolio_civs(portfolio)
         aligned_portfolio_civs = align_portfolio_civs(unaligned_portfolio_civs)
@@ -71,7 +75,7 @@ def main(args):
         latest_fund, latest_date = max(fund_start_dates.items(), key=lambda x: x[1])
 
         dbg(f"Latest launch date among all mutual funds: {latest_date.date()}")
-        dbg(f"Fund with the latest launch date: {latest_fund}")
+        dbg(f"Fund with the latest launch date: \"{latest_fund}\"")
 
     ppf_series = scss_series = rec_bond_series = sgb_series = gold_series = None
 
@@ -135,20 +139,8 @@ def main(args):
         gold_series = gold_series[gold_series.index >= portfolio_start_date]
     # === END OF ROBUST LOGIC ===
 
-    """
-    gain_daily_portfolio_series = calculate_gain_daily_portfolio_series(
-        portfolio,
-        aligned_portfolio_civs,
-        ppf_series,
-        scss_series,
-        rec_bond_series,
-        sgb_series,
-        gold_series,
-    )
-    """
-
-
-    print("Just finished setting up the series for the different asset types")
+    assert aligned_portfolio_civs is not None and not aligned_portfolio_civs.empty, "aligned_portfolio_civs is missing or empty"
+    dbg("Examining the types in the portfolio's CIV series:")
     for name, var in [
         ("aligned_portfolio_civs", aligned_portfolio_civs),
         ("ppf_series", ppf_series),
@@ -157,14 +149,17 @@ def main(args):
         ("sgb_series", sgb_series),
         ("gold_series", gold_series),
     ]:
-        print(f"{name}: {type(var)}")
-    print("aligned_portfolio_civs.columns:", aligned_portfolio_civs.columns)
-    assert aligned_portfolio_civs is not None and not aligned_portfolio_civs.empty, "aligned_portfolio_civs is missing or empty"
+        dbg(f"{name}: {type(var)}")
 
+    # Stage 3: Convert aligned DataFrame to dict of Series
+    fund_series_dict = {
+        fund_name: aligned_portfolio_civs[fund_name]
+        for fund_name in aligned_portfolio_civs.columns
+    }
 
     # Convert to Series format before passing to from_multiple_nav_series
     nav_inputs = {
-        "MutualFunds": aligned_portfolio_civs,
+        **fund_series_dict,
         "PPF": ppf_series["value"] if ppf_series is not None else None,
         "SCSS": scss_series["value"] if scss_series is not None else None,
         "REC": rec_bond_series["value"] if rec_bond_series is not None else None,
@@ -172,22 +167,14 @@ def main(args):
         "Gold": gold_series["price"] if gold_series is not None else None,
     }
 
-    exit(1)
-
     # Clean out None values before constructing portfolio
     nav_inputs = {k: v for k, v in nav_inputs.items() if v is not None}
     portfolio = from_multiple_nav_series(nav_inputs)
 
     # Replaces calculate_gain_daily_portfolio_series
-    print("Type of gain_daily_portfolio_series:", type(gain_daily_portfolio_series))
     gain_daily_portfolio_series = portfolio.combined_daily_returns()
-    print("Type of gain_daily_portfolio_series:", type(gain_daily_portfolio_series))
 
-
-    exit(1)
-    
-
-    dbg(f"Using risk-free date format: {settings['riskfree_date_format']}")
+    dbg(f"Using risk-free date format: \"{settings['riskfree_date_format']}\"")
 
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(
         settings["risk_free_rates_file"],
@@ -197,6 +184,7 @@ def main(args):
     risk_free_rates = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
     risk_free_rate = risk_free_rates.mean()
     risk_free_rate_daily = (1 + risk_free_rate)**(1/252) - 1
+    dbg(f"risk_free_rate_daily: {risk_free_rate_daily}")
 
     if settings.get("lookback"):
         cutoff = to_cutoff_date(settings["lookback"])
@@ -206,28 +194,42 @@ def main(args):
         benchmark_returns          = benchmark_returns[benchmark_returns.index >= cutoff]
         risk_free_rate_series      = risk_free_rate_series[risk_free_rate_series.index >= cutoff]
 
-        
+    # Build a true portfolio CIV from your aligned NAVs + weights
+    portfolio_civ_series = (
+        aligned_portfolio_civs * pd.Series(portfolio.weights)
+    ).sum(axis=1)
 
-    """
-    metrics, max_drawdowns = calculate_portfolio_metrics(
-        gain_daily_portfolio_series,
-        portfolio,
-        risk_free_rate_daily,
-        benchmark_returns,
-    )
-    """
+    # Now derive proper daily returns
+    gain_daily_portfolio_series = portfolio_civ_series.pct_change().dropna()
 
-    exit(1)
-    print(gain_daily_portfolio_series.head(10))
-    tsf = TimeseriesFrame(gain_daily_portfolio_series)
+    # Two data pipeline paths: NAVs for CAGR/Drawdowns, returns for Sharpe/Alpha/Beta
+    tsf_civ     = TimeseriesFrame(portfolio_civ_series)
+    tsf_returns = TimeseriesFrame(gain_daily_portfolio_series)
 
+    # Optional manual CAGR sanity calculator
+    start_value = 1.008298
+    end_value = 10.492101
+    start_date = pd.Timestamp("2013-01-02")
+    end_date = pd.Timestamp("2025-04-24")
+    days = (end_date - start_date).days
+    years = days / 365.25
+    cagr_manual = (end_value / start_value) ** (1 / years) - 1
+    dbg(f"Sanity CAGR: {cagr_manual:.4%}")
+    
     metrics = {
-        "Annualized Return": tsf.cagr(),
-        "Volatility": tsf.volatility(),
-        "Sharpe Ratio": tsf.sharpe(risk_free_rate=risk_free_rate_daily),
-        "Sortino Ratio": tsf.sortino(risk_free_rate=risk_free_rate_daily),
+        "Annualized Return": tsf_civ.cagr(),
+        "Volatility": tsf_returns.volatility(),
+        "Sharpe Ratio": tsf_returns.sharpe(risk_free_rate=risk_free_rate_daily),
+        "Sortino Ratio": tsf_returns.sortino(risk_free_rate=risk_free_rate_daily),
     }
 
+    benchmark_tsf_returns = TimeseriesFrame(benchmark_returns)
+    if benchmark_returns is not None:
+        metrics["Alpha"] = tsf_returns.alpha_capm(benchmark_tsf_returns, risk_free_rate=risk_free_rate_daily)
+        metrics["Beta"]  = tsf_returns.beta_capm(benchmark_tsf_returns, risk_free_rate=risk_free_rate_daily)
+    else:
+        metrics["Alpha"] = None
+        metrics["Beta"] = None
     cagr = metrics["Annualized Return"] * 100
     vol = metrics["Volatility"] * 100
     if metrics["Alpha"] is not None:
@@ -235,6 +237,7 @@ def main(args):
     else:
         alpha = None
     beta = metrics["Beta"]
+    max_drawdowns = tsf_civ.max_drawdowns(threshold=0.05)
     if max_drawdowns:
         max_dd_info = min(max_drawdowns, key=lambda dd: dd["drawdown"])
         drawdown_days = max_dd_info["drawdown_days"]
@@ -292,7 +295,7 @@ def main(args):
     print(f"Drawdown Days: {drawdown_days}")
     print(f"Recovery Days: {recovery_days}")
     print_major_drawdowns(max_drawdowns)
-    
+
     cumulative_historical, cumulative_benchmark = calculate_gains_cumulative(
         gain_daily_portfolio_series, benchmark_returns
     )
@@ -439,10 +442,6 @@ if __name__ == "__main__":
             "riskfree_date_format": config.get("riskfree_date_format", "%m/%d/%Y"),
             "max_riskfree_delay": args.max_riskfree_delay or config.get("max_riskfree_delay", 61),
         }
-        if settings["debug"]:
-            print("Merged settings:")
-            for k, v in settings.items():
-                print(f"  {k}: {v}")
         main(settings)
     except Exception as e:
         print(f"\nError: {e}", file=sys.stderr)
