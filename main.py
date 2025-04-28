@@ -1,7 +1,7 @@
 from logging import debug
 import pandas as pd
 import numpy as np
-from timeseries import TimeseriesFrame, print_major_drawdowns
+from timeseries import TimeseriesFrame
 from data_loader import (
     load_config_toml,
     load_timeseries_csv,
@@ -21,7 +21,7 @@ from portfolio_calculator import (
     calculate_portfolio_allocations,
     calculate_gain_daily_portfolio_series,
 )
-from visualizer import plot_cumulative_returns
+from visualizer import plot_cumulative_returns, print_major_drawdowns
 import utils
 from utils import (
     info,
@@ -37,7 +37,7 @@ def main(args):
 
     portfolio_dict = load_portfolio_details(settings["portfolio_file"])
     portfolio_label = portfolio_dict["label"]
-    print(f"\nCalculating portfolio metrics for {portfolio_label}.\n")
+    print(f"\Portfolio metrics for {portfolio_label}.\n")
     if settings["debug"]:
         info(f"Portfolio label: {portfolio_label}.")
         info("Merged settings:")
@@ -215,12 +215,29 @@ def main(args):
     years = days / 365.25
     cagr_manual = (end_value / start_value) ** (1 / years) - 1
     dbg(f"Sanity CAGR: {cagr_manual:.4%}")
-    
+
+    # Set frequency and scaling based on metrics method
+    METRICS_METHOD = "morningstar"
+    if METRICS_METHOD == "morningstar":
+        frequency = "monthly"
+        periods_per_year = 12
+    else:
+        frequency = "daily"
+        periods_per_year = 252
+
     metrics = {
-        "Annualized Return": tsf_civ.cagr(),
-        "Volatility": tsf_returns.volatility(),
-        "Sharpe Ratio": tsf_returns.sharpe(risk_free_rate=risk_free_rate_daily),
-        "Sortino Ratio": tsf_returns.sortino(risk_free_rate=risk_free_rate_daily),
+        "Annualized Return": tsf_civ.cagr(),  # (Still daily for now — we'll polish this later if needed)
+        "Volatility": tsf_returns.volatility(frequency=frequency, periods_per_year=periods_per_year),
+        "Sharpe Ratio": tsf_returns.sharpe(
+            risk_free_rate=risk_free_rate_daily,
+            frequency=frequency,
+            periods_per_year=periods_per_year
+        ),
+        "Sortino Ratio": tsf_returns.sortino(
+            risk_free_rate=risk_free_rate_daily,
+            frequency=frequency,
+            periods_per_year=periods_per_year
+        ),
     }
 
     benchmark_tsf_returns = TimeseriesFrame(benchmark_returns)

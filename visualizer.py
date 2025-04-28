@@ -229,3 +229,18 @@ def plot_cumulative_returns(
     else:
         plt.show()
     plt.close()
+
+
+def print_major_drawdowns(drawdowns):
+    """
+    Print a list of major drawdowns in human-readable format.
+
+    Args:
+        drawdowns (list of dict): Each dict has "start_date", "recovery_date", "drawdown".
+    """
+    for dd in drawdowns:
+        start = dd["start_date"].strftime("%Y-%m-%d")
+        end = dd["recovery_date"].strftime("%Y-%m-%d")
+        pct = dd["drawdown"]
+        days = dd["recovery_days"]
+        print(f"Drawdown from {start} to {end} ({days:>4} days): {pct:7.2f}%")

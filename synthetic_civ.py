@@ -1,3 +1,29 @@
+
+"""
+synthetic_civ.py
+
+Functions to generate synthetic Cumulative Investment Value (CIV) series
+for non-NAV-traded assets like PPF, SCSS, SGBs, REC bonds, and physical gold.
+
+Main functions:
+- generate_ppf_civ(): Build a PPF balance growth series from interest rate data.
+- generate_sgb_civ(): Simulate Sovereign Gold Bond accruals including gold price and coupon effects.
+- generate_bond_civ(): Model bond price appreciation with coupon payments.
+- generate_gold_civ(): Model physical gold value over time based on spot prices.
+
+Usage:
+- Use when no direct NAV history exists.
+- Synthetic CIVs can then be transformed to returns for performance analysis.
+
+Notes:
+- Outputs are pandas Series indexed by date.
+- Functions assume consistent compounding conventions (e.g., annual, semiannual).
+
+Author: [Your Name]
+Date: [Today's Date]
+"""
+
+
 def calculate_ppf_relative_civ(ppf_interest_rates):
     """
     Calculate the monthly current investment value (CIV) gain for PPF, accruing monthly interest and

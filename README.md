@@ -185,8 +185,11 @@ Portfolio: ╭─────── decline ────────╮───
            └────── drawdown_days ───┘                                 │
            └────────────────────────────── recovery_days ─────────────┘
 ```
+### Summary of Key Indian Investment Screening Platforms and Their Metric-Calculation Methodologies
 
-This section is to be expanded.
+There are only two free Indian web platforms with a high degree of transparency regarding their
+mutual-fund metric-calculation methodologies: Morningstar India and CRISIL. See
+_[5 ratios to measure risk and return](https://www.morningstar.in/posts/28205/5-ratios-to-measure-returns-and-risk.aspx?utm_source=chatgpt.com)_ on [Morningstar India](morningstar.in) and _[CRISIL Mutual Fund Ranking](https://www.crisil.com/content/dam/crisil/mutual-fund-ranking/crisil-mutual-fund-ranking-march-2023.pdf?utm_source=chatgpt.com)_.
 
 ---
 

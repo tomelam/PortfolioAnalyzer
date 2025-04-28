@@ -19,19 +19,20 @@ def calculate_portfolio_allocations(portfolio):
 
     return pd.Series(aggregated)
 """
-def calculate_portfolio_allocations(portfolio: "PortfolioTimeseries") -> dict[str, float]:
+def calculate_portfolio_allocations(portfolio) -> pd.Series:
     """
-    Calculate allocation percentages by asset name.
-    Assumes portfolio.assets is a dict of {name: AssetTimeseries}
-    and portfolio.weights contains user-defined weights or defaults to equal.
+    Calculate allocation percentages by asset class across the entire portfolio.
     """
     allocations = {}
 
     for name, asset in portfolio.assets.items():
-        weight = portfolio.weights.get(name)
-        allocations[name] = weight  # Already normalized earlier
+        if not hasattr(asset, "asset_allocation"):
+            continue  # skip if asset does not have allocation breakdown
+        fund_weight = portfolio.weights.get(name, 0.0)
+        for asset_class, percent in asset.asset_allocation.items():
+            allocations[asset_class] = allocations.get(asset_class, 0.0) + (percent / 100.0) * fund_weight
 
-    return allocations
+    return pd.Series(allocations)
 
 
 def calculate_gain_daily_portfolio_series(

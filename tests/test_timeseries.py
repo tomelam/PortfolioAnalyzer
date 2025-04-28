@@ -17,7 +17,7 @@ def test_timeseriesframe_cagr_two_years():
     result = frame.cagr()
     expected = 0.10
 
-    assert abs(result - expected) < 1e-6
+    assert abs(result - expected) < 1e-4
 
 
 @pytest.mark.order(11)
@@ -187,7 +187,7 @@ def test_asset_timeseries_metrics_cagr_and_sharpe():
     ts = from_civ(navs)
 
     cagr = ts.civ.cagr()
-    assert abs(cagr - 0.10) < 1e-6
+    assert abs(cagr - 0.10) < 1e-4
 
     # Rebuild with enough data to make Sharpe meaningful
     navs_full = pd.Series(

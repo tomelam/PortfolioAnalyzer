@@ -55,7 +55,7 @@ def warn_if_stale(df, label="Data", quiet=False):
 
         if answer not in ("y", "yes", ""):
             print("Aborting.")
-            sys.exit(1)
+            raise ValueError("Data is too stale for analysis")
 
 
 def to_cutoff_date(tag: str) -> pd.Timestamp:

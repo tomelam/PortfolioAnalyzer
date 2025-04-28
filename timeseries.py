@@ -50,6 +50,23 @@ class TimeseriesFrame:
         """
         return self._series.loc
 
+    def _standardized_returns(self, frequency: str, periods_per_year: int) -> tuple[pd.Series, int]:
+        """
+        Get returns and scaling factor depending on frequency and testing mode.
+        """
+        returns = self._series.dropna()
+
+        if frequency == "monthly":
+            returns = self._series.resample("M").last().pct_change().dropna()
+            scale = 12 if periods_per_year == 252 else periods_per_year
+        else:  # daily
+            scale = periods_per_year
+        #print("🔵 NAV series head:\n", self._series.head(10))
+        #print("🔵 Returns head:\n", returns.head(10))
+        #print("🔵 Scaling factor:", scale)
+
+        return returns, scale
+
     def set_series(self, new_series: pd.Series):
         if not isinstance(new_series, pd.Series):
             raise TypeError("Timeseries expects a pd.Series")
@@ -208,78 +225,82 @@ class TimeseriesFrame:
 
         return (end_value / start_value) ** (1 / years) - 1
 
-    def volatility(self, periods_per_year=252) -> float:
-        """
-        Annualized standard deviation of daily returns.
-        Assumes this is a return series.
-        """
-        # Multiply sample standard deviation by √T to annualize.
-        # For deterministic testing, use periods_per_year=1 to disable annualization.
-        s = self.value_series().dropna()
-        if len(s) < 2:
-            raise ValueError("Volatility calculation requires at least two data points.")
-        return s.std() * (periods_per_year ** 0.5)
-
-    def sortino(
-        self,
-        risk_free_rate: float = 0.0,
-        periods_per_year: int = None,
-        frequency: str = None
+    def volatility(
+            self,
+            periods_per_year: int = 252,
+            frequency: str = "daily"
     ) -> float:
         """
-        Compute the Sortino ratio: excess return over downside deviation.
-        When testing for exact Sortino values (e.g., == 1.0), set frequency to
-        a 1:1 match (e.g., 'daily') and ensure inputs are crafted to give clean
-        ratio matches. This avoids distortion from annualization.
+        Calculate the annualized volatility (standard deviation of returns).
+
+        If frequency='monthly', automatically resamples returns to monthly, adjusts scaling,
+        and ignores periods_per_year.
+        For deterministic unit testing, use periods_per_year=1 to disable annualization.
         """
-        if self._series.empty:
-            raise ValueError("Empty series")
+        returns, scale = self._standardized_returns(frequency, periods_per_year)
 
-        if periods_per_year is None:
-            freq_map = {"daily": 252, "weekly": 52, "monthly": 12}
-            if frequency is None:
-                frequency = "daily"
-            if frequency not in freq_map:
-                raise ValueError(f"Unknown frequency: {frequency}")
-            periods_per_year = freq_map[frequency]
+        print("DEBUG: returns head", returns.head())
+        print("DEBUG: returns std dev", returns.std())
+        print("DEBUG: scale", scale)
+        print("DEBUG: final volatility", returns.std() * (scale ** 0.5))
+        return returns.std() * (scale ** 0.5)
 
-        rf_period = risk_free_rate / periods_per_year
-        excess_returns = self._series - rf_period
+    def sortino(
+            self,
+            risk_free_rate: float = 0.0,
+            periods_per_year: int = 252,
+            frequency: str = "daily"
+    ) -> float:
+        """
+        Calculate the annualized Sortino ratio.
 
+        If frequency='monthly', automatically resamples returns to monthly, adjusts scaling,
+        and ignores periods_per_year.
+        Set periods_per_year=1 to disable annualization for exact unit-testable ratios.
+        """
+        returns, scale = self._standardized_returns(frequency, periods_per_year)
+
+        excess_returns = returns - (risk_free_rate / scale)
         fuzz = -1e-10
         downside_returns = excess_returns[excess_returns < fuzz]
-        if downside_returns.empty:
-            return float('inf')
 
-        s = self.value_series().dropna()
+        if downside_returns.std() == 0:
+            if excess_returns.mean() > 0:
+                return float("inf")
+            elif excess_returns.mean() < 0:
+                return float("-inf")
+            else:
+                return 0.0
 
-        downside_std = downside_returns.std(ddof=1)
-        if downside_std == 0:
-            return float('inf')
+        return (excess_returns.mean() * scale) / (downside_returns.std() * (scale ** 0.5))
 
-        mean_excess = excess_returns.mean()
-
-        return mean_excess / downside_std * np.sqrt(periods_per_year)
-
-    def sharpe(self, risk_free_rate=0.0, periods_per_year=252):
+    def sharpe(
+            self,
+            risk_free_rate: float = 0.0,
+            periods_per_year: int = 252,
+            frequency: str = "daily"
+    ) -> float:
         """
-        Calculate Sharpe ratio from daily returns.
-        When testing for exact Sharpe values (e.g., == 1.0), use periods_per_year=1
-        to match the raw mean/std ratio. This makes the result easy to verify manually
-        and avoids distortion from scaling up to annualized units. It's a clean
-        simplification for unit tests, not a shortcut or cheat.
+        Calculate the annualized Sharpe ratio.
+
+        If frequency='monthly', automatically resamples returns to monthly, adjusts scaling,
+        and ignores periods_per_year.
+        Set periods_per_year=1 to disable annualization for exact unit-testable ratios.
         """
-        r = self.value_series().dropna()
-        excess = r - risk_free_rate / periods_per_year
-        std_dev = r.std()
+        returns, scale = self._standardized_returns(frequency, periods_per_year)
+
+        excess_returns = returns - (risk_free_rate / scale)
+        std_dev = returns.std()
+
         if std_dev < 1e-12:  # treat as zero to avoid absurdly large ratios
-            if excess.mean() > 0:
+            if excess_returns.mean() > 0:
                 return float("inf")   # perfectly stable outperformance
-            elif excess.mean() < 0:
+            elif excess_returns.mean() < 0:
                 return float("-inf")  # perfectly stable underperformance
             else:
                 return 0.0            # no return = no reward
-        return (excess.mean() * periods_per_year) / (std_dev * (periods_per_year ** 0.5))
+
+        return (excess_returns.mean() * scale) / (std_dev * (scale ** 0.5))
 
     def max_drawdown(self):
         """
@@ -533,7 +554,7 @@ class TimeseriesFrame:
 
     def compare_to(self, other, name_self="This", name_other="Other", risk_free_rate=0.0, frequency="daily"):
         assert isinstance(other, TimeseriesFrame), "Expected TimeseriesFrame"
-        if self.empty or other.empty:
+        if self.value_series().empty or other.value_series().empty:
             raise ValueError("Cannot compare empty series.")
         if "value" not in self.columns or "value" not in other.columns:
             raise KeyError("Missing 'value' column in one of the series.")
@@ -567,17 +588,3 @@ class TimeseriesFrame:
             v2 = f"{p2[k]*100:.2f}%" if 'drawdown' in k.lower() or 'return' in k.lower() else f"{p2[k]:.2f}"
             info(f"{k:<20} | {v1:<12} | {v2}")
 
-
-def print_major_drawdowns(drawdowns):
-    """
-    Prints drawdowns.
-    
-    Args:
-        drawdowns (list of dict): Each dict has "start_date", "recovery_date", "drawdown".
-    """
-    for dd in drawdowns:
-        start = dd["start_date"].strftime("%Y-%m-%d")
-        end = dd["recovery_date"].strftime("%Y-%m-%d")
-        pct = dd["drawdown"]
-        days = dd["recovery_days"]
-        print(f"Drawdown from {start} to {end} ({days:>4} days): {pct:7.2f}%")
