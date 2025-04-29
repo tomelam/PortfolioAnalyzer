@@ -1,6 +1,7 @@
 from typing import Dict, Optional
 import pandas as pd
 from asset_timeseries import AssetTimeseries, from_civ
+from timeseries_civ import TimeseriesCIV
 from utils import dbg
 
 class PortfolioTimeseries:
@@ -42,7 +43,7 @@ class PortfolioTimeseries:
             raise ValueError("Combined portfolio returns contain NaNs")
         return df.sum(axis=1).sort_index()
 
-    def combined_civ_series(self) -> pd.Series:
+    def combined_civ_series(self) -> TimeseriesCIV:
         """
         True portfolio CIV: weighted sum of each asset's original CIV series.
         """
@@ -53,10 +54,12 @@ class PortfolioTimeseries:
             weighted_navs.append(nav)
 
         if not weighted_navs:
-            return pd.Series(dtype=float)
+            return TimeseriesCIVeries(pd.Series(dtype=float))
 
         df = pd.concat(weighted_navs, axis=1, join="inner")
-        return df.sum(axis=1).sort_index()
+        combined = df.sum(axis=1).sort_index()
+        combined.name = "value"
+        return TimeseriesCIV(combined)
 
 
 def from_multiple_nav_series(
@@ -85,3 +88,9 @@ def from_multiple_nav_series(
         assets[name] = from_civ(series)
     dbg("Returning from `from_multiple_nav_series`")
     return PortfolioTimeseries(assets=assets, weights=weights)
+
+
+def civ_and_returns(portfolio_ts: PortfolioTimeseries) -> tuple[pd.Series, pd.Series]:
+    """Conveniently get both the CIV and daily return series."""
+    return portfolio_ts.combined_civ_series(), portfolio_ts.combined_daily_returns()
+

@@ -180,7 +180,10 @@ def plot_cumulative_returns(
     # Highlight drawdown periods
     if max_drawdowns:
         for drawdown in max_drawdowns:
-            ax.axvspan(drawdown['start_date'], drawdown['recovery_date'], color='red', alpha=0.1)
+            start = drawdown["start"]
+            end = drawdown["end"]
+            if drawdown["recovery_days"] is not None:
+                ax.axvspan(start, end, color='red', alpha=0.1)
     
     # Add allocations and metrics inside the figure
     if allocations is not None:
@@ -239,8 +242,9 @@ def print_major_drawdowns(drawdowns):
         drawdowns (list of dict): Each dict has "start_date", "recovery_date", "drawdown".
     """
     for dd in drawdowns:
-        start = dd["start_date"].strftime("%Y-%m-%d")
-        end = dd["recovery_date"].strftime("%Y-%m-%d")
-        pct = dd["drawdown"]
-        days = dd["recovery_days"]
-        print(f"Drawdown from {start} to {end} ({days:>4} days): {pct:7.2f}%")
+        start = dd["start"].strftime("%Y-%m-%d")
+        end = dd["end"].strftime("%Y-%m-%d")
+        pct = dd["drawdown"] * 100
+        days = dd.get("drawdown_days")
+        days_str = f"{days:4}" if days is not None else " N/A"
+        print(f"Drawdown from {start} to {end} ({days_str} days): {pct:7.2f}%")

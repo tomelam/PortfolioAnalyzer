@@ -1,7 +1,11 @@
 from logging import debug
 import pandas as pd
 import numpy as np
-from timeseries import TimeseriesFrame
+from portfolio_timeseries import from_multiple_nav_series, civ_and_returns
+from timeseries import TimeseriesFrame  # TODO: FIXME: TimeseriesFrame is being obsoleted
+from timeseries_civ import TimeseriesCIV
+from timeseries_return import TimeseriesReturn
+from civ_to_returns import civ_to_returns
 from data_loader import (
     load_config_toml,
     load_timeseries_csv,
@@ -15,7 +19,6 @@ from data_loader import (
     get_benchmark_gain_daily,
     load_ppf_interest_rates,
 )
-from portfolio_timeseries import from_multiple_nav_series
 from portfolio_calculator import (
     calculate_gains_cumulative,
     calculate_portfolio_allocations,
@@ -37,7 +40,7 @@ def main(args):
 
     portfolio_dict = load_portfolio_details(settings["portfolio_file"])
     portfolio_label = portfolio_dict["label"]
-    print(f"\Portfolio metrics for {portfolio_label}.\n")
+    print(f"\nPortfolio metrics for {portfolio_label}.\n")
     if settings["debug"]:
         info(f"Portfolio label: {portfolio_label}.")
         info("Merged settings:")
@@ -169,12 +172,7 @@ def main(args):
                     weights={f['name']: f['allocation'] for f in portfolio_dict['funds']})
 
     # Get true CIV series (weighted NAVs)
-    portfolio_civ_series   = portfolio_ts.combined_civ_series()
-
-    # Get combined daily returns from our PortfolioTimeseries
-    gain_daily_portfolio_series = portfolio_ts.combined_daily_returns()
-
-    dbg(f"Using risk-free date format: \"{settings['riskfree_date_format']}\"")
+    portfolio_civ_series, gain_daily_portfolio_series = civ_and_returns(portfolio_ts)
 
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(
         settings["risk_free_rates_file"],
@@ -194,19 +192,16 @@ def main(args):
         benchmark_returns          = benchmark_returns[benchmark_returns.index >= cutoff]
         risk_free_rate_series      = risk_free_rate_series[risk_free_rate_series.index >= cutoff]
 
-    # Build a true portfolio CIV from your aligned NAVs + weights
-    portfolio_civ_series = (
-        aligned_portfolio_civs * pd.Series(portfolio_ts.weights)
-    ).sum(axis=1)
-
-    # Now derive proper daily returns
-    gain_daily_portfolio_series = portfolio_civ_series.pct_change().dropna()
+    # Build portfolio NAV (CIV) and returns
+    portfolio_civ_series = portfolio_ts.combined_civ_series()
+    gain_daily_portfolio_series = portfolio_ts.combined_daily_returns()
 
     # Two data pipeline paths: NAVs for CAGR/Drawdowns, returns for Sharpe/Alpha/Beta
-    tsf_civ     = TimeseriesFrame(portfolio_civ_series)
-    tsf_returns = TimeseriesFrame(gain_daily_portfolio_series)
+    tsf_civ_obj = portfolio_civ_series
+    tsf_returns_obj = TimeseriesReturn(tsf_civ_obj.to_returns(frequency="monthly"))
 
     # Optional manual CAGR sanity calculator
+    """
     start_value = 1.008298
     end_value = 10.492101
     start_date = pd.Timestamp("2013-01-02")
@@ -215,6 +210,7 @@ def main(args):
     years = days / 365.25
     cagr_manual = (end_value / start_value) ** (1 / years) - 1
     dbg(f"Sanity CAGR: {cagr_manual:.4%}")
+    """
 
     # Set frequency and scaling based on metrics method
     METRICS_METHOD = "morningstar"
@@ -226,14 +222,14 @@ def main(args):
         periods_per_year = 252
 
     metrics = {
-        "Annualized Return": tsf_civ.cagr(),  # (Still daily for now — we'll polish this later if needed)
-        "Volatility": tsf_returns.volatility(frequency=frequency, periods_per_year=periods_per_year),
-        "Sharpe Ratio": tsf_returns.sharpe(
+        "Annualized Return": tsf_returns_obj.cagr(),  # (Still daily for now — we'll polish this later if needed)
+        "Volatility": tsf_returns_obj.volatility(frequency=frequency),
+        "Sharpe Ratio": tsf_returns_obj.sharpe(
             risk_free_rate=risk_free_rate_daily,
             frequency=frequency,
             periods_per_year=periods_per_year
         ),
-        "Sortino Ratio": tsf_returns.sortino(
+        "Sortino Ratio": tsf_returns_obj.sortino(
             risk_free_rate=risk_free_rate_daily,
             frequency=frequency,
             periods_per_year=periods_per_year
@@ -241,9 +237,16 @@ def main(args):
     }
 
     benchmark_tsf_returns = TimeseriesFrame(benchmark_returns)
+    benchmark_returns_obj = TimeseriesReturn(benchmark_tsf_returns._series)
     if benchmark_returns is not None:
-        metrics["Alpha"] = tsf_returns.alpha_capm(benchmark_tsf_returns, risk_free_rate=risk_free_rate_daily)
-        metrics["Beta"]  = tsf_returns.beta_capm(benchmark_tsf_returns, risk_free_rate=risk_free_rate_daily)
+        metrics["Alpha"] = tsf_returns_obj.alpha_capm(
+            benchmark_returns_obj,
+            risk_free_rate=risk_free_rate_daily
+        )
+        metrics["Beta"]  = tsf_returns_obj.beta_capm(
+            benchmark_returns_obj,
+            risk_free_rate=risk_free_rate_daily
+        )
     else:
         metrics["Alpha"] = None
         metrics["Beta"] = None
@@ -254,13 +257,13 @@ def main(args):
     else:
         alpha = None
     beta = metrics["Beta"]
-    max_drawdowns = tsf_civ.max_drawdowns(threshold=0.05)
+    max_drawdowns = tsf_civ_obj.max_drawdowns(threshold=0.05)
     if max_drawdowns:
-        max_dd_info = min(max_drawdowns, key=lambda dd: dd["drawdown"])
-        drawdown_days = max_dd_info["drawdown_days"]
-        recovery_days = max_dd_info["recovery_days"]
-        max_dd = max_dd_info["drawdown"]
-        max_dd_start = max_dd_info["start_date"].strftime("%Y-%m-%d")
+        worst = max(max_drawdowns, key=lambda d: d["drawdown"])
+        drawdown_days = worst["drawdown_days"]
+        recovery_days = worst["recovery_days"]
+        max_dd = worst["drawdown"]
+        max_dd_start = worst["start"].strftime("%Y-%m-%d")
     else:
         drawdown_days = 0
         recovery_days = 0

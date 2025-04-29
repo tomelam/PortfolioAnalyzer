@@ -57,7 +57,7 @@ class TimeseriesFrame:
         returns = self._series.dropna()
 
         if frequency == "monthly":
-            returns = self._series.resample("M").last().pct_change().dropna()
+            returns = self._series.resample("ME").last().pct_change().dropna()
             scale = 12 if periods_per_year == 252 else periods_per_year
         else:  # daily
             scale = periods_per_year
@@ -314,8 +314,9 @@ class TimeseriesFrame:
         drawdowns = (s - cumulative_max) / cumulative_max
         return drawdowns.min()  # most negative value
 
+    """
     def max_drawdowns(self, threshold=0.05):
-        """
+        
         Calculate maximum drawdowns with full retracements.
         A drawdown is recorded only after the series has fully recovered to the peak from which it fell.
         
@@ -326,7 +327,7 @@ class TimeseriesFrame:
         Returns:
             list of dict: Each dict contains 'start_date', 'trough_date', 'recovery_date',
                 and 'drawdown' (percentage).
-        """
+        
         # Ensure we work with a Series.
         cumulative = self.value_series()
 
@@ -373,6 +374,7 @@ class TimeseriesFrame:
                         in_drawdown = False
         # Do not record drawdowns that haven't been recovered.
         return max_drawdowns
+    """
 
     def alpha_regression(self, benchmark_ret: "TimeseriesFrame") -> float:
         """
