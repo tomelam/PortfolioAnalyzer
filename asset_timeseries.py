@@ -1,7 +1,7 @@
 from typing import Dict, Optional
 import pandas as pd
 from dataclasses import dataclass
-from timeseries import TimeseriesFrame
+from timeseries import TimeseriesReturn
 
 @dataclass
 class AssetTimeseries:
@@ -12,9 +12,9 @@ class AssetTimeseries:
     - ret: Daily return series (simple pct-change)
     - cumret: Cumulative returns (compounded growth)
     """
-    civ: TimeseriesFrame
-    ret: TimeseriesFrame
-    cumret: TimeseriesFrame
+    civ: TimeseriesReturn
+    ret: TimeseriesReturn
+    cumret: TimeseriesReturn
 
     def summary(self):
         return {
@@ -42,8 +42,8 @@ def from_civ(nav_series: pd.Series) -> AssetTimeseries:
     nav_series = nav_series.sort_index()
     nav_series.name = "value"
 
-    civ = TimeseriesFrame(nav_series)
-    ret = TimeseriesFrame(nav_series.pct_change().dropna().rename("value"))
-    cumret = TimeseriesFrame(((1 + ret.value_series()).cumprod()).rename("value"))
+    civ = TimeseriesReturn(nav_series)
+    ret = TimeseriesReturn(nav_series.pct_change().dropna().rename("value"))
+    cumret = TimeseriesReturn(((1 + ret.value_series()).cumprod()).rename("value"))
 
     return AssetTimeseries(civ=civ, ret=ret, cumret=cumret)

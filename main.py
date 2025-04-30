@@ -2,7 +2,7 @@ from logging import debug
 import pandas as pd
 import numpy as np
 from portfolio_timeseries import from_multiple_nav_series, civ_and_returns
-from timeseries import TimeseriesFrame  # TODO: FIXME: TimeseriesFrame is being obsoleted
+from timeseries import TimeseriesReturn  # TODO: FIXME: TimeseriesReturn is being obsoleted
 from timeseries_civ import TimeseriesCIV
 from timeseries_return import TimeseriesReturn
 from civ_to_returns import civ_to_returns
@@ -236,8 +236,8 @@ def main(args):
         ),
     }
 
-    benchmark_tsf_returns = TimeseriesFrame(benchmark_returns)
-    benchmark_returns_obj = TimeseriesReturn(benchmark_tsf_returns._series)
+    benchmark_tsf_returns = TimeseriesReturn(benchmark_returns)
+    benchmark_returns_obj = benchmark_tsf_returns
     if benchmark_returns is not None:
         metrics["Alpha"] = tsf_returns_obj.alpha_capm(
             benchmark_returns_obj,

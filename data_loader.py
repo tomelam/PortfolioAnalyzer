@@ -30,7 +30,7 @@ import toml
 import os
 from datetime import timedelta, datetime
 from utils import info, dbg, warn_if_stale
-from timeseries import TimeseriesFrame
+from timeseries import TimeseriesReturn
 
 # DEBUG flag is set by main.py (‑d/‑‑debug). Fallback = False.
 try:
@@ -167,7 +167,7 @@ def load_timeseries_csv(
                 f"fetch a fresh copy"
             )
 
-    return TimeseriesFrame(df["value"])
+    return TimeseriesReturn(df["value"])
 
 
 def get_aligned_portfolio_civs(portfolio):

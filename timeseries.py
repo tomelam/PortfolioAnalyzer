@@ -6,7 +6,7 @@ from dateutil.relativedelta import relativedelta
 from utils import info  # if you use `info()` for logging
 
 
-class TimeseriesFrame:
+class TimeseriesReturn:
     """
     Lightweight wrapper around a Pandas Series for strict, validated time series analysis.
 
@@ -72,11 +72,11 @@ class TimeseriesFrame:
             raise TypeError("Timeseries expects a pd.Series")
         self._series = new_series.sort_index()
 
-    def dropna(self) -> "TimeseriesFrame":
+    def dropna(self) -> "TimeseriesReturn":
         """
-        Return a new TimeseriesFrame with missing values dropped.
+        Return a new TimeseriesReturn with missing values dropped.
         """
-        return TimeseriesFrame(self._series.dropna())
+        return TimeseriesReturn(self._series.dropna())
 
     def mean(self) -> float:
         """
@@ -86,7 +86,7 @@ class TimeseriesFrame:
 
     def __init__(self, series: pd.Series):
         if not isinstance(series, pd.Series):
-            raise TypeError(f"TimeseriesFrame expects a pd.Series, got {type(series)}")
+            raise TypeError(f"TimeseriesReturn expects a pd.Series, got {type(series)}")
         if series.name != "value":
             series = series.rename("value")
         self._series = series.sort_index()
@@ -94,7 +94,7 @@ class TimeseriesFrame:
     def align_with(self, other: pd.Series | pd.DataFrame, how="inner"):
         """Align with another series or DataFrame."""
         aligned_self, aligned_other = self.align(other, join=how)
-        return TimeseriesFrame(aligned_self), aligned_other
+        return TimeseriesReturn(aligned_self), aligned_other
 
     def clip_to_overlap(self, other: pd.Series | pd.DataFrame):
         """
@@ -120,18 +120,18 @@ class TimeseriesFrame:
     
     def aligned_to(self, reference):
         """
-        Interpolate to match index of a reference TimeseriesFrame.
+        Interpolate to match index of a reference TimeseriesReturn.
         """
         df = self.interpolate(method="linear", limit_direction="both")
-        return TimeseriesFrame(df.reindex(reference.index).interpolate(method="linear", limit_direction="both"))
+        return TimeseriesReturn(df.reindex(reference.index).interpolate(method="linear", limit_direction="both"))
 
     def interpolated(self, method="time"):
         """
-        Return a new TimeseriesFrame with missing values (floats only) filled using interpolation.
+        Return a new TimeseriesReturn with missing values (floats only) filled using interpolation.
         Does not modify original.
         """
         df = self.interpolate(method=method, limit_direction="both")
-        return TimeseriesFrame(df)
+        return TimeseriesReturn(df)
 
     # Optional
     def plot_with(self, other_series, title=None):
@@ -184,19 +184,19 @@ class TimeseriesFrame:
     # Optional
     def rolling_mean(self, window):
         """
-        Return a new TimeseriesFrame with 'value' replaced by its rolling mean.
+        Return a new TimeseriesReturn with 'value' replaced by its rolling mean.
         """
         if "value" not in self.columns:
             raise KeyError("No 'value' column found.")
         s = self.value_series().rolling(window=window, min_periods=1).mean()
-        return TimeseriesFrame(pd.DataFrame({"value": s}, index=self.index))
+        return TimeseriesReturn(pd.DataFrame({"value": s}, index=self.index))
 
     def percent_change(self):
         """
-        Return a new TimeseriesFrame with percent change of 'value'.
+        Return a new TimeseriesReturn with percent change of 'value'.
         """
         s = self.value_series().pct_change()
-        return TimeseriesFrame(pd.DataFrame({"value": s}, index=self.index))
+        return TimeseriesReturn(pd.DataFrame({"value": s}, index=self.index))
 
     def cagr(self):
         """
@@ -321,7 +321,7 @@ class TimeseriesFrame:
         A drawdown is recorded only after the series has fully recovered to the peak from which it fell.
         
         Parameters:
-            cumulative (TimeseriesFrame): Cumulative portfolio returns.
+            cumulative (TimeseriesReturn): Cumulative portfolio returns.
             threshold (float): Minimum drawdown percentage to report (e.g., 0.05 for 5%).
 
         Returns:
@@ -376,7 +376,7 @@ class TimeseriesFrame:
         return max_drawdowns
     """
 
-    def alpha_regression(self, benchmark_ret: "TimeseriesFrame") -> float:
+    def alpha_regression(self, benchmark_ret: "TimeseriesReturn") -> float:
         """
         Calculate regression alpha (not Jensen's alpha).
 
@@ -414,7 +414,7 @@ class TimeseriesFrame:
 
     def alpha_capm(
             self,
-            benchmark_ret: "TimeseriesFrame",
+            benchmark_ret: "TimeseriesReturn",
             risk_free_rate: float = 0.0,
             fallback_to_simple_beta: bool = False
     ) -> float:
@@ -456,7 +456,7 @@ class TimeseriesFrame:
         actual_return = y_aligned.mean()
         return actual_return - expected_return
 
-    def beta_regression(self, benchmark_ret: "TimeseriesFrame") -> float:
+    def beta_regression(self, benchmark_ret: "TimeseriesReturn") -> float:
         """
         Calculate beta: sensitivity of returns to benchmark returns.
         Assumes daily returns. Aligned by date.
@@ -469,7 +469,7 @@ class TimeseriesFrame:
         coeffs = np.polyfit(x, y, 1)
         return float(coeffs[0])
 
-    def beta_capm(self, benchmark_ret: "TimeseriesFrame", risk_free_rate: float = 0.0) -> float:
+    def beta_capm(self, benchmark_ret: "TimeseriesReturn", risk_free_rate: float = 0.0) -> float:
         """
         Calculate CAPM-style beta:
 
@@ -499,18 +499,18 @@ class TimeseriesFrame:
 
     def as_rolling(self, window=30, method="mean"):
         """
-        Return a new TimeseriesFrame with rolling metric applied to 'value'.
+        Return a new TimeseriesReturn with rolling metric applied to 'value'.
         Supported methods: 'mean', 'std', 'median', 'min', 'max'
         """
         if method not in {"mean", "std", "median", "min", "max"}:
             raise ValueError(f"Unsupported method: {method}")
         func = getattr(self.value_series().rolling(window), method)
-        return TimeseriesFrame(pd.DataFrame({"value": func()}, index=self.index))
+        return TimeseriesReturn(pd.DataFrame({"value": func()}, index=self.index))
 
     def to_latex_table(self, compare_to=None, name="Series", title=None, label=None):
         """
         Return LaTeX code for a table of metrics for this series.
-        If compare_to is another TimeseriesFrame, generate a 2-column comparison.
+        If compare_to is another TimeseriesReturn, generate a 2-column comparison.
         """
         from io import StringIO
 
@@ -555,7 +555,7 @@ class TimeseriesFrame:
         return buffer.getvalue()
 
     def compare_to(self, other, name_self="This", name_other="Other", risk_free_rate=0.0, frequency="daily"):
-        assert isinstance(other, TimeseriesFrame), "Expected TimeseriesFrame"
+        assert isinstance(other, TimeseriesReturn), "Expected TimeseriesReturn"
         if self.value_series().empty or other.value_series().empty:
             raise ValueError("Cannot compare empty series.")
         if "value" not in self.columns or "value" not in other.columns:
@@ -567,8 +567,8 @@ class TimeseriesFrame:
             raise ValueError("Too little overlap between series to compare meaningfully.")
         s1 = s1.loc[common]
         s2 = s2.loc[common]
-        ts1 = TimeseriesFrame(pd.DataFrame({"value": s1}, index=common))
-        ts2 = TimeseriesFrame(pd.DataFrame({"value": s2}, index=common))
+        ts1 = TimeseriesReturn(pd.DataFrame({"value": s1}, index=common))
+        ts2 = TimeseriesReturn(pd.DataFrame({"value": s2}, index=common))
 
         def summary(ts):
             return {
