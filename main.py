@@ -237,14 +237,14 @@ def main(args):
     }
 
     # Benchmark returns object
-    benchmark_returns_obj = TimeseriesReturn(benchmark_returns_series)
+    benchmark_returns = TimeseriesReturn(benchmark_returns_series)
     if benchmark_returns_series is not None:
         metrics["Alpha"] = portfolio_returns.alpha_capm(
-            benchmark_returns_obj,
+            benchmark_returns,
             risk_free_rate=risk_free_rate_daily
         )
         metrics["Beta"]  = portfolio_returns.beta_capm(
-            benchmark_returns_obj,
+            benchmark_returns,
             risk_free_rate=risk_free_rate_daily
         )
     else:
