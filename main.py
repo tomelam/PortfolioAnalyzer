@@ -1,7 +1,7 @@
 from logging import debug
 import pandas as pd
 import numpy as np
-from portfolio_timeseries import from_multiple_nav_series, civ_and_returns
+from portfolio_timeseries import from_multiple_nav_series
 from timeseries import TimeseriesReturn  # TODO: FIXME: TimeseriesReturn is being obsoleted
 from timeseries_civ import TimeseriesCIV
 from timeseries_return import TimeseriesReturn
@@ -171,18 +171,11 @@ def main(args):
     portfolio_ts = from_multiple_nav_series(nav_inputs,
                     weights={f['name']: f['allocation'] for f in portfolio_dict['funds']})
 
-    # Get true CIV series (weighted NAVs)
-    portfolio_civ_series, gain_daily_portfolio_series = civ_and_returns(portfolio_ts)
-
-    risk_free_rate_series = fetch_and_standardize_risk_free_rates(
-        settings["risk_free_rates_file"],
-        date_format=settings["riskfree_date_format"],
-        max_allowed_delay_days=settings["max_riskfree_delay"],
-    )
-    risk_free_rates = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
-    risk_free_rate = risk_free_rates.mean()
-    risk_free_rate_daily = (1 + risk_free_rate)**(1/252) - 1
-    dbg(f"risk_free_rate_daily: {risk_free_rate_daily}")
+    ### Comment and call to `civ_and_returns()` removed from this point
+    ### 10 lines moved here
+    # Build portfolio NAV (CIV) and returns
+    gain_daily_portfolio_series = portfolio_ts.combined_daily_returns()
+    portfolio_civ_series = portfolio_ts.combined_civ_series()
 
     if settings.get("lookback"):
         cutoff = to_cutoff_date(settings["lookback"])
@@ -192,13 +185,22 @@ def main(args):
         benchmark_returns          = benchmark_returns[benchmark_returns.index >= cutoff]
         risk_free_rate_series      = risk_free_rate_series[risk_free_rate_series.index >= cutoff]
 
-    # Build portfolio NAV (CIV) and returns
-    portfolio_civ_series = portfolio_ts.combined_civ_series()
-    gain_daily_portfolio_series = portfolio_ts.combined_daily_returns()
+    risk_free_rate_series = fetch_and_standardize_risk_free_rates(
+        settings["risk_free_rates_file"],
+        date_format=settings["riskfree_date_format"],
+        max_allowed_delay_days=settings["max_riskfree_delay"],
+    )
+
+    risk_free_rates = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
+    risk_free_rate = risk_free_rates.mean()
+    risk_free_rate_daily = (1 + risk_free_rate)**(1/252) - 1
+    dbg(f"risk_free_rate_daily: {risk_free_rate_daily}")
 
     # Two data pipeline paths: NAVs for CAGR/Drawdowns, returns for Sharpe/Alpha/Beta
     tsf_civ_obj = portfolio_civ_series
     tsf_returns_obj = TimeseriesReturn(tsf_civ_obj.to_returns(frequency="monthly"))
+    portfolio_civ_obj     = portfolio_civ_series
+    portfolio_returns_obj = TimeseriesReturn(portfolio_civ_obj.to_returns(frequency="monthly"))
 
     # Optional manual CAGR sanity calculator
     """
@@ -222,28 +224,28 @@ def main(args):
         periods_per_year = 252
 
     metrics = {
-        "Annualized Return": tsf_returns_obj.cagr(),  # (Still daily for now — we'll polish this later if needed)
-        "Volatility": tsf_returns_obj.volatility(frequency=frequency),
-        "Sharpe Ratio": tsf_returns_obj.sharpe(
+        "Annualized Return": portfolio_returns_obj.cagr(),
+        "Volatility": portfolio_returns_obj.volatility(frequency=frequency),
+        "Sharpe Ratio": portfolio_returns_obj.sharpe(
             risk_free_rate=risk_free_rate_daily,
             frequency=frequency,
             periods_per_year=periods_per_year
         ),
-        "Sortino Ratio": tsf_returns_obj.sortino(
+        "Sortino Ratio": portfolio_returns_obj.sortino(
             risk_free_rate=risk_free_rate_daily,
             frequency=frequency,
             periods_per_year=periods_per_year
         ),
     }
 
-    benchmark_tsf_returns = TimeseriesReturn(benchmark_returns)
-    benchmark_returns_obj = benchmark_tsf_returns
+    # Benchmark returns object
+    benchmark_returns_obj = TimeseriesReturn(benchmark_returns)
     if benchmark_returns is not None:
-        metrics["Alpha"] = tsf_returns_obj.alpha_capm(
+        metrics["Alpha"] = portfolio_returns_obj.alpha_capm(
             benchmark_returns_obj,
             risk_free_rate=risk_free_rate_daily
         )
-        metrics["Beta"]  = tsf_returns_obj.beta_capm(
+        metrics["Beta"]  = portfolio_returns_obj.beta_capm(
             benchmark_returns_obj,
             risk_free_rate=risk_free_rate_daily
         )
@@ -257,12 +259,12 @@ def main(args):
     else:
         alpha = None
     beta = metrics["Beta"]
-    max_drawdowns = tsf_civ_obj.max_drawdowns(threshold=0.05)
+    max_drawdowns = portfolio_civ_obj.max_drawdowns(threshold=0.05)
     if max_drawdowns:
-        worst = max(max_drawdowns, key=lambda d: d["drawdown"])
+        worst = max(max_drawdowns, key=lambda d: d["drawdown"])  # smallest (most negative) drawdown
         drawdown_days = worst["drawdown_days"]
         recovery_days = worst["recovery_days"]
-        max_dd = worst["drawdown"]
+        max_dd = worst["drawdown"] * 100
         max_dd_start = worst["start"].strftime("%Y-%m-%d")
     else:
         drawdown_days = 0
