@@ -192,8 +192,8 @@ def main(args):
         risk_free_rate_series      = risk_free_rate_series[risk_free_rate_series.index >= cutoff]
 
     aligned_risk_free_rate_series = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
-    risk_free_rate = aligned_risk_free_rate_series.mean()
-    risk_free_rate_daily = (1 + risk_free_rate)**(1/252) - 1
+    risk_free_rate_annual = aligned_risk_free_rate_series.mean()
+    risk_free_rate_daily = (1 + risk_free_rate_annual)**(1/252) - 1
     dbg(f"risk_free_rate_daily: {risk_free_rate_daily}")
 
     # Two data pipeline paths: NAVs for CAGR/Drawdowns, returns for Sharpe/Alpha/Beta
@@ -302,7 +302,7 @@ def main(args):
             print(csv_line)
 
     # Always print human-readable summary unless suppressed (optional setting later)
-    print(f"Mean Risk-Free Rate: {risk_free_rate * 100:.4f}%")
+    print(f"Mean Risk-Free Rate: {risk_free_rate_annual * 100:.4f}%")
     print(f"Annualized Return (CAGR): {cagr:.2f}%")
     print(f"Volatility: {vol:.2f}%")
     print(f"Sharpe Ratio: {metrics['Sharpe Ratio']:.4f}")
@@ -408,6 +408,9 @@ def parse_arguments():
     )
     parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5,
                         help="Drawdown threshold, in percent."
+    )
+    parser.add_argument("--metrics-method", choices=["daily", "monthly"], default="monthly",
+                        help="Choose frequency for return/risk calculations: daily or monthly"
     )
     parser.add_argument("--max-riskfree-delay", "-mrd", type=int,
                         help="Maximum allowed delay (in days) for the most recent risk-free rate entry."
