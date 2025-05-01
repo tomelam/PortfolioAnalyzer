@@ -191,14 +191,13 @@ def main(args):
         benchmark_returns          = benchmark_returns[benchmark_returns.index >= cutoff]
         risk_free_rate_series      = risk_free_rate_series[risk_free_rate_series.index >= cutoff]
 
-    aligned_risk_free_rates = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
-    risk_free_rate = aligned_risk_free_rates.mean()
+    aligned_risk_free_rate_series = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
+    risk_free_rate = aligned_risk_free_rate_series.mean()
     risk_free_rate_daily = (1 + risk_free_rate)**(1/252) - 1
     dbg(f"risk_free_rate_daily: {risk_free_rate_daily}")
 
     # Two data pipeline paths: NAVs for CAGR/Drawdowns, returns for Sharpe/Alpha/Beta
-    tsf_civ_obj = portfolio_civ_series
-    tsf_returns_obj = TimeseriesReturn(tsf_civ_obj.to_returns(frequency="monthly"))
+    tsf_returns_obj = TimeseriesReturn(portfolio_civ_series.to_returns(frequency="monthly"))
     portfolio_civ_obj     = portfolio_civ_series
     portfolio_returns_obj = TimeseriesReturn(portfolio_civ_obj.to_returns(frequency="monthly"))
 

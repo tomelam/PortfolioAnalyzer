@@ -17,6 +17,8 @@ class PortfolioTimeseries:
 
         # Normalize weights to sum to 1.0
         total_weight = sum(self.weights.values())
+        if total_weight != 1:
+            raise ValueError("PortfolioTimeseries asset weights must sum to 1")
         if total_weight > 0:
             self.weights = {k: v / total_weight for k, v in self.weights.items()}
 
@@ -54,7 +56,7 @@ class PortfolioTimeseries:
             weighted_navs.append(nav)
 
         if not weighted_navs:
-            return TimeseriesCIVeries(pd.Series(dtype=float))
+            return TimeseriesCIV(pd.Series(dtype=float))
 
         df = pd.concat(weighted_navs, axis=1, join="inner")
         combined = df.sum(axis=1).sort_index()
