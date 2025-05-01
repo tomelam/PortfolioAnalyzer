@@ -197,8 +197,10 @@ def main(args):
     dbg(f"risk_free_rate_daily: {risk_free_rate_daily}")
 
     # Two data pipeline paths: NAVs for CAGR/Drawdowns, returns for Sharpe/Alpha/Beta
-    tsf_returns_obj = TimeseriesReturn(portfolio_civ_series.to_returns(frequency="monthly"))
-    portfolio_returns = TimeseriesReturn(portfolio_civ_series.to_returns(frequency="monthly"))
+    frequency = "monthly"
+    periods_per_year = 12
+    portfolio_returns = TimeseriesReturn(portfolio_civ_series.to_returns(frequency=frequency))
+    risk_free_rate_adjusted = (1 + risk_free_rate_annual) ** (1/12) - 1
 
     # Optional manual CAGR sanity calculator
     """
@@ -212,6 +214,7 @@ def main(args):
     dbg(f"Sanity CAGR: {cagr_manual:.4%}")
     """
 
+    """
     # Set frequency and scaling based on metrics method
     METRICS_METHOD = "morningstar"
     if METRICS_METHOD == "morningstar":
@@ -220,17 +223,18 @@ def main(args):
     else:
         frequency = "daily"
         periods_per_year = 252
+    """
 
     metrics = {
         "Annualized Return": portfolio_returns.cagr(),
         "Volatility": portfolio_returns.volatility(frequency=frequency),
         "Sharpe Ratio": portfolio_returns.sharpe(
-            risk_free_rate=risk_free_rate_daily,
+            risk_free_rate=risk_free_rate_adjusted,
             frequency=frequency,
             periods_per_year=periods_per_year
         ),
         "Sortino Ratio": portfolio_returns.sortino(
-            risk_free_rate=risk_free_rate_daily,
+            risk_free_rate=risk_free_rate_adjusted,
             frequency=frequency,
             periods_per_year=periods_per_year
         ),
@@ -241,11 +245,11 @@ def main(args):
     if benchmark_returns_series is not None:
         metrics["Alpha"] = portfolio_returns.alpha_capm(
             benchmark_returns,
-            risk_free_rate=risk_free_rate_daily
+            risk_free_rate=risk_free_rate_adjusted
         )
         metrics["Beta"]  = portfolio_returns.beta_capm(
             benchmark_returns,
-            risk_free_rate=risk_free_rate_daily
+            risk_free_rate=risk_free_rate_adjusted
         )
     else:
         metrics["Alpha"] = None
