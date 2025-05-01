@@ -198,8 +198,7 @@ def main(args):
 
     # Two data pipeline paths: NAVs for CAGR/Drawdowns, returns for Sharpe/Alpha/Beta
     tsf_returns_obj = TimeseriesReturn(portfolio_civ_series.to_returns(frequency="monthly"))
-    portfolio_civ_obj     = portfolio_civ_series
-    portfolio_returns_obj = TimeseriesReturn(portfolio_civ_obj.to_returns(frequency="monthly"))
+    portfolio_returns_obj = TimeseriesReturn(portfolio_civ_series.to_returns(frequency="monthly"))
 
     # Optional manual CAGR sanity calculator
     """
@@ -258,7 +257,7 @@ def main(args):
     else:
         alpha = None
     beta = metrics["Beta"]
-    max_drawdowns = portfolio_civ_obj.max_drawdowns(threshold=0.05)
+    max_drawdowns = portfolio_civ_series.max_drawdowns(threshold=0.05)
     if max_drawdowns:
         worst = max(max_drawdowns, key=lambda d: d["drawdown"])  # smallest (most negative) drawdown
         drawdown_days = worst["drawdown_days"]
