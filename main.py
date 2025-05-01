@@ -199,7 +199,7 @@ def main(args):
     # Two data pipeline paths: NAVs for CAGR/Drawdowns, returns for Sharpe/Alpha/Beta
     frequency = "monthly"
     periods_per_year = 12
-    portfolio_returns = TimeseriesReturn(portfolio_civ_series.to_returns(frequency=frequency))
+    portfolio_returns = TimeseriesReturn(portfolio_civ_series.series)
     risk_free_rate_adjusted = (1 + risk_free_rate_annual) ** (1/12) - 1
 
     # Optional manual CAGR sanity calculator
