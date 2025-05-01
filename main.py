@@ -177,6 +177,12 @@ def main(args):
     gain_daily_portfolio_series = portfolio_ts.combined_daily_returns()
     portfolio_civ_series = portfolio_ts.combined_civ_series()
 
+    risk_free_rate_series = fetch_and_standardize_risk_free_rates(
+        settings["risk_free_rates_file"],
+        date_format=settings["riskfree_date_format"],
+        max_allowed_delay_days=settings["max_riskfree_delay"],
+    )
+
     if settings.get("lookback"):
         cutoff = to_cutoff_date(settings["lookback"])
         if settings["debug"]:
@@ -185,14 +191,8 @@ def main(args):
         benchmark_returns          = benchmark_returns[benchmark_returns.index >= cutoff]
         risk_free_rate_series      = risk_free_rate_series[risk_free_rate_series.index >= cutoff]
 
-    risk_free_rate_series = fetch_and_standardize_risk_free_rates(
-        settings["risk_free_rates_file"],
-        date_format=settings["riskfree_date_format"],
-        max_allowed_delay_days=settings["max_riskfree_delay"],
-    )
-
-    risk_free_rates = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
-    risk_free_rate = risk_free_rates.mean()
+    aligned_risk_free_rates = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
+    risk_free_rate = aligned_risk_free_rates.mean()
     risk_free_rate_daily = (1 + risk_free_rate)**(1/252) - 1
     dbg(f"risk_free_rate_daily: {risk_free_rate_daily}")
 
