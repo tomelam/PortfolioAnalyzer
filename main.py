@@ -198,7 +198,7 @@ def main(args):
 
     # Two data pipeline paths: NAVs for CAGR/Drawdowns, returns for Sharpe/Alpha/Beta
     tsf_returns_obj = TimeseriesReturn(portfolio_civ_series.to_returns(frequency="monthly"))
-    portfolio_returns_obj = TimeseriesReturn(portfolio_civ_series.to_returns(frequency="monthly"))
+    portfolio_returns = TimeseriesReturn(portfolio_civ_series.to_returns(frequency="monthly"))
 
     # Optional manual CAGR sanity calculator
     """
@@ -222,14 +222,14 @@ def main(args):
         periods_per_year = 252
 
     metrics = {
-        "Annualized Return": portfolio_returns_obj.cagr(),
-        "Volatility": portfolio_returns_obj.volatility(frequency=frequency),
-        "Sharpe Ratio": portfolio_returns_obj.sharpe(
+        "Annualized Return": portfolio_returns.cagr(),
+        "Volatility": portfolio_returns.volatility(frequency=frequency),
+        "Sharpe Ratio": portfolio_returns.sharpe(
             risk_free_rate=risk_free_rate_daily,
             frequency=frequency,
             periods_per_year=periods_per_year
         ),
-        "Sortino Ratio": portfolio_returns_obj.sortino(
+        "Sortino Ratio": portfolio_returns.sortino(
             risk_free_rate=risk_free_rate_daily,
             frequency=frequency,
             periods_per_year=periods_per_year
@@ -239,11 +239,11 @@ def main(args):
     # Benchmark returns object
     benchmark_returns_obj = TimeseriesReturn(benchmark_returns)
     if benchmark_returns is not None:
-        metrics["Alpha"] = portfolio_returns_obj.alpha_capm(
+        metrics["Alpha"] = portfolio_returns.alpha_capm(
             benchmark_returns_obj,
             risk_free_rate=risk_free_rate_daily
         )
-        metrics["Beta"]  = portfolio_returns_obj.beta_capm(
+        metrics["Beta"]  = portfolio_returns.beta_capm(
             benchmark_returns_obj,
             risk_free_rate=risk_free_rate_daily
         )
