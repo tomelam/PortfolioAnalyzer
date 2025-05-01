@@ -47,7 +47,7 @@ def main(args):
         for k, v in settings.items():
             info(f"  {k}: {v}")
 
-    benchmark_returns = None
+    benchmark_returns_series = None
     if settings.get("use_benchmark"):
         dbg(f"📂 Loading benchmark timeseries from \"{settings['benchmark_file']}\"")
         benchmark_data = load_timeseries_csv(
@@ -55,7 +55,7 @@ def main(args):
             settings["benchmark_date_format"],
             max_delay_days=None if settings["skip_age_check"] else 2,
         )
-        benchmark_returns = get_benchmark_gain_daily(benchmark_data)
+        benchmark_returns_series = get_benchmark_gain_daily(benchmark_data)
 
     aligned_portfolio_civs = pd.DataFrame()
     portfolio_start_date = None
@@ -188,7 +188,7 @@ def main(args):
         if settings["debug"]:
             print(f"📅 Look‑back window {settings['lookback']} → cutting data at {cutoff.date()}")
         gain_daily_portfolio_series = gain_daily_portfolio_series[gain_daily_portfolio_series.index >= cutoff]
-        benchmark_returns          = benchmark_returns[benchmark_returns.index >= cutoff]
+        benchmark_returns_series          = benchmark_returns_series[benchmark_returns_series.index >= cutoff]
         risk_free_rate_series      = risk_free_rate_series[risk_free_rate_series.index >= cutoff]
 
     aligned_risk_free_rate_series = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
@@ -237,8 +237,8 @@ def main(args):
     }
 
     # Benchmark returns object
-    benchmark_returns_obj = TimeseriesReturn(benchmark_returns)
-    if benchmark_returns is not None:
+    benchmark_returns_obj = TimeseriesReturn(benchmark_returns_series)
+    if benchmark_returns_series is not None:
         metrics["Alpha"] = portfolio_returns.alpha_capm(
             benchmark_returns_obj,
             risk_free_rate=risk_free_rate_daily
@@ -317,7 +317,7 @@ def main(args):
     print_major_drawdowns(max_drawdowns)
 
     cumulative_historical, cumulative_benchmark = calculate_gains_cumulative(
-        gain_daily_portfolio_series, benchmark_returns
+        gain_daily_portfolio_series, benchmark_returns_series
     )
 
     # Optionally, if the flag is set, dump portfolio data to a pickle file.
@@ -332,7 +332,7 @@ def main(args):
         dump_pickle("tests/data/aligned_civs.pkl", multiindex_aligned_civs)
         dump_pickle("tests/data/aligned_portfolio_civs.pkl", aligned_portfolio_civs)
         dump_pickle("tests/data/benchmark_data.pkl", benchmark_data)
-        dump_pickle("tests/data/benchmark_returns.pkl", benchmark_returns)
+        dump_pickle("tests/data/benchmark_returns_series.pkl", benchmark_returns_series)
         dump_pickle("tests/data/portfolio_civs.pkl", unaligned_portfolio_civs)
         info("Golden portfolio data generated.")
 
