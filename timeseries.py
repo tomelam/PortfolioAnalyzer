@@ -54,16 +54,12 @@ class TimeseriesReturn:
         """
         Get returns and scaling factor depending on frequency and testing mode.
         """
-        returns = self._series.dropna()
-
         if frequency == "monthly":
             returns = self._series.resample("ME").last().pct_change().dropna()
             scale = 12 if periods_per_year == 252 else periods_per_year
         else:  # daily
+            returns = self._series.pct_change().dropna()
             scale = periods_per_year
-        #print("🔵 NAV series head:\n", self._series.head(10))
-        #print("🔵 Returns head:\n", returns.head(10))
-        #print("🔵 Scaling factor:", scale)
 
         return returns, scale
 
@@ -239,10 +235,6 @@ class TimeseriesReturn:
         """
         returns, scale = self._standardized_returns(frequency, periods_per_year)
 
-        print("DEBUG: returns head", returns.head())
-        print("DEBUG: returns std dev", returns.std())
-        print("DEBUG: scale", scale)
-        print("DEBUG: final volatility", returns.std() * (scale ** 0.5))
         return returns.std() * (scale ** 0.5)
 
     def sortino(
@@ -260,7 +252,7 @@ class TimeseriesReturn:
         """
         returns, scale = self._standardized_returns(frequency, periods_per_year)
 
-        excess_returns = returns - (risk_free_rate / scale)
+        excess_returns = returns - risk_free_rate
         fuzz = -1e-10
         downside_returns = excess_returns[excess_returns < fuzz]
 
@@ -289,7 +281,7 @@ class TimeseriesReturn:
         """
         returns, scale = self._standardized_returns(frequency, periods_per_year)
 
-        excess_returns = returns - (risk_free_rate / scale)
+        excess_returns = returns - risk_free_rate
         std_dev = returns.std()
 
         if std_dev < 1e-12:  # treat as zero to avoid absurdly large ratios

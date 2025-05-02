@@ -4,7 +4,6 @@ import numpy as np
 from portfolio_timeseries import from_multiple_nav_series
 from timeseries import TimeseriesReturn  # TODO: FIXME: TimeseriesReturn is being obsoleted
 from timeseries_civ import TimeseriesCIV
-from timeseries_return import TimeseriesReturn
 from civ_to_returns import civ_to_returns
 from data_loader import (
     load_config_toml,
@@ -49,11 +48,11 @@ def main(args):
 
     benchmark_returns_series = None
     if settings.get("use_benchmark"):
-        dbg(f"📂 Loading benchmark timeseries from \"{settings['benchmark_file']}\"")
+        dbg(f"\n📂 Loading benchmark timeseries from \"{settings['benchmark_file']}\"")
         benchmark_data = load_timeseries_csv(
             settings["benchmark_file"],
             settings["benchmark_date_format"],
-            max_delay_days=None if settings["skip_age_check"] else 2,
+            max_delay_days=None if settings["skip_age_check"] else 3,
         )
         benchmark_returns_series = get_benchmark_gain_daily(benchmark_data)
 
@@ -75,7 +74,7 @@ def main(args):
 
         latest_fund, latest_date = max(fund_start_dates.items(), key=lambda x: x[1])
 
-        dbg(f"Latest launch date among all mutual funds: {latest_date.date()}")
+        dbg(f"\nLatest launch date among all mutual funds: {latest_date.date()}")
         dbg(f"Fund with the latest launch date: \"{latest_fund}\"")
 
     ppf_series = scss_series = rec_bond_series = sgb_series = gold_series = None
@@ -139,7 +138,7 @@ def main(args):
     # === END OF ROBUST LOGIC ===
 
     assert aligned_portfolio_civs is not None and not aligned_portfolio_civs.empty, "aligned_portfolio_civs is missing or empty"
-    dbg("Examining the types in the portfolio's CIV series:")
+    dbg("\nExamining the types in the portfolio's CIV series:")
     for name, var in [
         ("aligned_portfolio_civs", aligned_portfolio_civs),
         ("ppf_series", ppf_series),
@@ -175,6 +174,10 @@ def main(args):
     ### 10 lines moved here
     # Build portfolio NAV (CIV) and returns
     gain_daily_portfolio_series = portfolio_ts.combined_daily_returns()
+
+    # daily-return objects (for CAPM Alpha/Beta)
+    portfolio_daily_ret  = TimeseriesReturn(gain_daily_portfolio_series.rename("value"))
+
     portfolio_civ_series = portfolio_ts.combined_civ_series()
 
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(
@@ -191,40 +194,25 @@ def main(args):
         benchmark_returns_series          = benchmark_returns_series[benchmark_returns_series.index >= cutoff]
         risk_free_rate_series      = risk_free_rate_series[risk_free_rate_series.index >= cutoff]
 
+    benchmark_daily_ret  = TimeseriesReturn(benchmark_returns_series.rename("value"))
+
     aligned_risk_free_rate_series = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
     risk_free_rate_annual = aligned_risk_free_rate_series.mean()
     risk_free_rate_daily = (1 + risk_free_rate_annual)**(1/252) - 1
-    dbg(f"risk_free_rate_daily: {risk_free_rate_daily}")
+    dbg(f"\nrisk_free_rate_daily: {risk_free_rate_daily}")
 
     # Two data pipeline paths: NAVs for CAGR/Drawdowns, returns for Sharpe/Alpha/Beta
-    frequency = "monthly"
-    periods_per_year = 12
     portfolio_returns = TimeseriesReturn(portfolio_civ_series.series)
-    risk_free_rate_adjusted = (1 + risk_free_rate_annual) ** (1/12) - 1
 
-    # Optional manual CAGR sanity calculator
-    """
-    start_value = 1.008298
-    end_value = 10.492101
-    start_date = pd.Timestamp("2013-01-02")
-    end_date = pd.Timestamp("2025-04-24")
-    days = (end_date - start_date).days
-    years = days / 365.25
-    cagr_manual = (end_value / start_value) ** (1 / years) - 1
-    dbg(f"Sanity CAGR: {cagr_manual:.4%}")
-    """
-
-    """
-    # Set frequency and scaling based on metrics method
-    METRICS_METHOD = "morningstar"
-    if METRICS_METHOD == "morningstar":
-        frequency = "monthly"
-        periods_per_year = 12
-    else:
+    if settings["metrics_method"] == "daily":
         frequency = "daily"
         periods_per_year = 252
-    """
+    else:  # "monthly"
+        frequency = "monthly"
+        periods_per_year = 12
+    risk_free_rate_adjusted = (1 + risk_free_rate_annual) ** (1/periods_per_year) - 1
 
+    dbg(f"\nfrequency: {frequency}, periods_per_year: {periods_per_year}\n")
     metrics = {
         "Annualized Return": portfolio_returns.cagr(),
         "Volatility": portfolio_returns.volatility(frequency=frequency),
@@ -243,13 +231,13 @@ def main(args):
     # Benchmark returns object
     benchmark_returns = TimeseriesReturn(benchmark_returns_series)
     if benchmark_returns_series is not None:
-        metrics["Alpha"] = portfolio_returns.alpha_capm(
-            benchmark_returns,
-            risk_free_rate=risk_free_rate_adjusted
+        metrics["Alpha"] = portfolio_daily_ret.alpha_capm(
+            benchmark_daily_ret,
+            risk_free_rate=risk_free_rate_daily
         )
-        metrics["Beta"]  = portfolio_returns.beta_capm(
-            benchmark_returns,
-            risk_free_rate=risk_free_rate_adjusted
+        metrics["Beta"]  = portfolio_daily_ret.beta_capm(
+            benchmark_daily_ret,
+            risk_free_rate=risk_free_rate_daily
         )
     else:
         metrics["Alpha"] = None
@@ -456,6 +444,7 @@ if __name__ == "__main__":
             "output_dir": args.output_dir or config.get("output_dir", "outputs"),
             "output_dir_explicit": bool(args.output_dir),
             "drawdown_threshold": args.max_drawdown_threshold or config.get("max_drawdown_threshold", 5.0),
+            "metrics_method": args.metrics_method or config.get("metrics_method", "monthly"),
             "skip_age_check": config.get("skip_age_check", False),
             "quiet": args.quiet or config.get("quiet", False),            
             "save_golden": args.save_golden_data or config.get("save_golden_data", False),
