@@ -1,15 +1,6 @@
 label = "HDFC Mid-Cap Opportunities Fund"
 
-benchmark_name = "NIFTY Total Returns Index"
-
-# Data from Investing.com
-benchmark_returns_file = "data/NIFTY Total Returns Historical Data.csv"
-benchmark_date_format = "%d %b %Y"
-
-# Data from fred.stlouisfed.org
-risk_free_rates_file = "data/INDIRLTLT01STM.csv"
-
-drawdown_threshold = 4.0  # override config.toml if desired
+benchmark_name = "Nifty Midcap 150 Index"
 
 [[funds]]
 name = "HDFC Mid-Cap Opportunities Fund"

@@ -1,0 +1,49 @@
+# ──────────────────────────────────────────────────────────
+# PortfolioAnalyzer configuration (TOML)
+#
+# IMPORTANT: Every program option or setting takes its value
+# from a command line option, if present, or from its value
+# set in the configuration file, if present, or from the
+# built-in default -- in that order or precedence.
+# ──────────────────────────────────────────────────────────
+
+# -------- General switches --------
+#show_plot          = false      # Pop up matplotlib window
+# output_snapshot  = false     # Save PNG of equity curve
+# quiet            = false     # Suppress interactive prompts
+# debug            = false     # Same as passing -d/--debug
+
+# -------- Data files --------
+# You may omit either of the following two keys. If you do,
+# PortfolioAnalyzer uses the built‑in defaults defined in main.py:
+#   benchmark_file        → data/NIFTY Total Returns Historical Data.csv
+#   risk_free_rates_file  → data/India 10-Year Bond Yield Historical Data.csv
+#
+# Benchmark (total‑return) CSV
+benchmark_returns_file = "data/Nifty Midcap 150 Historical Data.csv"
+# Risk‑free rate CSV (e.g. 91‑day T‑Bill yields)
+risk_free_rates_file   = "data/rbi_91day_tbills_from_dbie.csv"
+#
+# You may omit either of the following two keys. If you do,
+# PortfolioAnalyzer uses the built‑in defaults defined in main.py:
+#   benchmark_date_format    → "%m/%d/%Y"
+#   riskfree_date_format     → "%d/%m/%Y"
+#
+# Benchmark-data date format
+benchmark_date_format  = "%m/%d/%Y"
+# Risk-free-data date format
+riskfree_date_format   = "%Y-%m-%d"
+
+# -------- Freshness checks --------
+# Skip the benchmark age check entirely (true/false)
+# skip_age_check = false
+#
+# You may omit the following key. If you do,
+# PortfolioAnalyzer uses the built‑in defaults defined in main.py:
+#   max_riskfree_delay  → 61
+# Maximum age (days) for the **risk‑free** series.
+# Use a large number (e.g. 36500) to “effectively disable” the check.
+max_riskfree_delay    = 61
+
+# -------- Output locations --------
+# output_dir = "outputs"

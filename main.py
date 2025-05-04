@@ -39,7 +39,7 @@ def main(args):
 
     portfolio_dict = load_portfolio_details(settings["portfolio_file"])
     portfolio_label = portfolio_dict["label"]
-    print(f"\nPortfolio metrics for {portfolio_label}.\n")
+    print(f"\nPortfolio metrics for {portfolio_label} (direct, growth) using {settings["metrics_method"]} metrics method\n")
     if settings["debug"]:
         info(f"Portfolio label: {portfolio_label}.")
         info("Merged settings:")
@@ -180,6 +180,20 @@ def main(args):
 
     portfolio_civ_series = portfolio_ts.combined_civ_series()
 
+    # DEBUG
+    start_date = "2022-05-04"
+    end_date   = "2025-05-02"
+
+    start_nav = portfolio_civ_series.series.get(start_date)
+    end_nav   = portfolio_civ_series.series.get(end_date)
+
+    if start_nav and end_nav:
+        manual_cagr = (end_nav / start_nav) ** (1/3) - 1
+        print(f"\n🧮 Manual CAGR from {start_date} to {end_date}: {manual_cagr:.4%}")
+    else:
+        print(f"⚠️ Missing NAV data: start={start_nav}, end={end_nav}")
+
+
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(
         settings["risk_free_rates_file"],
         date_format=settings["riskfree_date_format"],
@@ -191,10 +205,13 @@ def main(args):
         if settings["debug"]:
             print(f"📅 Look‑back window {settings['lookback']} → cutting data at {cutoff.date()}")
         gain_daily_portfolio_series = gain_daily_portfolio_series[gain_daily_portfolio_series.index >= cutoff]
-        benchmark_returns_series          = benchmark_returns_series[benchmark_returns_series.index >= cutoff]
-        risk_free_rate_series      = risk_free_rate_series[risk_free_rate_series.index >= cutoff]
+        benchmark_returns_series    = benchmark_returns_series[benchmark_returns_series.index >= cutoff]
+        risk_free_rate_series       = risk_free_rate_series[risk_free_rate_series.index >= cutoff]
+        portfolio_civ_series.series = portfolio_civ_series.series[portfolio_civ_series.series.index >= cutoff]
+        #portfolio_daily_ret._series = portfolio_daily_ret._series[portfolio_daily_ret._series.index >= cutoff]
 
     benchmark_daily_ret  = TimeseriesReturn(benchmark_returns_series.rename("value"))
+    portfolio_daily_ret._series = portfolio_daily_ret._series[portfolio_daily_ret._series.index >= cutoff]
 
     aligned_risk_free_rate_series = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
     risk_free_rate_annual = aligned_risk_free_rate_series.mean()
@@ -203,6 +220,13 @@ def main(args):
 
     # Two data pipeline paths: NAVs for CAGR/Drawdowns, returns for Sharpe/Alpha/Beta
     portfolio_returns = TimeseriesReturn(portfolio_civ_series.series)
+
+    # DEBUG
+    #print(f"\n📅 Portfolio return series starts: {portfolio_returns.series.index.min()}")
+    #print(f"📅 Portfolio return series ends:   {portfolio_returns.series.index.max()}")
+    print(f"\n📅 Portfolio return series starts: {portfolio_returns._series.index.min()}")
+    print(f"📅 Portfolio return series ends:   {portfolio_returns._series.index.max()}")
+
 
     if settings["metrics_method"] == "daily":
         frequency = "daily"
@@ -227,6 +251,12 @@ def main(args):
             periods_per_year=periods_per_year
         ),
     }
+
+    print("\n📊 Alpha inputs:")
+    print("Portfolio daily return start:", portfolio_daily_ret._series.index.min())
+    print("Benchmark daily return start:", benchmark_daily_ret._series.index.min())
+    print("Portfolio daily return end:", portfolio_daily_ret._series.index.max())
+    print("Benchmark daily return end:", benchmark_daily_ret._series.index.max())
 
     # Benchmark returns object
     benchmark_returns = TimeseriesReturn(benchmark_returns_series)
@@ -299,7 +329,7 @@ def main(args):
     print(f"Volatility: {vol:.2f}%")
     print(f"Sharpe Ratio: {metrics['Sharpe Ratio']:.4f}")
     print(f"Sortino Ratio: {metrics['Sortino Ratio']:.4f}")
-    print(f"Alpha: {alpha:.2f}%" if alpha is not None else "Alpha: N/A")
+    print(f"Alpha: {alpha:.4f}%" if alpha is not None else "Alpha: N/A")
     print(f"Beta:  {beta:.4f}"   if beta  is not None else "Beta:  N/A")
     print(f"Drawdowns: {len(max_drawdowns)}")
     print(f"Max Drawdown: {max_dd:.2f}%")

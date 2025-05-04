@@ -123,14 +123,14 @@ def load_timeseries_csv(
         info(f"Date index now ranges from {df.index.min().date()} to {df.index.max().date()}")
 
     # Find the value column and rename it "value"
-    col_priority = ["rate", "price", "close"]
+    col_priority = ["rate", "price", "close", "yield"]
     candidates = [
         col for name in col_priority
         for col in df.columns
         if name in col.lower() and col != date_column
     ]
     if not candidates:
-        raise ValueError(f"{file_path}: no column found containing 'rate', 'price', or 'close'")
+        raise ValueError(f"{file_path}: no column found containing 'rate', 'price', 'close', or 'yield'")
     if len(candidates) > 1:
         raise ValueError(f"{file_path}: multiple candidate value columns: {candidates}")
     value_column = candidates[0]

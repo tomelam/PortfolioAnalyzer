@@ -443,10 +443,24 @@ class TimeseriesReturn:
             else:
                 raise
 
+        """
         excess_x = x_aligned - risk_free_rate
         expected_return = risk_free_rate + beta * excess_x.mean()
         actual_return = y_aligned.mean()
-        return actual_return - expected_return
+        alpha_capm = actual_return - expected_return
+        """
+
+        mean_rp = y_aligned.mean()
+        mean_rb = x_aligned.mean()
+        alpha_daily = mean_rp - (risk_free_rate + beta * (mean_rb - risk_free_rate))
+        alpha = (1 + alpha_daily) ** 252 - 1
+        print(f"\n📈 CAPM alpha debug:")
+        print(f"Mean portfolio return: {mean_rp:.6f}")
+        print(f"Mean benchmark return: {mean_rb:.6f}")
+        print(f"Risk-free rate: {risk_free_rate:.6f}")
+        print(f"Beta: {beta:.4f}")
+        print(f"Alpha: {alpha:.6f}")
+        return alpha
 
     def beta_regression(self, benchmark_ret: "TimeseriesReturn") -> float:
         """
