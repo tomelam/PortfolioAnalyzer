@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 
-def load_gold_prices(csv_path="data/Gold Futures Historical Data.csv"):
+def load_gold_prices(csv_path="data/gold_monthly_inr.csv"):
     """
     Loads a gold-futures CSV file and renames its detected price column to "Adjusted Spot Price".
 
@@ -30,7 +30,7 @@ def load_gold_prices(csv_path="data/Gold Futures Historical Data.csv"):
     #print(f"Detected price column: {price_col}")
 
     # 4. Rename the detected price column to "Adjusted Spot Price"
-    df.rename(columns={price_col: "Adjusted Spot Price"}, inplace=True)
+    df.rename(columns={price_col: "Spot Price"}, inplace=True)
 
     # 5. Convert "Date" to datetime if it exists; set it as the index, then sort
     if "Date" in df.columns:
@@ -44,7 +44,7 @@ def load_gold_prices(csv_path="data/Gold Futures Historical Data.csv"):
 
     # 6. Clean the Adjusted Spot Price column (remove commas, %), convert to float
     df["Adjusted Spot Price"] = (
-        df["Adjusted Spot Price"]
+        df["Spot Price"]
         .astype(str)
         .str.replace(",", "")
         .str.replace("%", "")
@@ -52,8 +52,8 @@ def load_gold_prices(csv_path="data/Gold Futures Historical Data.csv"):
     )
 
     # 7. Optional debug print
-    #print(f"Loaded gold data from {csv_path}, DataFrame shape: {df.shape}")
-    #print(df.head(3))
+    print(f"Loaded gold data from {csv_path}, DataFrame shape: {df.shape}")
+    print(df.head(3))
 
     return df
 

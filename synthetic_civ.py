@@ -18,11 +18,8 @@ Usage:
 Notes:
 - Outputs are pandas Series indexed by date.
 - Functions assume consistent compounding conventions (e.g., annual, semiannual).
-
-Author: [Your Name]
-Date: [Today's Date]
 """
-
+import pandas as pd
 
 def calculate_ppf_relative_civ(ppf_interest_rates):
     """

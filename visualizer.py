@@ -141,7 +141,7 @@ def plot_cumulative_returns(
     # Rebase the portfolio and benchmark series so they equal 100 at the proper rebase date.
     if rebase_date not in cumulative_historical.index:
         rebase_date_portfolio = cumulative_historical.index[
-            cumulative_historical.index.get_loc(rebase_date, method='ffill')
+            cumulative_historical.index.get_indexer([rebase_date], method='ffill')
         ]
     else:
         rebase_date_portfolio = rebase_date

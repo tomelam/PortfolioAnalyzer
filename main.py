@@ -16,7 +16,7 @@ from data_loader import (
     fetch_and_standardize_risk_free_rates,
     align_dynamic_risk_free_rates,
     get_benchmark_gain_daily,
-    load_ppf_interest_rates,
+    load_ppf_civ,
 )
 from portfolio_calculator import (
     calculate_gains_cumulative,
@@ -100,6 +100,10 @@ def main(args):
     if "gold" in portfolio_dict:
         from gold_loader import load_gold_prices
         gold_series = load_gold_prices()
+        if gold_series is not None and "Spot Price" in gold_series.columns:
+            gold_series = gold_series[["Spot Price"]].rename(columns={"Spot Price": "price"})
+        print(gold_series.head())
+        print(gold_series.columns)
 
     # === ROBUST PORTFOLIO START DATE LOGIC ===
     asset_series_list = [
@@ -137,7 +141,8 @@ def main(args):
         gold_series = gold_series[gold_series.index >= portfolio_start_date]
     # === END OF ROBUST LOGIC ===
 
-    assert aligned_portfolio_civs is not None and not aligned_portfolio_civs.empty, "aligned_portfolio_civs is missing or empty"
+    if "funds" in portfolio_dict:
+        assert aligned_portfolio_civs is not None and not aligned_portfolio_civs.empty, "aligned_portfolio_civs is missing or empty"
     dbg("\nExamining the types in the portfolio's CIV series:")
     for name, var in [
         ("aligned_portfolio_civs", aligned_portfolio_civs),
@@ -155,6 +160,10 @@ def main(args):
         for fund_name in aligned_portfolio_civs.columns
     }
 
+    # DEBUG
+    print("✅ aligned_portfolio_civs.columns:", aligned_portfolio_civs.columns)
+    print("✅ aligned_portfolio_civs.head():", aligned_portfolio_civs.head())
+    
     # Convert to Series format before passing to from_multiple_nav_series
     nav_inputs = {
         **fund_series_dict,
@@ -167,8 +176,13 @@ def main(args):
 
     # Clean out None values before constructing portfolio
     nav_inputs = {k: v for k, v in nav_inputs.items() if v is not None}
-    portfolio_ts = from_multiple_nav_series(nav_inputs,
-                    weights={f['name']: f['allocation'] for f in portfolio_dict['funds']})
+    #weights={f['name']: f['allocation'] for f in portfolio_dict['funds']})
+    weights = (
+        {f['name']: f['allocation'] for f in portfolio_dict['funds']}
+        if "funds" in portfolio_dict else {}
+    )
+    portfolio_ts = from_multiple_nav_series(nav_inputs, weights)
+                    
 
     ### Comment and call to `civ_and_returns()` removed from this point
     ### 10 lines moved here
@@ -180,6 +194,7 @@ def main(args):
 
     portfolio_civ_series = portfolio_ts.combined_civ_series()
 
+    """
     # DEBUG
     start_date = "2022-05-04"
     end_date   = "2025-05-02"
@@ -192,7 +207,7 @@ def main(args):
         print(f"\n🧮 Manual CAGR from {start_date} to {end_date}: {manual_cagr:.4%}")
     else:
         print(f"⚠️ Missing NAV data: start={start_nav}, end={end_nav}")
-
+    """
 
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(
         settings["risk_free_rates_file"],
@@ -208,10 +223,9 @@ def main(args):
         benchmark_returns_series    = benchmark_returns_series[benchmark_returns_series.index >= cutoff]
         risk_free_rate_series       = risk_free_rate_series[risk_free_rate_series.index >= cutoff]
         portfolio_civ_series.series = portfolio_civ_series.series[portfolio_civ_series.series.index >= cutoff]
-        #portfolio_daily_ret._series = portfolio_daily_ret._series[portfolio_daily_ret._series.index >= cutoff]
+        portfolio_daily_ret._series = portfolio_daily_ret._series[portfolio_daily_ret._series.index >= cutoff]
 
     benchmark_daily_ret  = TimeseriesReturn(benchmark_returns_series.rename("value"))
-    portfolio_daily_ret._series = portfolio_daily_ret._series[portfolio_daily_ret._series.index >= cutoff]
 
     aligned_risk_free_rate_series = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
     risk_free_rate_annual = aligned_risk_free_rate_series.mean()
