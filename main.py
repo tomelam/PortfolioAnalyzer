@@ -11,6 +11,7 @@ from data_loader import (
     load_index_data,
     get_aligned_portfolio_civs,
     load_portfolio_details,
+    extract_weights,
     fetch_portfolio_civs,
     align_portfolio_civs,
     fetch_and_standardize_risk_free_rates,
@@ -154,33 +155,34 @@ def main(args):
     ]:
         dbg(f"{name}: {type(var)}")
 
-    # Stage 3: Convert aligned DataFrame to dict of Series
-    fund_series_dict = {
-        fund_name: aligned_portfolio_civs[fund_name]
-        for fund_name in aligned_portfolio_civs.columns
-    }
-
     # DEBUG
     print("✅ aligned_portfolio_civs.columns:", aligned_portfolio_civs.columns)
     print("✅ aligned_portfolio_civs.head():", aligned_portfolio_civs.head())
     
-    # Convert to Series format before passing to from_multiple_nav_series
-    nav_inputs = {
-        **fund_series_dict,
-        "PPF": ppf_series["value"] if ppf_series is not None else None,
-        "SCSS": scss_series["value"] if scss_series is not None else None,
-        "REC": rec_bond_series["value"] if rec_bond_series is not None else None,
-        "SGB": sgb_series["price"] if sgb_series is not None else None,
-        "Gold": gold_series["price"] if gold_series is not None else None,
+    # Mutual funds as a dict of Series
+    fund_series_dict = {
+        fund_name: aligned_portfolio_civs[fund_name]
+        for fund_name in aligned_portfolio_civs.columns
+    }
+    
+    # Other assets as a dict of Series
+    extra_assets = {
+        k: s[col] for k, s, col in [
+            ("PPF", ppf_series, "value"),
+            ("SCSS", scss_series, "value"),
+            ("REC", rec_bond_series, "value"),
+            ("SGB", sgb_series, "price"),
+            ("Gold", gold_series, "price"),
+        ] if s is not None
     }
 
-    # Clean out None values before constructing portfolio
-    nav_inputs = {k: v for k, v in nav_inputs.items() if v is not None}
-    #weights={f['name']: f['allocation'] for f in portfolio_dict['funds']})
-    weights = (
-        {f['name']: f['allocation'] for f in portfolio_dict['funds']}
-        if "funds" in portfolio_dict else {}
-    )
+    # Final nav_inputs
+    nav_inputs = {**fund_series_dict, **extra_assets}
+
+    #print('nav_inputs["Gold"]', nav_inputs["Gold"])
+
+    weights = extract_weights(portfolio_dict)
+    print("✅ weights used:", weights)
     portfolio_ts = from_multiple_nav_series(nav_inputs, weights)
                     
 

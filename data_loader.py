@@ -549,6 +549,41 @@ def load_portfolio_details(toml_file_path):
 
     return portfolio_details
 
+
+def extract_weights(portfolio_dict):
+    """
+    Extracts a dictionary of asset weights from the portfolio_dict,
+    covering mutual funds and other assets like Gold, PPF, etc.
+    Raises ValueError if any listed asset lacks a valid allocation.
+    """
+    weights = {}
+
+    # Helper to extract and validate one asset's allocation
+    def add_weight(key, label):
+        entry = portfolio_dict.get(key)
+        if entry is None or "allocation" not in entry:
+            raise ValueError(f"❌ Missing 'allocation' for {label} in portfolio TOML.")
+        weights[label] = entry["allocation"]
+
+    if "funds" in portfolio_dict:
+        for fund in portfolio_dict["funds"]:
+            if "name" not in fund or "allocation" not in fund:
+                raise ValueError("❌ Each fund must have 'name' and 'allocation'")
+            weights[fund["name"]] = fund["allocation"]
+
+    for key, label in [
+        ("gold", "Gold"),
+        ("ppf", "PPF"),
+        ("scss", "SCSS"),
+        ("rec_bond", "REC"),
+        ("sgb", "SGB"),
+    ]:
+        if key in portfolio_dict:
+            add_weight(key, label)
+
+    return weights
+
+
 def validate_allocations(portfolio_details, tol=0.01):
     total_allocation = 0
     if "funds" in portfolio_details:
