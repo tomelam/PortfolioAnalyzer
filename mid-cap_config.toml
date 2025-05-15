@@ -4,7 +4,7 @@
 # IMPORTANT: Every program option or setting takes its value
 # from a command line option, if present, or from its value
 # set in the configuration file, if present, or from the
-# built-in default -- in that order or precedence.
+# built-in default -- in that order of precedence.
 # ──────────────────────────────────────────────────────────
 
 # -------- General switches --------
