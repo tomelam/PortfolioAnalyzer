@@ -155,10 +155,6 @@ def main(args):
     ]:
         dbg(f"{name}: {type(var)}")
 
-    # DEBUG
-    print("✅ aligned_portfolio_civs.columns:", aligned_portfolio_civs.columns)
-    print("✅ aligned_portfolio_civs.head():", aligned_portfolio_civs.head())
-    
     # Mutual funds as a dict of Series
     fund_series_dict = {
         fund_name: aligned_portfolio_civs[fund_name]
@@ -182,7 +178,6 @@ def main(args):
     #print('nav_inputs["Gold"]', nav_inputs["Gold"])
 
     weights = extract_weights(portfolio_dict)
-    print("✅ weights used:", weights)
     portfolio_ts = from_multiple_nav_series(nav_inputs, weights)
                     
 
@@ -195,21 +190,6 @@ def main(args):
     portfolio_daily_ret  = TimeseriesReturn(gain_daily_portfolio_series.rename("value"))
 
     portfolio_civ_series = portfolio_ts.combined_civ_series()
-
-    """
-    # DEBUG
-    start_date = "2022-05-04"
-    end_date   = "2025-05-02"
-
-    start_nav = portfolio_civ_series.series.get(start_date)
-    end_nav   = portfolio_civ_series.series.get(end_date)
-
-    if start_nav and end_nav:
-        manual_cagr = (end_nav / start_nav) ** (1/3) - 1
-        print(f"\n🧮 Manual CAGR from {start_date} to {end_date}: {manual_cagr:.4%}")
-    else:
-        print(f"⚠️ Missing NAV data: start={start_nav}, end={end_nav}")
-    """
 
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(
         settings["risk_free_rates_file"],
@@ -237,13 +217,6 @@ def main(args):
     # Two data pipeline paths: NAVs for CAGR/Drawdowns, returns for Sharpe/Alpha/Beta
     portfolio_returns = TimeseriesReturn(portfolio_civ_series.series)
 
-    # DEBUG
-    #print(f"\n📅 Portfolio return series starts: {portfolio_returns.series.index.min()}")
-    #print(f"📅 Portfolio return series ends:   {portfolio_returns.series.index.max()}")
-    print(f"\n📅 Portfolio return series starts: {portfolio_returns._series.index.min()}")
-    print(f"📅 Portfolio return series ends:   {portfolio_returns._series.index.max()}")
-
-
     if settings["metrics_method"] == "daily":
         frequency = "daily"
         periods_per_year = 252
@@ -267,12 +240,6 @@ def main(args):
             periods_per_year=periods_per_year
         ),
     }
-
-    print("\n📊 Alpha inputs:")
-    print("Portfolio daily return start:", portfolio_daily_ret._series.index.min())
-    print("Benchmark daily return start:", benchmark_daily_ret._series.index.min())
-    print("Portfolio daily return end:", portfolio_daily_ret._series.index.max())
-    print("Benchmark daily return end:", benchmark_daily_ret._series.index.max())
 
     # Benchmark returns object
     benchmark_returns = TimeseriesReturn(benchmark_returns_series)
@@ -500,7 +467,7 @@ if __name__ == "__main__":
             "use_benchmark": config.get("use_benchmark", True),
             "benchmark_name": config.get("benchmark_name", "NIFTY Total Returns Index"),
             "benchmark_file": config.get("benchmark_returns_file", "data/NIFTY Total Returns Historical Data.csv"),
-            "benchmark_date_format": config.get("benchmark_date_format", "%d-%m-%Y"),
+            "benchmark_date_format": config.get("benchmark_date_format", "%m/%d/%Y"),
             "riskfree_date_format": config.get("riskfree_date_format", "%m/%d/%Y"),
             "max_riskfree_delay": args.max_riskfree_delay or config.get("max_riskfree_delay", 61),
         }
