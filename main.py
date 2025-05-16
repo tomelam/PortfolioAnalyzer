@@ -414,7 +414,7 @@ def parse_arguments():
     parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5,
                         help="Drawdown threshold, in percent."
     )
-    parser.add_argument("--metrics-method", choices=["daily", "monthly"], default="monthly",
+    parser.add_argument("--metrics-method", choices=["daily", "monthly"], default="daily",
                         help="Choose frequency for return/risk calculations: daily or monthly"
     )
     parser.add_argument("--max-riskfree-delay", "-mrd", type=int,
@@ -457,7 +457,7 @@ if __name__ == "__main__":
             "output_dir": args.output_dir or config.get("output_dir", "outputs"),
             "output_dir_explicit": bool(args.output_dir),
             "drawdown_threshold": args.max_drawdown_threshold or config.get("max_drawdown_threshold", 5.0),
-            "metrics_method": args.metrics_method or config.get("metrics_method", "monthly"),
+            "metrics_method": args.metrics_method or config.get("metrics_method", "daily"),
             "skip_age_check": config.get("skip_age_check", False),
             "quiet": args.quiet or config.get("quiet", False),            
             "save_golden": args.save_golden_data or config.get("save_golden_data", False),
