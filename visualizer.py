@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import pandas as pd
+import numpy as np
 from datetime import datetime
 import os
 import toml
@@ -121,6 +122,20 @@ def plot_cumulative_returns(
         rebase_date=datetime(2008, 1, 1),
         save_path=None,
 ):
+    # -- PREREQUISITE CHECKS --
+    # Must have a portfolio return series, and it must be a Series
+    assert cumulative_historical is not None, "❌ cumulative_historical is None!"
+    assert isinstance(cumulative_historical, pd.Series), \
+        f"❌ cumulative_historical must be a pd.Series, got {type(cumulative_historical)}"
+    assert len(cumulative_historical) > 0, "❌ cumulative_historical is empty!"
+    assert cumulative_historical.notna().any(), "❌ cumulative_historical is all NaN!"
+    # If a benchmark is provided, check its type and data
+    if benchmark_cumulative is not None:
+        assert isinstance(benchmark_cumulative, pd.Series), \
+            f"❌ benchmark_cumulative must be a pd.Series, got {type(benchmark_cumulative)}"
+        assert len(benchmark_cumulative) > 0, "❌ benchmark_cumulative is empty!"
+        assert benchmark_cumulative.notna().any(), "❌ benchmark_cumulative is all NaN!"
+
     fig = plt.figure(figsize=(10, 6), constrained_layout=True, dpi=200)  # higher DPI for crisp screen rendering
 
     gs = fig.add_gridspec(2, 1, height_ratios=[4, 1.2])
@@ -146,8 +161,23 @@ def plot_cumulative_returns(
     else:
         rebase_date_portfolio = rebase_date
 
-    # Rebase portfolio to 100
-    rebased_historical = cumulative_historical / cumulative_historical.loc[rebase_date_portfolio] * 100
+    # Robust rebase for portfolio series (handles missing dates, NaN, etc.)
+    cumulative_historical.index = pd.to_datetime(cumulative_historical.index)
+    target_date = pd.to_datetime(rebase_date)
+    # Find nearest previous available date if missing
+    if target_date not in cumulative_historical.index:
+        prev_dates = cumulative_historical.index[cumulative_historical.index <= target_date]
+        if len(prev_dates) == 0:
+            raise ValueError(f"No data available at or before rebase date: {target_date}")
+        use_date = prev_dates[-1]
+    else:
+        use_date = target_date
+    base = cumulative_historical.loc[use_date]
+    if pd.isna(base) or not np.isfinite(base):
+        raise ValueError(f"Cannot rebase: value at {use_date} is {base}")
+    rebased_historical = cumulative_historical / base * 100
+    # Fill any NaN values if necessary
+    rebased_historical = rebased_historical.interpolate(limit_direction="both")
 
     # Rebase benchmark only if it exists
     if benchmark_cumulative is not None:
