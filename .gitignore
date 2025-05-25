@@ -1,9 +1,3 @@
-# Byte-compiled files
-*.pyc
-*.pyo
-*.pyd
-__pycache__/
-
 # Virtual environment
 venv/
 env/
@@ -47,9 +41,6 @@ Desktop.ini
 .cache
 .nox/
 
-# Pytest cache
-.pytest_cache/
-
 # Environment variables
 .env
 .env.*
@@ -65,3 +56,37 @@ Desktop.ini
 # AWS credentials or similar sensitive files
 *.key
 *.pem
+
+# Vim swap/backup files
+*.swp
+*.swo
+*.swn
+*.un~
+*~
+
+# Emacs backup files
+*~
+\#*\#
+.\#*
+
+# VS Code settings and workspace state
+.vscode/
+*.code-workspace
+
+# JetBrains IDEs (PyCharm, IntelliJ, etc.)
+.idea/
+*.iml
+
+# macOS Finder artifacts
+.DS_Store
+
+# GNU nano backup files
+*.save
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Pytest cache
+.pytest_cache/
+
