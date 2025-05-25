@@ -60,7 +60,10 @@ def calculate_variable_bond_cumulative_gain(rate_df, portfolio_start_date):
     cum_series = (1 + daily_rate).cumprod()
     daily_cum_series = cum_series.asfreq("B", method="ffill")
 
-    return daily_cum_series.to_frame(name="var_rate_bond_value")
+    #print(daily_cum_series.columns)
+
+    #return daily_cum_series["var_rate_bond_value"]
+    return daily_cum_series
 
 
 # Calculate cumulative gain for a single-tranch SGB asset holding, if needed. Currently not used.

@@ -160,22 +160,22 @@ def main(args):
         fund_name: aligned_portfolio_civs[fund_name]
         for fund_name in aligned_portfolio_civs.columns
     }
-    
+
     # Other assets as a dict of Series
     extra_assets = {
-        k: s[col] for k, s, col in [
+        k: s for k, s, col in [
             ("PPF", ppf_series, "value"),
-            ("SCSS", scss_series, "value"),
-            ("REC", rec_bond_series, "value"),
-            ("SGB", sgb_series, "price"),
+            ("SCSS", scss_series, "var_rate_bond_value"),
+            ("REC", rec_bond_series, "var_rate_bond_value"),
+            ("SGB", sgb_series, "value"),
             ("Gold", gold_series, "price"),
         ] if s is not None
     }
 
     # Final nav_inputs
     nav_inputs = {**fund_series_dict, **extra_assets}
-
-    #print('nav_inputs["Gold"]', nav_inputs["Gold"])
+    for v in nav_inputs.values():
+        assert isinstance(v, pd.Series), f"Expected pd.Series, got {type(v)}"
 
     weights = extract_weights(portfolio_dict)
     portfolio_ts = from_multiple_nav_series(nav_inputs, weights)
@@ -346,8 +346,8 @@ def main(args):
         import os
         os.makedirs(settings["output_dir"], exist_ok=True)
         # Strip "port-" prefix and ".toml" suffix
-        base_name = os.path.basename(settings["portfolio_file"])
-        image_name = base_name.replace("port-", "").replace(".toml", "") + ".png"
+        base_name = os.path.splitext(os.path.basename(settings["portfolio_file"]))[0]
+        image_name = base_name + ".png"
         image_path = os.path.join(settings["output_dir"], image_name)
         plot_cumulative_returns(
             portfolio_label,
@@ -377,8 +377,8 @@ def main(args):
             portfolio_start_date,
         )
 
-    if settings["output_dir_explicit"] and not (settings["output_csv"] or settings["output_snapshot"]):
-        info(f"⚠️  Warning: output_dir is set to '{settings['output_dir']}' but no output will be written to it.")
+    if settings["output_csv"] or settings["output_snapshot"]:
+        os.makedirs(settings["output_dir"], exist_ok=True)
 
 
 def dump_pickle(filepath, obj):
@@ -452,10 +452,9 @@ if __name__ == "__main__":
         settings = {
             "portfolio_file": args.toml_file,
             "show_plot": args.show_plot if args.show_plot is not None else config.get("show_plot", True),
-            "output_snapshot": config.get("output_snapshot", False),
+            "output_snapshot": args.output_snapshot or config.get("output_snapshot", False),
             "output_csv": args.output_csv or config.get("output_csv", False),
             "output_dir": args.output_dir or config.get("output_dir", "outputs"),
-            "output_dir_explicit": bool(args.output_dir),
             "drawdown_threshold": args.max_drawdown_threshold or config.get("max_drawdown_threshold", 5.0),
             "metrics_method": args.metrics_method or config.get("metrics_method", "daily"),
             "skip_age_check": config.get("skip_age_check", False),

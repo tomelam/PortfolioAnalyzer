@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import argparse
 
-def create_sgb_daily_returns(csv_path="sgb_data.csv"):
+def create_sgb_daily_returns(csv_path="sgb_data.csv", initial_value=100):
     """
     Creates a Pandas DataFrame with DateTime index based on SGB tranche issue dates.
     
@@ -27,7 +27,11 @@ def create_sgb_daily_returns(csv_path="sgb_data.csv"):
     daily_interest_rate = (1 + 0.025)**(1/365) - 1
     total_daily_returns = price_returns + daily_interest_rate
 
-    return total_daily_returns.to_frame(name='Daily Returns')
+    # Compounded value series
+    value_series = initial_value * (1 + total_daily_returns).cumprod()
+    value_series.name = "value"
+
+    return value_series
 
 
 if __name__ == "__main__":
