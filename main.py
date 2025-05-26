@@ -40,7 +40,10 @@ def main(args):
 
     portfolio_dict = load_portfolio_details(settings["portfolio_file"])
     portfolio_label = portfolio_dict["label"]
-    print(f"\nPortfolio metrics for {portfolio_label} (direct, growth) using {settings["metrics_method"]} metrics method\n")
+    print(
+        f"\nPortfolio metrics for {portfolio_label} (direct, growth) using "
+        f" {settings["metrics_method"]} metrics method\n"
+    )
     if settings["debug"]:
         info(f"Portfolio label: {portfolio_label}.")
         info("Merged settings:")
@@ -62,7 +65,9 @@ def main(args):
     if "funds" in portfolio_dict:
         unaligned_portfolio_civs = fetch_portfolio_civs(portfolio_dict)
         aligned_portfolio_civs = align_portfolio_civs(unaligned_portfolio_civs)
-        multiindex_aligned_civs = aligned_portfolio_civs.copy()  # Save in case it's needed for the "golden" data
+        multiindex_aligned_civs = (
+            aligned_portfolio_civs.copy()
+        )  # Save in case it's needed for the "golden" data
         if isinstance(aligned_portfolio_civs.columns, pd.MultiIndex):
             aligned_portfolio_civs.columns = aligned_portfolio_civs.columns.droplevel(1)
         if not aligned_portfolio_civs.empty:
@@ -76,7 +81,7 @@ def main(args):
         latest_fund, latest_date = max(fund_start_dates.items(), key=lambda x: x[1])
 
         dbg(f"\nLatest launch date among all mutual funds: {latest_date.date()}")
-        dbg(f"Fund with the latest launch date: \"{latest_fund}\"")
+        dbg(f'Fund with the latest launch date: "{latest_fund}"')
 
     ppf_series = scss_series = rec_bond_series = sgb_series = gold_series = None
 
@@ -86,20 +91,28 @@ def main(args):
     if "scss" in portfolio_dict:
         from data_loader import load_scss_interest_rates
         from bond_calculators import calculate_variable_bond_cumulative_gain
+
         scss_rates = load_scss_interest_rates()
         scss_series = calculate_variable_bond_cumulative_gain(scss_rates, scss_rates.index.min())
 
     if "rec_bond" in portfolio_dict:
         from bond_calculators import calculate_variable_bond_cumulative_gain
-        rec_bond_rates = pd.DataFrame({'rate': [5.25]}, index=pd.date_range("2000-01-01", pd.Timestamp.today(), freq='D'))
-        rec_bond_series = calculate_variable_bond_cumulative_gain(rec_bond_rates, rec_bond_rates.index.min())
+
+        rec_bond_rates = pd.DataFrame(
+            {"rate": [5.25]}, index=pd.date_range("2000-01-01", pd.Timestamp.today(), freq="D")
+        )
+        rec_bond_series = calculate_variable_bond_cumulative_gain(
+            rec_bond_rates, rec_bond_rates.index.min()
+        )
 
     if "sgb" in portfolio_dict:
         from sgb_loader import create_sgb_daily_returns
+
         sgb_series = create_sgb_daily_returns("data/sgb_data.csv")
 
     if "gold" in portfolio_dict:
         from gold_loader import load_gold_prices
+
         gold_series = load_gold_prices()
         if gold_series is not None and "Spot Price" in gold_series.columns:
             gold_series = gold_series[["Spot Price"]].rename(columns={"Spot Price": "price"})
@@ -108,15 +121,19 @@ def main(args):
 
     # === ROBUST PORTFOLIO START DATE LOGIC ===
     asset_series_list = [
-        aligned_portfolio_civs, ppf_series, scss_series,
-        rec_bond_series, sgb_series, gold_series
+        aligned_portfolio_civs,
+        ppf_series,
+        scss_series,
+        rec_bond_series,
+        sgb_series,
+        gold_series,
     ]
 
     asset_start_dates = []
     for series in asset_series_list:
         if series is not None and not series.empty:
             if not isinstance(series.index, pd.DatetimeIndex):
-                series.index = pd.to_datetime(series.index, errors='coerce')
+                series.index = pd.to_datetime(series.index, errors="coerce")
             min_date = series.dropna().index.min()
             if pd.notna(min_date):
                 asset_start_dates.append(min_date)
@@ -128,7 +145,9 @@ def main(args):
 
     # Trim series only if not empty
     if aligned_portfolio_civs is not None and not aligned_portfolio_civs.empty:
-        aligned_portfolio_civs = aligned_portfolio_civs[aligned_portfolio_civs.index >= portfolio_start_date]
+        aligned_portfolio_civs = aligned_portfolio_civs[
+            aligned_portfolio_civs.index >= portfolio_start_date
+        ]
 
     if ppf_series is not None:
         ppf_series = ppf_series[ppf_series.index >= portfolio_start_date]
@@ -143,7 +162,9 @@ def main(args):
     # === END OF ROBUST LOGIC ===
 
     if "funds" in portfolio_dict:
-        assert aligned_portfolio_civs is not None and not aligned_portfolio_civs.empty, "aligned_portfolio_civs is missing or empty"
+        assert (
+            aligned_portfolio_civs is not None and not aligned_portfolio_civs.empty
+        ), "aligned_portfolio_civs is missing or empty"
     dbg("\nExamining the types in the portfolio's CIV series:")
     for name, var in [
         ("aligned_portfolio_civs", aligned_portfolio_civs),
@@ -157,19 +178,20 @@ def main(args):
 
     # Mutual funds as a dict of Series
     fund_series_dict = {
-        fund_name: aligned_portfolio_civs[fund_name]
-        for fund_name in aligned_portfolio_civs.columns
+        fund_name: aligned_portfolio_civs[fund_name] for fund_name in aligned_portfolio_civs.columns
     }
 
     # Other assets as a dict of Series
     extra_assets = {
-        k: s for k, s, col in [
+        k: s
+        for k, s, col in [
             ("PPF", ppf_series, "value"),
             ("SCSS", scss_series, "var_rate_bond_value"),
             ("REC", rec_bond_series, "var_rate_bond_value"),
             ("SGB", sgb_series, "value"),
             ("Gold", gold_series, "price"),
-        ] if s is not None
+        ]
+        if s is not None
     }
 
     # Final nav_inputs
@@ -179,7 +201,6 @@ def main(args):
 
     weights = extract_weights(portfolio_dict)
     portfolio_ts = from_multiple_nav_series(nav_inputs, weights)
-                    
 
     ### Comment and call to `civ_and_returns()` removed from this point
     ### 10 lines moved here
@@ -187,7 +208,7 @@ def main(args):
     gain_daily_portfolio_series = portfolio_ts.combined_daily_returns()
 
     # daily-return objects (for CAPM Alpha/Beta)
-    portfolio_daily_ret  = TimeseriesReturn(gain_daily_portfolio_series.rename("value"))
+    portfolio_daily_ret = TimeseriesReturn(gain_daily_portfolio_series.rename("value"))
 
     portfolio_civ_series = portfolio_ts.combined_civ_series()
 
@@ -201,17 +222,25 @@ def main(args):
         cutoff = to_cutoff_date(settings["lookback"])
         if settings["debug"]:
             print(f"📅 Look‑back window {settings['lookback']} → cutting data at {cutoff.date()}")
-        gain_daily_portfolio_series = gain_daily_portfolio_series[gain_daily_portfolio_series.index >= cutoff]
-        benchmark_returns_series    = benchmark_returns_series[benchmark_returns_series.index >= cutoff]
-        risk_free_rate_series       = risk_free_rate_series[risk_free_rate_series.index >= cutoff]
-        portfolio_civ_series.series = portfolio_civ_series.series[portfolio_civ_series.series.index >= cutoff]
-        portfolio_daily_ret._series = portfolio_daily_ret._series[portfolio_daily_ret._series.index >= cutoff]
+        gain_daily_portfolio_series = gain_daily_portfolio_series[
+            gain_daily_portfolio_series.index >= cutoff
+        ]
+        benchmark_returns_series = benchmark_returns_series[benchmark_returns_series.index >= cutoff]
+        risk_free_rate_series = risk_free_rate_series[risk_free_rate_series.index >= cutoff]
+        portfolio_civ_series.series = portfolio_civ_series.series[
+            portfolio_civ_series.series.index >= cutoff
+        ]
+        portfolio_daily_ret._series = portfolio_daily_ret._series[
+            portfolio_daily_ret._series.index >= cutoff
+        ]
 
-    benchmark_daily_ret  = TimeseriesReturn(benchmark_returns_series.rename("value"))
+    benchmark_daily_ret = TimeseriesReturn(benchmark_returns_series.rename("value"))
 
-    aligned_risk_free_rate_series = align_dynamic_risk_free_rates(gain_daily_portfolio_series, risk_free_rate_series)
+    aligned_risk_free_rate_series = align_dynamic_risk_free_rates(
+        gain_daily_portfolio_series, risk_free_rate_series
+    )
     risk_free_rate_annual = aligned_risk_free_rate_series.mean()
-    risk_free_rate_daily = (1 + risk_free_rate_annual)**(1/252) - 1
+    risk_free_rate_daily = (1 + risk_free_rate_annual) ** (1 / 252) - 1
     dbg(f"\nrisk_free_rate_daily: {risk_free_rate_daily}")
 
     # Two data pipeline paths: NAVs for CAGR/Drawdowns, returns for Sharpe/Alpha/Beta
@@ -223,7 +252,7 @@ def main(args):
     else:  # "monthly"
         frequency = "monthly"
         periods_per_year = 12
-    risk_free_rate_adjusted = (1 + risk_free_rate_annual) ** (1/periods_per_year) - 1
+    risk_free_rate_adjusted = (1 + risk_free_rate_annual) ** (1 / periods_per_year) - 1
 
     dbg(f"\nfrequency: {frequency}, periods_per_year: {periods_per_year}\n")
     metrics = {
@@ -232,12 +261,12 @@ def main(args):
         "Sharpe Ratio": portfolio_returns.sharpe(
             risk_free_rate=risk_free_rate_adjusted,
             frequency=frequency,
-            periods_per_year=periods_per_year
+            periods_per_year=periods_per_year,
         ),
         "Sortino Ratio": portfolio_returns.sortino(
             risk_free_rate=risk_free_rate_adjusted,
             frequency=frequency,
-            periods_per_year=periods_per_year
+            periods_per_year=periods_per_year,
         ),
     }
 
@@ -245,12 +274,10 @@ def main(args):
     benchmark_returns = TimeseriesReturn(benchmark_returns_series)
     if benchmark_returns_series is not None:
         metrics["Alpha"] = portfolio_daily_ret.alpha_capm(
-            benchmark_daily_ret,
-            risk_free_rate=risk_free_rate_daily
+            benchmark_daily_ret, risk_free_rate=risk_free_rate_daily
         )
-        metrics["Beta"]  = portfolio_daily_ret.beta_capm(
-            benchmark_daily_ret,
-            risk_free_rate=risk_free_rate_daily
+        metrics["Beta"] = portfolio_daily_ret.beta_capm(
+            benchmark_daily_ret, risk_free_rate=risk_free_rate_daily
         )
     else:
         metrics["Alpha"] = None
@@ -276,29 +303,27 @@ def main(args):
         max_dd_start = "N/A"
 
     if settings["output_csv"]:
-        if settings["output_csv"]:
-            csv_line = (
-                f"\"{portfolio_label}\","  # Escape commas in the portfolio label.
-                f"{cagr:.2f}%,"
-                f"{vol:.2f}%,"
-                f"{metrics['Sharpe Ratio']:.4f},"
-                f"{metrics['Sortino Ratio']:.4f},"
-                f"{f'{alpha:.2f}%' if alpha is not None else 'N/A'},"
-                f"{f'{beta:.4f}'   if beta  is not None else 'N/A'},"
-                f"{len(max_drawdowns)},"
-                f"{max_dd:.2f}%,"
-                f"{max_dd_start},"
-                f"{drawdown_days},"
-                f"{recovery_days}"
-            )
+        csv_line = (
+            f'"{portfolio_label}",'  # Escape commas in the portfolio label.
+            f"{cagr:.2f}%,"
+            f"{vol:.2f}%,"
+            f"{metrics['Sharpe Ratio']:.4f},"
+            f"{metrics['Sortino Ratio']:.4f},"
+            f"{f'{alpha:.2f}%' if alpha is not None else 'N/A'},"
+            f"{f'{beta:.4f}'   if beta  is not None else 'N/A'},"
+            f"{len(max_drawdowns)},"
+            f"{max_dd:.2f}%,"
+            f"{max_dd_start},"
+            f"{drawdown_days},"
+            f"{recovery_days}"
+        )
 
     # If output_csv is enabled, write to file or stdout
     if settings["output_csv"]:
         if settings.get("output_dir"):
             os.makedirs(settings["output_dir"], exist_ok=True)
             csv_path = os.path.join(
-                settings["output_dir"],
-                Path(settings["portfolio_file"]).stem + ".csv"
+                settings["output_dir"], Path(settings["portfolio_file"]).stem + ".csv"
             )
             with open(csv_path, "w") as f:
                 f.write(csv_line + "\n")
@@ -313,7 +338,7 @@ def main(args):
     print(f"Sharpe Ratio: {metrics['Sharpe Ratio']:.4f}")
     print(f"Sortino Ratio: {metrics['Sortino Ratio']:.4f}")
     print(f"Alpha: {alpha:.4f}%" if alpha is not None else "Alpha: N/A")
-    print(f"Beta:  {beta:.4f}"   if beta  is not None else "Beta:  N/A")
+    print(f"Beta:  {beta:.4f}" if beta is not None else "Beta:  N/A")
     print(f"Drawdowns: {len(max_drawdowns)}")
     print(f"Max Drawdown: {max_dd:.2f}%")
     print(f"Max Drawdown Start: {max_dd_start}")
@@ -328,6 +353,7 @@ def main(args):
     # Optionally, if the flag is set, dump portfolio data to a pickle file.
     if settings["save_golden"]:
         import pickle
+
         portfolio_data = {
             "gain_daily": gain_daily_portfolio_series,
             "allocations": calculate_portfolio_allocations(portfolio),
@@ -344,6 +370,7 @@ def main(args):
     # For more automated operation, the plotting can be skipped.
     if settings["output_snapshot"]:
         import os
+
         os.makedirs(settings["output_dir"], exist_ok=True)
         # Strip "port-" prefix and ".toml" suffix
         base_name = os.path.splitext(os.path.basename(settings["portfolio_file"]))[0]
@@ -391,46 +418,85 @@ def dump_pickle(filepath, obj):
 
 def parse_arguments():
     import argparse
+
     parser = argparse.ArgumentParser(description="Portfolio Analyzer application.")
     parser.set_defaults(show_plot=None)
-    parser.add_argument("toml_file", type=str,
-                        help="Path to the TOML file describing the portfolio."
+    parser.add_argument("toml_file", type=str, help="Path to the TOML file describing the portfolio.")
+    parser.add_argument(
+        "--config", "-c", type=str, default="config.toml", help="Optional config file"
     )
-    parser.add_argument("--config", "-c", type=str, default="config.toml",
-                        help="Optional config file"
+    parser.add_argument(
+        "--disable-plot-display",
+        "-dpd",
+        action="store_false",
+        dest="show_plot",
+        help=(
+            "Disables on-screen display of the performance plot "
+            "(useful in automation or headless mode)"
+        ),
     )
-    parser.add_argument("--disable-plot-display", "-dpd", action="store_false", dest="show_plot",
-                        help="Disables on-screen display of the performance plot (useful in automation or headless mode)"
+    parser.add_argument(
+        "--output-snapshot",
+        "-os",
+        action="store_true",
+        help="Saves a snapshot image of the performance plot.",
     )
-    parser.add_argument("--output-snapshot", "-os", action="store_true",
-                        help="Saves a snapshot image of the performance plot."
+    parser.add_argument(
+        "--output-csv",
+        "-co",
+        action="store_true",
+        help="Output metrics in machine-readable CSV format.",
     )
-    parser.add_argument("--output-csv", "-co", action="store_true",
-                        help="Output metrics in machine-readable CSV format."
+    parser.add_argument(
+        "--output-dir",
+        "-od",
+        help="If specified, save plot image there instead of in the default `outputs/` directory.",
     )
-    parser.add_argument("--output-dir", "-od",
-                        help="If specified, save plot image there instead of in the default `outputs/` directory."
+    parser.add_argument(
+        "--max-drawdown-threshold",
+        "-dt",
+        type=float,
+        default=5,
+        help="Drawdown threshold, in percent.",
     )
-    parser.add_argument("--max-drawdown-threshold", "-dt", type=float, default=5,
-                        help="Drawdown threshold, in percent."
+    parser.add_argument(
+        "--metrics-method",
+        choices=["daily", "monthly"],
+        default="daily",
+        help="Choose frequency for return/risk calculations: daily or monthly",
     )
-    parser.add_argument("--metrics-method", choices=["daily", "monthly"], default="daily",
-                        help="Choose frequency for return/risk calculations: daily or monthly"
+    parser.add_argument(
+        "--max-riskfree-delay",
+        "-mrd",
+        type=int,
+        help="Maximum allowed delay (in days) for the most recent risk-free rate entry.",
     )
-    parser.add_argument("--max-riskfree-delay", "-mrd", type=int,
-                        help="Maximum allowed delay (in days) for the most recent risk-free rate entry."
+    parser.add_argument(
+        "--lookback",
+        "-lb",
+        choices=["YTD", "1M", "3M", "6M", "1Y", "3Y", "5Y", "10Y"],
+        help=(
+            "Trim all series to the chosen trailing period "
+            "(e.g. 3M = last 3 months) before calculating metrics."
+        ),
     )
-    parser.add_argument("--lookback", "-lb",
-                        choices=["YTD", "1M", "3M", "6M", "1Y", "3Y", "5Y", "10Y"],
-                        help=("Trim all series to the chosen trailing period "
-                              "(e.g. 3M = last 3 months) before calculating metrics."))
-    parser.add_argument("--save-golden-data", "-sgd", action="store_true",
-                        help="Save golden data as a Pickle file for testing."
+    parser.add_argument(
+        "--save-golden-data",
+        "-sgd",
+        action="store_true",
+        help="Save golden data as a Pickle file for testing.",
     )
-    parser.add_argument("--quiet", "-q", action="store_true",
-                        help="Suppresses the 'Continue anyway?' prompt when stale data is detected, and automatically proceeds as if you answered yes.")
-    parser.add_argument("--debug", "-d", action="store_true",
-                        help="Show full tracebacks for debugging."
+    parser.add_argument(
+        "--quiet",
+        "-q",
+        action="store_true",
+        help=(
+            "Suppresses the 'Continue anyway?' prompt when stale data is detected, and "
+            "automatically proceeds as if you answered yes."
+        ),
+    )
+    parser.add_argument(
+        "--debug", "-d", action="store_true", help="Show full tracebacks for debugging."
     )
 
     args = parser.parse_args()
@@ -451,21 +517,28 @@ if __name__ == "__main__":
     try:
         settings = {
             "portfolio_file": args.toml_file,
-            "show_plot": args.show_plot if args.show_plot is not None else config.get("show_plot", True),
+            "show_plot": (
+                args.show_plot if args.show_plot is not None else config.get("show_plot", True)
+            ),
             "output_snapshot": args.output_snapshot or config.get("output_snapshot", False),
             "output_csv": args.output_csv or config.get("output_csv", False),
             "output_dir": args.output_dir or config.get("output_dir", "outputs"),
-            "drawdown_threshold": args.max_drawdown_threshold or config.get("max_drawdown_threshold", 5.0),
+            "drawdown_threshold": args.max_drawdown_threshold
+            or config.get("max_drawdown_threshold", 5.0),
             "metrics_method": args.metrics_method or config.get("metrics_method", "daily"),
             "skip_age_check": config.get("skip_age_check", False),
-            "quiet": args.quiet or config.get("quiet", False),            
+            "quiet": args.quiet or config.get("quiet", False),
             "save_golden": args.save_golden_data or config.get("save_golden_data", False),
             "debug": args.debug or config.get("debug", False),
             "lookback": args.lookback or config.get("lookback"),  # None → full history
-            "risk_free_rates_file": config.get("risk_free_rates_file", "data/India 10-Year Bond Yield Historical Data.csv"),
+            "risk_free_rates_file": config.get(
+                "risk_free_rates_file", "data/India 10-Year Bond Yield Historical Data.csv"
+            ),
             "use_benchmark": config.get("use_benchmark", True),
             "benchmark_name": config.get("benchmark_name", "NIFTY Total Returns Index"),
-            "benchmark_file": config.get("benchmark_returns_file", "data/NIFTY Total Returns Historical Data.csv"),
+            "benchmark_file": config.get(
+                "benchmark_returns_file", "data/NIFTY Total Returns Historical Data.csv"
+            ),
             "benchmark_date_format": config.get("benchmark_date_format", "%m/%d/%Y"),
             "riskfree_date_format": config.get("riskfree_date_format", "%m/%d/%Y"),
             "max_riskfree_delay": args.max_riskfree_delay or config.get("max_riskfree_delay", 61),
