@@ -347,7 +347,6 @@ def test_beta_regression_known_series():
 
 
 @pytest.mark.order(50)
-@pytest.mark.skip(reason="Phase D: max_drawdowns method commented out at timeseries.py:309 — needs reimplementation")
 def test_max_drawdowns_basic():
     """
     Ensure .max_drawdowns() correctly identifies drawdown periods.
@@ -365,12 +364,11 @@ def test_max_drawdowns_basic():
     dd = result[0]
     assert dd["start_date"] == pd.Timestamp("2023-01-04")
     assert dd["trough_date"] == pd.Timestamp("2023-01-10")
-    assert abs(dd["depth_pct"] + 0.0909) < 0.2  # -9.09% drop
+    assert abs(dd["depth_pct"] + 9.09) < 0.2  # -9.09% drop (percent × 100 convention)
     assert dd["recovery_date"] == pd.Timestamp("2023-01-11")
 
 
 @pytest.mark.order(51)
-@pytest.mark.skip(reason="Phase D: max_drawdowns method commented out at timeseries.py:309 — needs reimplementation")
 def test_max_drawdowns_behavioral():
     """
     Behavioral test: Confirm correct drawdown detection without relying on fixed dates.
@@ -386,13 +384,12 @@ def test_max_drawdowns_behavioral():
     dd = result[0]
 
     expected_drop_pct = -((110 - 100) / 110) * 100
-    assert abs(dd["drawdown"] - expected_drop_pct) < 1e-6
+    assert abs(dd["depth_pct"] - expected_drop_pct) < 1e-6
     assert dd["trough_value"] == 100
     assert dd["recovery_value"] == 115
 
 
 @pytest.mark.order(52)
-@pytest.mark.skip(reason="Phase D: max_drawdowns method commented out at timeseries.py:309 — needs reimplementation")
 def test_max_drawdowns_no_recovery():
     """
     If the series never fully recovers to a previous peak, no drawdown is recorded.
@@ -407,7 +404,6 @@ def test_max_drawdowns_no_recovery():
 
 
 @pytest.mark.order(53)
-@pytest.mark.skip(reason="Phase D: max_drawdowns method commented out at timeseries.py:309 — needs reimplementation")
 def test_max_drawdowns_none():
     """
     A steady upward trend should produce no drawdowns.

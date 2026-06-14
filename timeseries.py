@@ -195,47 +195,23 @@ class TimeseriesReturn:
         return TimeseriesReturn(pd.DataFrame({"value": s}, index=self.index))
 
     def cagr(self):
+        """Annualized return of the underlying value series.
+
+        Delegates to ``metrics.cagr`` (the underlying ``_series`` is
+        treated as a price/CIV series).
         """
-        Compute the compound annual growth rate (CAGR) from the first to last 'value'.
-        Assumes a price-like cumulative series.
-        This method uses relativedelta (actual calendar time). It “knows” that months
-        vary in length (and handles end‑of‑month rollovers and leap days) when you use
-        its months or years parameters.
-        """
-        s = self.value_series().dropna()
-        if len(s) < 2:
-            raise ValueError("CAGR calculation requires at least two data points.")
-
-        start_value = s.iloc[0]
-        end_value = s.iloc[-1]
-        start_date = s.index[0]
-        end_date = s.index[-1]
-
-        days = (end_date - start_date).days
-        years = days / 365.25
-        
-        if years <= 0:
-            raise ValueError("CAGR calculation requires a positive time span.")
-        if start_value == 0:
-            raise ValueError("CAGR calculation invalid: start value is zero.")
-
-        return (end_value / start_value) ** (1 / years) - 1
+        import metrics
+        return metrics.cagr(self.value_series())
 
     def volatility(
             self,
             periods_per_year: int = 252,
             frequency: str = "daily"
     ) -> float:
-        """
-        Calculate the annualized volatility (standard deviation of returns).
-
-        If frequency='monthly', automatically resamples returns to monthly, adjusts scaling,
-        and ignores periods_per_year.
-        For deterministic unit testing, use periods_per_year=1 to disable annualization.
-        """
+        """Annualized volatility. Delegates to ``metrics.volatility``."""
+        import metrics
         returns, scale = self._standardized_returns(frequency, periods_per_year)
-
-        return returns.std() * (scale ** 0.5)
+        return metrics.volatility(returns, periods_per_year=scale)
 
     def sortino(
             self,
@@ -243,28 +219,10 @@ class TimeseriesReturn:
             periods_per_year: int = 252,
             frequency: str = "daily"
     ) -> float:
-        """
-        Calculate the annualized Sortino ratio.
-
-        If frequency='monthly', automatically resamples returns to monthly, adjusts scaling,
-        and ignores periods_per_year.
-        Set periods_per_year=1 to disable annualization for exact unit-testable ratios.
-        """
+        """Annualized Sortino ratio. Delegates to ``metrics.sortino``."""
+        import metrics
         returns, scale = self._standardized_returns(frequency, periods_per_year)
-
-        excess_returns = returns - risk_free_rate
-        fuzz = -1e-10
-        downside_returns = excess_returns[excess_returns < fuzz]
-
-        if downside_returns.std() == 0:
-            if excess_returns.mean() > 0:
-                return float("inf")
-            elif excess_returns.mean() < 0:
-                return float("-inf")
-            else:
-                return 0.0
-
-        return (excess_returns.mean() * scale) / (downside_returns.std() * (scale ** 0.5))
+        return metrics.sortino(returns, risk_free_rate=risk_free_rate, periods_per_year=scale)
 
     def sharpe(
             self,
@@ -272,46 +230,31 @@ class TimeseriesReturn:
             periods_per_year: int = 252,
             frequency: str = "daily"
     ) -> float:
-        """
-        Calculate the annualized Sharpe ratio.
-
-        If frequency='monthly', automatically resamples returns to monthly, adjusts scaling,
-        and ignores periods_per_year.
-        Set periods_per_year=1 to disable annualization for exact unit-testable ratios.
-        """
+        """Annualized Sharpe ratio. Delegates to ``metrics.sharpe``."""
+        import metrics
         returns, scale = self._standardized_returns(frequency, periods_per_year)
-
-        excess_returns = returns - risk_free_rate
-        std_dev = returns.std()
-
-        if std_dev < 1e-12:  # treat as zero to avoid absurdly large ratios
-            if excess_returns.mean() > 0:
-                return float("inf")   # perfectly stable outperformance
-            elif excess_returns.mean() < 0:
-                return float("-inf")  # perfectly stable underperformance
-            else:
-                return 0.0            # no return = no reward
-
-        return (excess_returns.mean() * scale) / (std_dev * (scale ** 0.5))
+        return metrics.sharpe(returns, risk_free_rate=risk_free_rate, periods_per_year=scale)
 
     def max_drawdown(self):
-        """
-        Compute the maximum drawdown of a cumulative series.
-        Assumes 'value' is NAV or price.
-        """
-        s = self.value_series().dropna()
-        if s.empty:
-            raise ValueError("Max drawdown requires at least one data point.")
-        cumulative_max = s.cummax()
-        drawdowns = (s - cumulative_max) / cumulative_max
-        return drawdowns.min()  # most negative value
+        """Maximum drawdown of the price series. Delegates to ``metrics.max_drawdown``."""
+        import metrics
+        return metrics.max_drawdown(self.value_series())
 
-    """
     def max_drawdowns(self, threshold=0.05):
-        
+        """List the fully-recovered drawdowns whose magnitude exceeds ``threshold``.
+
+        Delegates to ``metrics.max_drawdowns``. Returns a list of dicts
+        with ``start_date``, ``trough_date``, ``recovery_date``, and
+        ``drawdown`` (positive fraction).
+        """
+        import metrics
+        return metrics.max_drawdowns(self.value_series(), threshold=threshold)
+
+    """ Original docstring of restored max_drawdowns retained for reference:
+
         Calculate maximum drawdowns with full retracements.
         A drawdown is recorded only after the series has fully recovered to the peak from which it fell.
-        
+
         Parameters:
             cumulative (TimeseriesReturn): Cumulative portfolio returns.
             threshold (float): Minimum drawdown percentage to report (e.g., 0.05 for 5%).
