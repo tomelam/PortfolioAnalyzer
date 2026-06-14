@@ -1,0 +1,7 @@
+# Config overlay used when capturing golden-master data.
+#
+# We intentionally bypass the data-staleness check so the safety net
+# can be built against the CSV snapshots currently in data/. When the
+# data files are refreshed, the goldens must be re-captured.
+skip_age_check = true
+max_riskfree_delay = 99999

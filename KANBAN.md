@@ -43,6 +43,15 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 - [ ] Push, tag `v0.1-salvage`
 - [ ] Decide whether to make GitHub repo private during salvage
 
+### Data freshness (separate from salvage; user responsibility)
+- [ ] **Refresh stale data files.** As of 2026-06-14, the canonical data files in `data/` are 13+ months out of date and the code's own staleness checks refuse to run against them:
+  - `data/NIFTY Total Returns Historical Data.csv` — last date 2025-05-02 (NIFTY Total Returns Index)
+  - `data/India 10-Year Bond Yield Historical Data.csv` — last date 2025-03-28 (risk-free rate)
+- [ ] These are manual downloads (investing.com / similar). Document the refresh procedure in `docs/DATA_CLEANING.txt` or a new `docs/DATA_REFRESH.md`.
+- [ ] Golden-master tests captured before refresh (Phase C of this salvage) are pinned to the stale data via `tests/fixtures/golden_master_config.toml` (`skip_age_check = true`, `max_riskfree_delay = 99999`). **After refreshing the CSVs, re-capture the goldens** — the existing ones will no longer match.
+- [ ] Consider automating the NIFTY + bond-yield refresh (scraper or scheduled fetch) so the staleness gate becomes early-warning, not a hard blocker, for routine runs.
+- [ ] Also refresh any other under-watched data sources used by `data_loader.py`: `ppf_interest_rates.csv`, REC bond coupon table, SCSS rate table (if file-backed) — audit `data/` for last-modified dates.
+
 ### Hygiene / tech debt
 - [ ] Replace deprecated `.fillna(method='ffill')` (if still present) with `.ffill()`
 - [ ] Add type hints incrementally; switch `ignore_missing_imports` off per-module
