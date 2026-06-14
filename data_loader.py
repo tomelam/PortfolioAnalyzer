@@ -570,83 +570,8 @@ def fetch_yahoo_finance_data(ticker, refresh_hours=6, period="max"):
 
 
 # Load risk-free rate data
-def fetch_and_standardize_risk_free_rates(
-    file_path,
-    date_format,
-    max_allowed_delay_days,
-):
-    """
-    Load risk-free rate data from a CSV file and check if it's outdated based on the date content.
-
-    Parameters:
-        file_path (str): Path to the CSV file.
-        date_format (str): Format string to match the date components (day, month, year)
-        max_allowed_delay_days: Maximum acceptable age in days of the latest date in the CSV
-
-    Returns:
-        pd.DataFrame: Risk-free rate data indexed by date.
-
-    Raises:
-        FileNotFoundError: If the file is missing.
-        ValueError: If the file format is invalid.
-        RuntimeError: If the data is outdated.
-    """
-    dbg(f"📂 Loading risk‑free series \"{file_path}\" "
-        f"(max staleness {max_allowed_delay_days} days)")
-    try:
-        df = load_timeseries_csv(file_path, date_format, max_delay_days=max_allowed_delay_days)
-        df.set_series(df.value_series() / 100.0)  # Convert from percent to decimal
-        return df.value_series()
-    except Exception as e:
-        raise ValueError(f"Failed to load risk-free rate data: {e}")
-
-
-# Interpolate risk-free rates to match portfolio dates
-def align_dynamic_risk_free_rates(
-        portfolio_returns,
-        risk_free_data,
-):
-    """
-    Align and interpolate risk-free rates to match portfolio return dates.
-
-    Parameters:
-        portfolio_returns (pd.Series): Portfolio daily returns.
-        risk_free_data (pd.DataFrame): Risk-free rate data.
-
-    Returns:
-        pd.Series: Interpolated risk-free rates.
-    """
-
-    # Debug diagnostics
-    assert isinstance(risk_free_data.index, pd.DatetimeIndex), (
-        "Risk-free rate data index must be a DatetimeIndex. "
-        f"Got: {type(risk_free_data.index).__name__}"
-    )
-    overlap = portfolio_returns.index.intersection(risk_free_data.index)
-    if DEBUG:
-        info(f"Risk-free rate series shape: {risk_free_data.shape}")
-
-        idx = risk_free_data.index
-        start = pd.to_datetime(idx.min(), errors="coerce")
-        end = pd.to_datetime(idx.max(), errors="coerce")
-        info(f"Index range: {start.date() if pd.notna(start) else 'NaT'} → {end.date() if pd.notna(end) else 'NaT'}")
-        info(f"First few rows:\n{risk_free_data.head(3)}")
-        info(f"Last few rows:\n{risk_free_data.tail(3)}")
-        info(f"NaNs in risk-free series: {risk_free_data['rate'].isna().sum()}")
-        info(f"Non-zero values: {(risk_free_data['value'] != 0).sum()}")
-        info(f"Common dates between portfolio and risk-free: {len(overlap)}")
-
-    if len(overlap) < 10:
-        info("⚠️ Very few or no overlapping dates — risk-free may not be aligned.")
-
-    aligned_rates = (
-        risk_free_data
-        .reindex(portfolio_returns.index)
-        .interpolate(method="time")
-    )
-
-    aligned_rates = risk_free_data.reindex(portfolio_returns.index)
-    rate_series = aligned_rates.infer_objects(copy=False).interpolate(method="time")
-    filled_rates = rate_series.ffill().bfill()
-    # return filled_rates.mean()
-    return filled_rates
+# Backward-compatibility re-exports. Implementations live in risk_free_loader.
+from risk_free_loader import (  # noqa: E402, F401
+    align_dynamic_risk_free_rates,
+    fetch_and_standardize_risk_free_rates,
+)
