@@ -25,8 +25,10 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 - [x] Extract `load_ppf_interest_rates` + `load_ppf_civ` → `ppf_loader.py` with 3 added rate-CSV contract tests. Total PPF tests: 8.
 - [x] Extract `load_timeseries_csv` → `benchmark_loader.py` with 6 tests. Deleted dead `load_index_data` and its unused main.py import.
 - [x] Extract `fetch_and_standardize_risk_free_rates` + `align_dynamic_risk_free_rates` → `risk_free_loader.py` with 5 tests (Series return, percent→decimal, staleness, weekend-gap interpolation, alignment).
-- [ ] Extract remaining loaders from `data_loader.py`: NSI SCSS (`load_scss_interest_rates` — 102-line web scrape), REC bond (currently inline in `main.py`).
-- [ ] TDD-first contract for each — for scrapers/APIs use mocked HTML/JSON fixtures under `tests/fixtures/api_responses/`
+- [x] Extract NSI SCSS scraper → `scss_loader.py`, decomposed into pure `parse_scss_html` + network `fetch_scss_html` + composed `load_scss_interest_rates`. 8 tests using static HTML fixture, all in 0.5s.
+- [x] Extract REC bond from `main.py` → `rec_bond_loader.py` honoring the TOML `coupon` field (was silently hardcoded 5.25%). 5 tests.
+- [ ] Add unit tests for `sgb_loader.py` (currently 0 coverage — it's the only loader without tests).
+- [ ] Consolidate all `*_loader.py` files into a `loaders/` package as one big-bang rename commit.
 - [ ] Consolidate the four `*timeseries*.py` files (timeseries.py 22.9 KB, timeseries_civ.py, asset_timeseries.py, portfolio_timeseries.py) into a `portfolio_analyzer/timeseries/` package
 - [ ] Test `TimeseriesCIV`, `TimeseriesReturn`, `AssetTimeseries`, `PortfolioTimeseries` independently
 - [ ] Unit tests for `synthetic_civ.py` (PPF/SCSS interest-rate compounding)
