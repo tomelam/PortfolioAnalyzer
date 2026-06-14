@@ -12,7 +12,8 @@ def create_sgb_daily_returns(csv_path="sgb_data.csv", initial_value=100):
     Returns:
         pd.DataFrame: DataFrame with DateTime index (issue dates) and issue prices as values.
     """
-    df = pd.read_csv(csv_path, parse_dates=["Issue Date"])
+    df = pd.read_csv(csv_path)
+    df["Issue Date"] = pd.to_datetime(df["Issue Date"], dayfirst=True)
     df.set_index("Issue Date", inplace=True)
     df.sort_index(inplace=True)
 
