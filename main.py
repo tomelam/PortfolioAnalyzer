@@ -95,14 +95,9 @@ def main(args):
         scss_series = calculate_variable_bond_cumulative_gain(scss_rates, scss_rates.index.min())
 
     if "rec_bond" in portfolio_dict:
-        from bond_calculators import calculate_variable_bond_cumulative_gain
+        from rec_bond_loader import load_rec_bond_series
 
-        rec_bond_rates = pd.DataFrame(
-            {"rate": [5.25]}, index=pd.date_range("2000-01-01", pd.Timestamp.today(), freq="D")
-        )
-        rec_bond_series = calculate_variable_bond_cumulative_gain(
-            rec_bond_rates, rec_bond_rates.index.min()
-        )
+        rec_bond_series = load_rec_bond_series(portfolio_dict["rec_bond"])
 
     if "sgb" in portfolio_dict:
         from sgb_loader import create_sgb_daily_returns
