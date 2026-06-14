@@ -20,9 +20,11 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 - [x] **`synthetic_civ.py:43` deprecated `freq="M"`** — replaced with `"ME"`
 
 ### Phase D — Decomposition + TDD cycles
-- [ ] Create `portfolio_analyzer/loaders/` package; move `gold_loader.py`, `sgb_loader.py` into it
-- [ ] Extract per-asset loaders from `data_loader.py` (32.5 KB): mutual fund, NIFTY benchmark, FRED risk-free, NSI SCSS, REC bond → `loaders/{mutual_fund,nifty,risk_free,scss,rec_bond}.py`
-- [ ] Each loader: TDD-first — mock HTTP with `responses`, capture fixtures under `tests/fixtures/api_responses/`
+- [ ] Create `portfolio_analyzer/loaders/` package; move all `*_loader.py` files into it as a single big-bang rename commit
+- [x] Extract `fetch_navs_of_mutual_fund` → `mutual_fund_loader.fetch_navs` with 7 unit tests (DataFrame contract, nav float, sorted DatetimeIndex, dayfirst parsing, retry-on-transient, exhausted-retries error, missing-data error). `data_loader` re-exports for compat.
+- [x] Extract `load_ppf_interest_rates` + `load_ppf_civ` → `ppf_loader.py` with 3 added rate-CSV contract tests. Total PPF tests: 8.
+- [ ] Extract remaining loaders from `data_loader.py`: NIFTY benchmark (`load_index_data`, `load_timeseries_csv`), FRED risk-free (`fetch_and_standardize_risk_free_rates`), NSI SCSS (`load_scss_interest_rates` — 102-line web scrape), REC bond (currently inline in `main.py`).
+- [ ] TDD-first contract for each — for scrapers/APIs use mocked HTML/JSON fixtures under `tests/fixtures/api_responses/`
 - [ ] Consolidate the four `*timeseries*.py` files (timeseries.py 22.9 KB, timeseries_civ.py, asset_timeseries.py, portfolio_timeseries.py) into a `portfolio_analyzer/timeseries/` package
 - [ ] Test `TimeseriesCIV`, `TimeseriesReturn`, `AssetTimeseries`, `PortfolioTimeseries` independently
 - [ ] Unit tests for `synthetic_civ.py` (PPF/SCSS interest-rate compounding)
