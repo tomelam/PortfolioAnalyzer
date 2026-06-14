@@ -61,7 +61,9 @@ def check_time_index_cleanliness(df, name="DataFrame"):
     problems = []
 
     if not isinstance(idx, pd.DatetimeIndex):
-        problems.append("Index is not a DatetimeIndex — possibly string-based. Was date_format applied correctly?")
+        problems.append(
+            "Index is not a DatetimeIndex — possibly string-based. Was date_format applied correctly?"
+        )
 
     if idx.hasnans:
         problems.append("Index contains NaT values — likely due to failed date parsing.")
@@ -110,11 +112,13 @@ def load_timeseries_csv(
     df[date_column] = parsed_dates
     last_date = parsed_dates.max()
     if DEBUG:
-        today   = pd.Timestamp.today().normalize()
-        last    = parsed_dates.max()
-        age     = (today - last).days
-        info(f"    ↳ last record {last_date.date()} "
-             f"({age} days old, max allowed {max_delay_days if max_delay_days is not None else '∞'})")
+        today = pd.Timestamp.today().normalize()
+        last = parsed_dates.max()
+        age = (today - last).days
+        info(
+            f"    ↳ last record {last_date.date()} "
+            f"({age} days old, max allowed {max_delay_days if max_delay_days is not None else '∞'})"
+        )
     df.set_index(date_column, inplace=True)
     df.sort_index(inplace=True)
     if not isinstance(df.index, pd.DatetimeIndex):
@@ -125,12 +129,15 @@ def load_timeseries_csv(
     # Find the value column and rename it "value"
     col_priority = ["rate", "price", "close", "yield"]
     candidates = [
-        col for name in col_priority
+        col
+        for name in col_priority
         for col in df.columns
         if name in col.lower() and col != date_column
     ]
     if not candidates:
-        raise ValueError(f"{file_path}: no column found containing 'rate', 'price', 'close', or 'yield'")
+        raise ValueError(
+            f"{file_path}: no column found containing 'rate', 'price', 'close', or 'yield'"
+        )
     if len(candidates) > 1:
         raise ValueError(f"{file_path}: multiple candidate value columns: {candidates}")
     value_column = candidates[0]
@@ -142,11 +149,7 @@ def load_timeseries_csv(
     except ValueError as e:
         # Attempt to show a sample of bad values
         bad_rows = df[
-            ~df["value"]
-            .astype(str)
-            .str.replace(".", "", 1)
-            .str.replace("-", "", 1)
-            .str.isnumeric()
+            ~df["value"].astype(str).str.replace(".", "", 1).str.replace("-", "", 1).str.isnumeric()
         ]
         info(f"❗ Could not convert 'value' column to float. Sample of bad rows:")
         info(bad_rows.head(5).to_string(index=False))
@@ -158,7 +161,7 @@ def load_timeseries_csv(
         today = pd.Timestamp.today().normalize()
         expected_latest = (today - pd.Timedelta(days=max_delay_days)).replace(day=1)
 
-        dbg(f"Latest date in \"{os.path.basename(file_path)}\": {last_date.date()}")
+        dbg(f'Latest date in "{os.path.basename(file_path)}": {last_date.date()}')
         dbg(f"Required minimum date: {expected_latest.date()}")
 
         if last_date < expected_latest:
@@ -192,8 +195,7 @@ def get_aligned_portfolio_civs(portfolio):
 # Get portfolio CIVs
 def fetch_portfolio_civs(portfolio):
     portfolio_civs = {
-        fund["name"]: fetch_navs_of_mutual_fund(fund["url"])
-        for fund in portfolio["funds"]
+        fund["name"]: fetch_navs_of_mutual_fund(fund["url"]) for fund in portfolio["funds"]
     }
     return portfolio_civs
 
@@ -215,8 +217,7 @@ def align_portfolio_civs(portfolio_civs):
 
     # Align each fund's CIV data to the common date range
     aligned_civs = {
-        name: civ.loc[common_start_date:common_end_date]
-        for name, civ in portfolio_civs.items()
+        name: civ.loc[common_start_date:common_end_date] for name, civ in portfolio_civs.items()
     }
 
     # Combine aligned CIV data into a single DataFrame.
@@ -235,7 +236,9 @@ def load_index_data(filepath, source, skip_age_check=False):
     if source == "investing.com":
         expected_cols = {"Date", "Price"}
         if not expected_cols.issubset(df.columns):
-            raise ValueError(f"Expected columns {expected_cols} in file from investing.com, got {df.columns.tolist()}")
+            raise ValueError(
+                f"Expected columns {expected_cols} in file from investing.com, got {df.columns.tolist()}"
+            )
 
         df["Date"] = pd.to_datetime(df["Date"], dayfirst=True, errors="raise")
         df = df.rename(columns={"Date": "date", "Price": "value"})
@@ -243,7 +246,9 @@ def load_index_data(filepath, source, skip_age_check=False):
     elif source == "niftyindices.com":
         expected_cols = {"Date", "Close", "Index Name"}
         if not expected_cols.issubset(df.columns):
-            raise ValueError(f"Expected columns {expected_cols} in file from niftyindices.com, got {df.columns.tolist()}")
+            raise ValueError(
+                f"Expected columns {expected_cols} in file from niftyindices.com, got {df.columns.tolist()}"
+            )
 
         try:
             df["Date"] = pd.to_datetime(df["Date"], format="%d %b %Y", errors="raise")
@@ -259,7 +264,7 @@ def load_index_data(filepath, source, skip_age_check=False):
     df = df.sort_values("date").reset_index(drop=True)
 
     if not skip_age_check:
-        warn_if_stale(df, label=source)
+        warn_if_stale(df, label=source, quiet=quiet)
 
     return df
 
@@ -275,7 +280,9 @@ def get_benchmark_gain_daily(benchmark_data):
         pd.Series: Benchmark daily returns indexed by date.
     """
     # Ensure the index (dates) is treated as a datetime column
-    benchmark_data.value_series().index = pd.to_datetime(benchmark_data.value_series().index, errors="coerce").tz_localize(None)
+    benchmark_data.value_series().index = pd.to_datetime(
+        benchmark_data.value_series().index, errors="coerce"
+    ).tz_localize(None)
     # Assign the index name to "date"
     benchmark_data.value_series().index.name = "date"
     # Calculate daily returns
@@ -336,10 +343,10 @@ def load_scss_interest_rates():
         at least two cells with the first cell equal to "YEAR" and the second cell containing
         "INTEREST".
         """
-        for container in soup.find_all(['table', 'tbody']):
-            first_row = container.find('tr')
+        for container in soup.find_all(["table", "tbody"]):
+            first_row = container.find("tr")
             if first_row:
-                cells = first_row.find_all(['td', 'th'])
+                cells = first_row.find_all(["td", "th"])
                 if len(cells) >= 2:
                     header1 = cells[0].get_text(strip=True).lower()
                     header2 = cells[1].get_text(strip=True).lower()
@@ -352,22 +359,22 @@ def load_scss_interest_rates():
         Extracts the interest rate series from the identified table.
         Returns a list of dictionaries (one per row) using the first row as header keys.
         """
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         target_table = find_target_table(soup)
         if not target_table:
             raise ValueError("Target table not found.")
 
-        header_row = target_table.find('tr')
-        headers = [cell.get_text(strip=True) for cell in header_row.find_all(['td', 'th'])]
+        header_row = target_table.find("tr")
+        headers = [cell.get_text(strip=True) for cell in header_row.find_all(["td", "th"])]
 
         rate_series = []
-        for row in target_table.find_all('tr')[1:]:
-            cells = row.find_all(['td', 'th'])
+        for row in target_table.find_all("tr")[1:]:
+            cells = row.find_all(["td", "th"])
             cells_text = [cell.get_text(strip=True) for cell in cells]
             if len(cells_text) < len(headers):
                 cells_text.extend([""] * (len(headers) - len(cells_text)))
             else:
-                cells_text = cells_text[:len(headers)]
+                cells_text = cells_text[: len(headers)]
             rate_series.append(dict(zip(headers, cells_text)))
         return rate_series
 
@@ -383,7 +390,7 @@ def load_scss_interest_rates():
             except Exception:
                 continue
         # Fall back to dateutil parser with dayfirst=True.
-        return pd.to_datetime(start_str, dayfirst=True, errors='coerce')
+        return pd.to_datetime(start_str, dayfirst=True, errors="coerce")
 
     def process_rate_series(raw_series):
         """
@@ -406,8 +413,8 @@ def load_scss_interest_rates():
     try:
         html = fetch_html(url, verify_ssl=False)
         raw_rate_series = extract_rate_series(html)
-        #info("SCSS rate series:")
-        #for row in raw_rate_series:
+        # info("SCSS rate series:")
+        # for row in raw_rate_series:
         #    info(row)
         processed_rates = process_rate_series(raw_rate_series)
     except Exception as e:
@@ -451,12 +458,12 @@ def load_portfolio_details(toml_file_path):
     # Validate the top-level keys
     if "label" not in portfolio_details:
         raise ValueError("Missing required top-level key: 'label'")
-    
+
     # Check that at least one asset exists (including new asset types)
     valid_asset_keys = ["funds", "ppf", "gold", "sgb", "scss", "rec_bond"]
     if not any(key in portfolio_details for key in valid_asset_keys):
         raise ValueError("TOML file specifies no assets")
-    
+
     errors = []
 
     # Validate funds if present
@@ -471,20 +478,30 @@ def load_portfolio_details(toml_file_path):
                     if key not in fund:
                         errors.append(f"Missing required key '{key}' in investment '{fund_id}'")
                 if "allocation" in fund:
-                    if not isinstance(fund["allocation"], (float, int)) or not (0 <= fund["allocation"] <= 1):
-                        errors.append(f"Invalid allocation value for investment '{fund_id}': Must be between 0 and 1")
+                    if not isinstance(fund["allocation"], (float, int)) or not (
+                        0 <= fund["allocation"] <= 1
+                    ):
+                        errors.append(
+                            f"Invalid allocation value for investment '{fund_id}': Must be between 0 and 1"
+                        )
                 if "asset_allocation" in fund:
                     if not isinstance(fund["asset_allocation"], dict):
-                        errors.append(f"'asset_allocation' must be a dictionary for investment '{fund_id}'")
+                        errors.append(
+                            f"'asset_allocation' must be a dictionary for investment '{fund_id}'"
+                        )
                     else:
                         required_asset_keys = ["equity", "debt", "real_estate", "commodities", "cash"]
                         for key in required_asset_keys:
                             if key not in fund["asset_allocation"]:
-                                errors.append(f"Missing key in 'asset_allocation' for investment '{fund_id}': '{key}'")
+                                errors.append(
+                                    f"Missing key in 'asset_allocation' for investment '{fund_id}': '{key}'"
+                                )
                             else:
                                 value = fund["asset_allocation"][key]
                                 if not isinstance(value, (float, int)) or value < 0:
-                                    errors.append(f"Invalid value for '{key}' in 'asset_allocation' of investment '{fund_id}': Must be a non-negative number")
+                                    errors.append(
+                                        f"Invalid value for '{key}' in 'asset_allocation' of investment '{fund_id}': Must be a non-negative number"
+                                    )
 
     # Validate PPF if present
     if "ppf" in portfolio_details:
@@ -505,7 +522,7 @@ def load_portfolio_details(toml_file_path):
         else:
             if not isinstance(gold["allocation"], (float, int)) or not (0 <= gold["allocation"] <= 1):
                 errors.append(f"Invalid allocation value for {gold_id}: Must be between 0 and 1")
-    
+
     # Validate SGB if present
     if "sgb" in portfolio_details:
         sgb = portfolio_details["sgb"]
@@ -515,7 +532,7 @@ def load_portfolio_details(toml_file_path):
         else:
             if not isinstance(sgb["allocation"], (float, int)) or not (0 <= sgb["allocation"] <= 1):
                 errors.append(f"Invalid allocation value for {sgb_id}: Must be between 0 and 1")
-    
+
     # Validate SCSS if present
     if "scss" in portfolio_details:
         scss = portfolio_details["scss"]
@@ -525,7 +542,7 @@ def load_portfolio_details(toml_file_path):
         else:
             if not isinstance(scss["allocation"], (float, int)) or not (0 <= scss["allocation"] <= 1):
                 errors.append(f"Invalid allocation value for {scss_id}: Must be between 0 and 1")
-    
+
     # Validate REC Bond if present
     if "rec_bond" in portfolio_details:
         rec = portfolio_details["rec_bond"]
@@ -539,7 +556,7 @@ def load_portfolio_details(toml_file_path):
         if "coupon" in rec:
             if not isinstance(rec["coupon"], (float, int)) or rec["coupon"] <= 0:
                 errors.append(f"Invalid coupon value for {rec_id}: Must be a positive number")
-    
+
     if errors:
         all_errors = "\n".join(errors)
         raise ValueError("TOML file errors detected:\n" + all_errors)
@@ -599,7 +616,9 @@ def validate_allocations(portfolio_details, tol=0.01):
     if "rec_bond" in portfolio_details:
         total_allocation += portfolio_details["rec_bond"].get("allocation", 0)
     if abs(total_allocation - 1.0) > tol:
-        raise ValueError(f"Total allocation is {total_allocation:.4f}, but it must sum to 1.00 within tolerance {tol}.")
+        raise ValueError(
+            f"Total allocation is {total_allocation:.4f}, but it must sum to 1.00 within tolerance {tol}."
+        )
 
 
 # Fetch NAV data
@@ -621,23 +640,15 @@ def fetch_navs_of_mutual_fund(url, retries=10, timeout=20):
             response.raise_for_status()
             data = response.json()
             if "data" not in data or not data["data"]:
-                raise KeyError(
-                    f"'data' key missing or empty in API response from {url}"
-                )
+                raise KeyError(f"'data' key missing or empty in API response from {url}")
             nav_data = pd.DataFrame(data["data"])
-            nav_data["date"] = pd.to_datetime(
-                nav_data["date"], dayfirst=True, errors="coerce"
-            )
+            nav_data["date"] = pd.to_datetime(nav_data["date"], dayfirst=True, errors="coerce")
             nav_data["nav"] = nav_data["nav"].astype(float)
             return nav_data.set_index("date").sort_index()
         except requests.RequestException as e:
-            info(
-                f"[Error] Request failed for {url} (Attempt {attempt + 1}/{retries}): {e}"
-            )
+            info(f"[Error] Request failed for {url} (Attempt {attempt + 1}/{retries}): {e}")
         except (ValueError, KeyError) as e:
-            info(
-                f"[Error] Data processing error for {url} (Attempt {attempt + 1}/{retries}): {e}"
-            )
+            info(f"[Error] Data processing error for {url} (Attempt {attempt + 1}/{retries}): {e}")
     raise RuntimeError(f"Failed to fetch NAV data from {url} after {retries} retries")
 
 
@@ -662,9 +673,7 @@ def load_ppf_interest_rates(csv_file_path="data/ppf_interest_rates.csv"):
             raise ValueError("CSV file must contain 'date' and 'rate' columns.")
 
         # Convert "date" to datetime and set it as the index
-        ppf_data["date"] = pd.to_datetime(
-            ppf_data["date"], format="%Y-%m-%d", errors="coerce"
-        )
+        ppf_data["date"] = pd.to_datetime(ppf_data["date"], format="%Y-%m-%d", errors="coerce")
         ppf_data.dropna(subset=["date"], inplace=True)  # Drop rows with invalid dates
         ppf_data.set_index("date", inplace=True)
 
@@ -684,6 +693,7 @@ def load_ppf_interest_rates(csv_file_path="data/ppf_interest_rates.csv"):
 def load_ppf_civ() -> pd.Series:
     """Load PPF interest rates and return synthetic CIV series."""
     from synthetic_civ import calculate_ppf_relative_civ
+
     return calculate_ppf_relative_civ(load_ppf_interest_rates())["civ"]
 
 
@@ -739,9 +749,7 @@ def fetch_yahoo_finance_data(ticker, refresh_hours=6, period="max"):
 
     file_path = f"{ticker.replace('^', '').replace('/', '_')}.csv"
     if not file_modified_within(file_path, refresh_hours):
-        info(
-            f"The data for {ticker} is outdated or missing. Fetching it using yfinance..."
-        )
+        info(f"The data for {ticker} is outdated or missing. Fetching it using yfinance...")
         yf_ticker = yf.Ticker(ticker)
         raw = yf_ticker.history(period=period)
         raw.to_csv(file_path)
@@ -783,8 +791,9 @@ def fetch_and_standardize_risk_free_rates(
         ValueError: If the file format is invalid.
         RuntimeError: If the data is outdated.
     """
-    dbg(f"📂 Loading risk‑free series \"{file_path}\" "
-        f"(max staleness {max_allowed_delay_days} days)")
+    dbg(
+        f'📂 Loading risk‑free series "{file_path}" ' f"(max staleness {max_allowed_delay_days} days)"
+    )
     try:
         df = load_timeseries_csv(file_path, date_format, max_delay_days=max_allowed_delay_days)
         df.set_series(df.value_series() / 100.0)  # Convert from percent to decimal
@@ -795,8 +804,8 @@ def fetch_and_standardize_risk_free_rates(
 
 # Interpolate risk-free rates to match portfolio dates
 def align_dynamic_risk_free_rates(
-        portfolio_returns,
-        risk_free_data,
+    portfolio_returns,
+    risk_free_data,
 ):
     """
     Align and interpolate risk-free rates to match portfolio return dates.
@@ -821,7 +830,9 @@ def align_dynamic_risk_free_rates(
         idx = risk_free_data.index
         start = pd.to_datetime(idx.min(), errors="coerce")
         end = pd.to_datetime(idx.max(), errors="coerce")
-        info(f"Index range: {start.date() if pd.notna(start) else 'NaT'} → {end.date() if pd.notna(end) else 'NaT'}")
+        info(
+            f"Index range: {start.date() if pd.notna(start) else 'NaT'} → {end.date() if pd.notna(end) else 'NaT'}"
+        )
         info(f"First few rows:\n{risk_free_data.head(3)}")
         info(f"Last few rows:\n{risk_free_data.tail(3)}")
         info(f"NaNs in risk-free series: {risk_free_data['rate'].isna().sum()}")
@@ -831,11 +842,7 @@ def align_dynamic_risk_free_rates(
     if len(overlap) < 10:
         info("⚠️ Very few or no overlapping dates — risk-free may not be aligned.")
 
-    aligned_rates = (
-        risk_free_data
-        .reindex(portfolio_returns.index)
-        .interpolate(method="time")
-    )
+    aligned_rates = risk_free_data.reindex(portfolio_returns.index).interpolate(method="time")
 
     aligned_rates = risk_free_data.reindex(portfolio_returns.index)
     rate_series = aligned_rates.infer_objects(copy=False).interpolate(method="time")

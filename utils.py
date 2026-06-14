@@ -9,8 +9,9 @@ except ImportError:
 """
 DEBUG = False
 
+
 def info(msg):
-    '''Print informational messages to stderr so that structured output (stdout e.g. CSV) stays clean'''
+    """Print informational messages to stderr so that structured output (stdout e.g. CSV) stays clean"""
     print(msg, file=sys.stderr)
 
 
@@ -38,8 +39,10 @@ def warn_if_stale(df, label="Data", quiet=False):
 
     age = (now.date() - last_date.date()).days
     if DEBUG:
-        info(f"⏳ Freshness check for {label}: "
-             f"last date {last_date.date()}, {age} days old (limit 1 day).")
+        info(
+            f"⏳ Freshness check for {label}: "
+            f"last date {last_date.date()}, {age} days old (limit 1 day)."
+        )
     if age > 1:
         print(f"\n⚠️  {label} data is {age} days old. Last date: {last_date.date()}")
 
@@ -63,7 +66,7 @@ def to_cutoff_date(tag: str) -> pd.Timestamp:
     Convert a look‑back tag ('YTD', '3M', '5Y', …) to the cutoff date.
     """
     from pandas.tseries.offsets import DateOffset
-    
+
     today = pd.Timestamp.today().normalize()
 
     if tag == "YTD":

@@ -539,7 +539,7 @@ if __name__ == "__main__":
             "benchmark_file": config.get(
                 "benchmark_returns_file", "data/NIFTY Total Returns Historical Data.csv"
             ),
-            "benchmark_date_format": config.get("benchmark_date_format", "%m/%d/%Y"),
+            "benchmark_date_format": config.get("benchmark_date_format", "%d-%m-%Y"),
             "riskfree_date_format": config.get("riskfree_date_format", "%m/%d/%Y"),
             "max_riskfree_delay": args.max_riskfree_delay or config.get("max_riskfree_delay", 61),
         }

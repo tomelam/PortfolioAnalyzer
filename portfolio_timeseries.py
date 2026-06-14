@@ -4,12 +4,16 @@ from asset_timeseries import AssetTimeseries, from_civ
 from timeseries_civ import TimeseriesCIV
 from utils import dbg
 
+
 class PortfolioTimeseries:
     """
     Represents a collection of AssetTimeseries objects,
     combined into a unified portfolio timeseries.
     """
-    def __init__(self, assets: Dict[str, AssetTimeseries], weights: Optional[Dict[str, float]] = None):
+
+    def __init__(
+        self, assets: Dict[str, AssetTimeseries], weights: Optional[Dict[str, float]] = None
+    ):
         if not assets:
             raise ValueError("PortfolioTimeseries requires at least one asset")
         self.assets = assets
@@ -65,8 +69,7 @@ class PortfolioTimeseries:
 
 
 def from_multiple_nav_series(
-    nav_dict: Dict[str, Optional[pd.Series]],
-    weights: Optional[Dict[str, float]] = None
+    nav_dict: Dict[str, Optional[pd.Series]], weights: Optional[Dict[str, float]] = None
 ) -> PortfolioTimeseries:
     """
     Convert a dict of raw NAV series into a PortfolioTimeseries instance.
@@ -87,6 +90,17 @@ def from_multiple_nav_series(
         if not isinstance(series, pd.Series):
             dbg(f"⚠️ Skipping '{name}': not a Series (got {type(series)})")
             continue
+        if hasattr(series, "isna"):
+            n_nans = series.isna().sum()
+            if n_nans > 0:
+                print(
+                    f"DEBUG: {name} has {n_nans} NaNs. First 5 NaN dates:",
+                    series[series.isna()].head().index.tolist(),
+                )
+            else:
+                print(f"DEBUG: {name} has no NaNs.")
+        else:
+            print(f"DEBUG: {name} is type {type(series)}, does not have isna().")
         assets[name] = from_civ(series)
     dbg("Returning from `from_multiple_nav_series`")
     return PortfolioTimeseries(assets=assets, weights=weights)
@@ -95,4 +109,3 @@ def from_multiple_nav_series(
 def civ_and_returns(portfolio_ts: PortfolioTimeseries) -> tuple[pd.Series, pd.Series]:
     """Conveniently get both the CIV and daily return series."""
     return portfolio_ts.combined_civ_series(), portfolio_ts.combined_daily_returns()
-
