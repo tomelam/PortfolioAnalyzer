@@ -1,0 +1,7 @@
+You're still using "coerce". Is this safe, or does this follow the rules you laid out above for good code:
+Don’t clean blindly. Diagnose first. Warn clearly. Let the human decide.
+
+This is especially important if your project is:
+* A data pipeline used by others
+* Consuming third-party CSVs with inconsistent quality
+* Intended to detect bad automation or publishing bugs

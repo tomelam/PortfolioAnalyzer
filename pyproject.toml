@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "portfolio-analyzer"
+version = "0.1.0-salvage"
+description = "Indian portfolio analysis: backtests, metrics, stress tests across mutual funds, gold (SGB), PPF, SCSS, REC bonds, NIFTY benchmark, FRED risk-free rates."
+requires-python = ">=3.12,<3.13"
+authors = [{ name = "Tom Elam" }]
+readme = "README.md"
+
+dependencies = [
+    "pandas==2.2.3",
+    "numpy==1.26.3",
+    "requests==2.32.3",
+    "toml==0.10.2",
+    "urllib3==2.1.0",
+    "beautifulsoup4>=4.12.3",
+    "statsmodels==0.14.4",
+    "matplotlib==3.8.2",
+    "tabulate",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-cov",
+    "pytest-mock",
+    "responses",
+    "freezegun",
+    "ruff",
+    "mypy",
+    "types-requests",
+    "pre-commit",
+    "vulture",
+]
+live-gold = [
+    "yfinance",
+]
+
+[tool.setuptools]
+py-modules = [
+    "main",
+    "data_loader",
+    "timeseries",
+    "timeseries_civ",
+    "asset_timeseries",
+    "portfolio_timeseries",
+    "portfolio_calculator",
+    "synthetic_civ",
+    "civ_to_returns",
+    "bond_calculators",
+    "ppf_calculator",
+    "gold_loader",
+    "sgb_loader",
+    "extract_gold_inr_from_excel",
+    "utils",
+    "visualizer",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "golden: golden-master regression tests",
+    "integration: end-to-end CLI / multi-module tests",
+    "network: requires internet (skipped by default)",
+]
+addopts = "-ra --strict-markers -m 'not network'"

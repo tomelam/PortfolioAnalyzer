@@ -90,3 +90,23 @@ __pycache__/
 # Pytest cache
 .pytest_cache/
 
+# Ruff / mypy caches
+.ruff_cache/
+.mypy_cache/
+
+# Coverage HTML
+htmlcov/
+
+# Golden master diff output (regenerated for human review on test failure)
+tests/golden/**/*.actual.csv
+tests/golden/**/*.actual.json
+tests/_tmp/
+
+# Defense-in-depth against attic-style cruft
+/CSV/
+/JUNK/
+/METRICS/
+/RBI/
+/SAVE/
+code.zip
+
