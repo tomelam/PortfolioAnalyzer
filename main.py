@@ -356,9 +356,7 @@ def main(args):
 
         portfolio_data = {
             "gain_daily": gain_daily_portfolio_series,
-            "allocations": calculate_portfolio_allocations(portfolio),
-            # You can extend this dictionary with other intermediate outputs
-            # such as cumulative returns if desired.
+            "allocations": calculate_portfolio_allocations(portfolio_ts),
         }
         dump_pickle("tests/data/aligned_civs.pkl", multiindex_aligned_civs)
         dump_pickle("tests/data/aligned_portfolio_civs.pkl", aligned_portfolio_civs)
