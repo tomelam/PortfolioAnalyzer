@@ -1,6 +1,6 @@
 import pandas as pd
 import pytest
-from timeseries import TimeseriesFrame
+from timeseries import TimeseriesReturn
 from asset_timeseries import from_civ
 
 # === Core Safety Tests ===
@@ -8,8 +8,8 @@ from asset_timeseries import from_civ
 @pytest.mark.order(25)
 def test_compare_to_empty():
     """Verify that .compare_to() raises when one or both series are empty."""
-    ts1 = TimeseriesFrame(pd.Series([], name="value"))
-    ts2 = TimeseriesFrame(pd.Series([], name="value"))
+    ts1 = TimeseriesReturn(pd.Series([], name="value"))
+    ts2 = TimeseriesReturn(pd.Series([], name="value"))
     with pytest.raises(ValueError, match="Cannot compare empty series"):
         ts1.compare_to(ts2)
 
@@ -17,8 +17,8 @@ def test_compare_to_empty():
 @pytest.mark.order(26)
 def test_compare_to_missing_value_column():
     """Verify that .compare_to() raises if 'value' column is missing."""
-    ts1 = TimeseriesFrame(pd.Series([1, 2, 3]))
-    ts2 = TimeseriesFrame(pd.Series([4, 5, 6]))
+    ts1 = TimeseriesReturn(pd.Series([1, 2, 3]))
+    ts2 = TimeseriesReturn(pd.Series([4, 5, 6]))
     # Drop 'value' column
     ts1.columns = ["not_value"]
     ts2.columns = ["not_value"]

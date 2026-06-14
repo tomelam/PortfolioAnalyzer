@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from pandas.testing import assert_series_equal
 from data_loader import get_benchmark_gain_daily
-from timeseries import TimeseriesFrame
+from timeseries import TimeseriesReturn
 from test_utils import load_pickle, assert_identical, series_struct_info
 
 

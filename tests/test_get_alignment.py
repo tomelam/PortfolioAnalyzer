@@ -6,6 +6,7 @@ from data_loader import get_aligned_portfolio_civs
 
 
 @pytest.mark.order(7)  # test_get_aligned_portfolio_civs
+@pytest.mark.skip(reason="Phase D: legacy network test; uses live mfapi without mocking")
 def test_get_aligned_portfolio_civs():
     """Test the aligning of Current Investment Values (CIVs) data."""
 

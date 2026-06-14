@@ -78,5 +78,6 @@ markers = [
     "golden: golden-master regression tests",
     "integration: end-to-end CLI / multi-module tests",
     "network: requires internet (skipped by default)",
+    "order: legacy ordering marker from pre-Phase-D test suite (effectively a no-op)",
 ]
 addopts = "-ra --strict-markers -m 'not network'"
