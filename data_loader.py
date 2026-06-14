@@ -83,91 +83,8 @@ def check_time_index_cleanliness(df, name="DataFrame"):
         info(f"{name} time index appears clean.")
 
 
-def load_timeseries_csv(
-    file_path,
-    date_format,
-    max_delay_days=None,
-):
-    df = pd.read_csv(file_path)
-    if DEBUG:
-        info(f"📂 Loading time‑series «{file_path}»")
-    df = pd.read_csv(file_path)
-
-    # Identify the date column
-    date_cols = [c for c in df.columns if "date" in c.lower()]
-    if len(date_cols) != 1:
-        raise ValueError(f"Expected exactly one date column containing 'date'; found: {date_cols}")
-    date_column = date_cols[0]
-
-    # Parse dates safely, without coercion
-    parsed_dates = pd.to_datetime(df[date_column], format=date_format, errors="coerce")
-    bad_rows = df[parsed_dates.isna()]
-    if len(bad_rows):
-        info(f"❗ Found {len(bad_rows)} bad date(s) in '{date_column}'. Sample:")
-        info(bad_rows.head(min(5, len(bad_rows))).to_string(index=False))
-        raise ValueError(f"{file_path}: date parsing failed. Check format: {date_format}")
-
-    df[date_column] = parsed_dates
-    last_date = parsed_dates.max()
-    if DEBUG:
-        today   = pd.Timestamp.today().normalize()
-        last    = parsed_dates.max()
-        age     = (today - last).days
-        info(f"    ↳ last record {last_date.date()} "
-             f"({age} days old, max allowed {max_delay_days if max_delay_days is not None else '∞'})")
-    df.set_index(date_column, inplace=True)
-    df.sort_index(inplace=True)
-    if not isinstance(df.index, pd.DatetimeIndex):
-        raise TypeError(f"Expected DatetimeIndex, got {type(df.index)}")
-    if DEBUG:
-        info(f"Date index now ranges from {df.index.min().date()} to {df.index.max().date()}")
-
-    # Find the value column and rename it "value"
-    col_priority = ["rate", "price", "close", "yield"]
-    candidates = [
-        col for name in col_priority
-        for col in df.columns
-        if name in col.lower() and col != date_column
-    ]
-    if not candidates:
-        raise ValueError(f"{file_path}: no column found containing 'rate', 'price', 'close', or 'yield'")
-    if len(candidates) > 1:
-        raise ValueError(f"{file_path}: multiple candidate value columns: {candidates}")
-    value_column = candidates[0]
-    df.rename(columns={value_column: "value"}, inplace=True)
-
-    # Strip commas and try to convert to float
-    try:
-        df["value"] = df["value"].astype(str).str.replace(",", "").astype(float)
-    except ValueError as e:
-        # Attempt to show a sample of bad values
-        bad_rows = df[
-            ~df["value"]
-            .astype(str)
-            .str.replace(".", "", 1)
-            .str.replace("-", "", 1)
-            .str.isnumeric()
-        ]
-        info(f"❗ Could not convert 'value' column to float. Sample of bad rows:")
-        info(bad_rows.head(5).to_string(index=False))
-        raise ValueError(f"{file_path}: 'value' column contains non-numeric entries.") from e
-
-    # Check freshness, if required
-    if max_delay_days is not None:
-        last_date = df.index[-1]
-        today = pd.Timestamp.today().normalize()
-        expected_latest = (today - pd.Timedelta(days=max_delay_days)).replace(day=1)
-
-        dbg(f"Latest date in \"{os.path.basename(file_path)}\": {last_date.date()}")
-        dbg(f"Required minimum date: {expected_latest.date()}")
-
-        if last_date < expected_latest:
-            raise RuntimeError(
-                f"{file_path}: data is outdated (last date: {last_date.date()}) — "
-                f"fetch a fresh copy"
-            )
-
-    return TimeseriesReturn(df["value"])
+# Backward-compatibility re-export. Implementation lives in benchmark_loader.
+from benchmark_loader import load_timeseries_csv  # noqa: E402, F401
 
 
 def get_aligned_portfolio_civs(portfolio):
@@ -224,46 +141,6 @@ def align_portfolio_civs(portfolio_civs):
     combined_civs = pd.concat({name: civ for name, civ in aligned_civs.items()}, axis=1)
     aligned_combined_civs = combined_civs.ffill()
     return aligned_combined_civs
-
-
-def load_index_data(filepath, source, skip_age_check=False):
-    if not os.path.exists(filepath):
-        raise FileNotFoundError(f"Index data file not found: {filepath}")
-
-    df = pd.read_csv(filepath)
-
-    if source == "investing.com":
-        expected_cols = {"Date", "Price"}
-        if not expected_cols.issubset(df.columns):
-            raise ValueError(f"Expected columns {expected_cols} in file from investing.com, got {df.columns.tolist()}")
-
-        df["Date"] = pd.to_datetime(df["Date"], dayfirst=True, errors="raise")
-        df = df.rename(columns={"Date": "date", "Price": "value"})
-
-    elif source == "niftyindices.com":
-        expected_cols = {"Date", "Close", "Index Name"}
-        if not expected_cols.issubset(df.columns):
-            raise ValueError(f"Expected columns {expected_cols} in file from niftyindices.com, got {df.columns.tolist()}")
-
-        try:
-            df["Date"] = pd.to_datetime(df["Date"], format="%d %b %Y", errors="raise")
-        except Exception as e:
-            raise ValueError(f"Date parsing failed for niftyindices.com data: {e}")
-
-        df = df.rename(columns={"Date": "date", "Close": "value"})
-        df = df[["date", "value"]]  # Drop other columns
-
-    else:
-        raise ValueError(f"Unrecognized data source: {source}")
-
-    df = df.sort_values("date").reset_index(drop=True)
-
-    if not skip_age_check:
-        warn_if_stale(df, label=source)
-
-    return df
-
-
 def get_benchmark_gain_daily(benchmark_data):
     """
     Get usefully indexed benchmark historical NAVs.

@@ -8,7 +8,6 @@ from civ_to_returns import civ_to_returns
 from data_loader import (
     load_config_toml,
     load_timeseries_csv,
-    load_index_data,
     get_aligned_portfolio_civs,
     load_portfolio_details,
     extract_weights,
@@ -114,10 +113,6 @@ def main(args):
         from gold_loader import load_gold_prices
 
         gold_series = load_gold_prices()
-        if gold_series is not None and "Spot Price" in gold_series.columns:
-            gold_series = gold_series[["Spot Price"]].rename(columns={"Spot Price": "price"})
-        print(gold_series.head())
-        print(gold_series.columns)
 
     # === ROBUST PORTFOLIO START DATE LOGIC ===
     asset_series_list = [
