@@ -614,62 +614,8 @@ def fetch_navs_of_mutual_fund(url, retries=10, timeout=20):
 
 
 # Load the PPF interest rates from a CSV file
-def load_ppf_interest_rates(csv_file_path="data/ppf_interest_rates.csv"):
-    """
-    Parameters:
-        csv_file_path (str): Path to the CSV file containing PPF interest rates.
-
-    Returns:
-        pd.DataFrame: A DataFrame with columns "rate" and "date", indexed by "date" and sorted.
-    """
-    try:
-        if csv_file_path is None:
-            csv_file_path = "data/ppf_interest_rates.csv"
-
-        # Read the CSV file into a DataFrame
-        ppf_data = pd.read_csv(csv_file_path)
-
-        # Ensure the required columns are present
-        if "date" not in ppf_data.columns or "rate" not in ppf_data.columns:
-            raise ValueError("CSV file must contain 'date' and 'rate' columns.")
-
-        # Convert "date" to datetime and set it as the index
-        ppf_data["date"] = pd.to_datetime(
-            ppf_data["date"], format="%Y-%m-%d", errors="coerce"
-        )
-        ppf_data.dropna(subset=["date"], inplace=True)  # Drop rows with invalid dates
-        ppf_data.set_index("date", inplace=True)
-
-        # Ensure "rate" column is numeric
-        ppf_data["rate"] = pd.to_numeric(ppf_data["rate"], errors="coerce")
-        ppf_data.dropna(subset=["rate"], inplace=True)  # Drop rows with invalid rates
-
-        # Sort the DataFrame by the date index
-        ppf_data.sort_index(inplace=True)
-
-        return ppf_data
-
-    except Exception as e:
-        raise FileNotFoundError
-
-
-def load_ppf_civ() -> pd.Series:
-    """Load PPF interest rates and return a daily synthetic CIV series.
-
-    The underlying synthetic generator emits one row per month. We reindex
-    to a daily frequency and forward-fill so the series can be aligned
-    with daily mutual-fund NAVs without introducing NaNs (which would be
-    rejected by ``asset_timeseries.from_civ``). The series is extended
-    out to "today" carrying the most recent interest rate forward — PPF
-    rates change quarterly at most, so this matches how PPF balances
-    actually accrue between rate-change announcements.
-    """
-    from synthetic_civ import calculate_ppf_relative_civ
-
-    monthly = calculate_ppf_relative_civ(load_ppf_interest_rates())["civ"]
-    end = max(monthly.index.max(), pd.Timestamp.today().normalize())
-    daily_index = pd.date_range(monthly.index.min(), end, freq="D")
-    return monthly.reindex(daily_index).ffill().rename("PPF")
+# Backward-compatibility re-exports. Implementation lives in ppf_loader.
+from ppf_loader import load_ppf_civ, load_ppf_interest_rates  # noqa: E402
 
 
 def calculate_gold_cumulative_gain(gold_data, portfolio_start_date):

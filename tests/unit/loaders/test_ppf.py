@@ -14,8 +14,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-import data_loader
-from data_loader import load_ppf_civ
+import ppf_loader
+from ppf_loader import load_ppf_civ
 
 FIXTURES = Path(__file__).resolve().parent.parent.parent / "fixtures" / "data"
 
@@ -24,9 +24,9 @@ FIXTURES = Path(__file__).resolve().parent.parent.parent / "fixtures" / "data"
 def patch_ppf_rates_path(monkeypatch):
     """Point load_ppf_interest_rates at the tiny fixture, not data/."""
     fixture_path = str(FIXTURES / "ppf_rates_tiny.csv")
-    real_loader = data_loader.load_ppf_interest_rates
+    real_loader = ppf_loader.load_ppf_interest_rates
     monkeypatch.setattr(
-        data_loader,
+        ppf_loader,
         "load_ppf_interest_rates",
         lambda csv_file_path=fixture_path: real_loader(csv_file_path),
     )
@@ -63,3 +63,29 @@ def test_starts_near_unity(patch_ppf_rates_path) -> None:
     s = load_ppf_civ()
     assert s.iloc[0] > 0
     assert s.iloc[-1] > s.iloc[0]
+
+
+# Direct tests for the rate-CSV loader (no monkeypatch needed).
+
+
+def test_rates_loader_returns_dataframe() -> None:
+    from ppf_loader import load_ppf_interest_rates
+
+    df = load_ppf_interest_rates(str(FIXTURES / "ppf_rates_tiny.csv"))
+    assert isinstance(df, pd.DataFrame)
+    assert "rate" in df.columns
+
+
+def test_rates_loader_indexed_by_datetime() -> None:
+    from ppf_loader import load_ppf_interest_rates
+
+    df = load_ppf_interest_rates(str(FIXTURES / "ppf_rates_tiny.csv"))
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert df.index.is_monotonic_increasing
+
+
+def test_rates_loader_missing_file_raises() -> None:
+    from ppf_loader import load_ppf_interest_rates
+
+    with pytest.raises(FileNotFoundError):
+        load_ppf_interest_rates("/nonexistent/ppf.csv")
