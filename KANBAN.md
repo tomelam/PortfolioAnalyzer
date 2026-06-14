@@ -6,18 +6,18 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 
 ## Backlog
 
-### Phase C — Golden-master safety net (port-1 done; extend in Phase D)
-- [ ] Capture goldens for `port-mf-ppf-gold.toml` (blocked by gold-loader bug below)
-- [ ] Capture goldens for `port-everything.toml` (same blocker, plus likely SCSS/REC/SGB issues)
+### Phase C — Golden-master safety net (all 3 portfolios DONE)
 - [ ] Add `--today YYYY-MM-DD` flag to `main.py` so the safety net is deterministic without live mfapi drift; once it exists, tighten test tolerances to 1e-9
 - [ ] Build a pickle-replay path (e.g. `main.py --replay-from tests/golden/port-X/pickles/`) so the test no longer needs network
 - [ ] Record coverage baseline (after Phase D test additions)
+- [ ] Investigate implausibly large daily-method Sharpe/Vol on synthetic-CIV portfolios — port-mf-ppf-gold daily Sharpe=7.25, Vol=52%; port-everything daily Sharpe=4.99, Vol=37.76%. Monthly figures look reasonable (0.96 and 0.27). Likely cause: forward-filled synthetic CIVs produce zero-return days that distort the variance denominator. Phase D investigation; the golden currently pins this (incorrect-looking) behavior.
 
-### Bugs discovered during Phase C capture
-- [ ] **main.py line 359 stale name `portfolio` → `portfolio_ts`** — FIXED on `foundation/scaffolding` (commit pending). Bug existed on `salvage/tmp3-uncommitted` too. Caused silent failure of `--save-golden-data` pickle dump.
-- [ ] **gold_loader returns DataFrame, but `main.py:200` assert expects pd.Series.** Blocks any portfolio with a `[gold]` section. Fix as part of Phase D `loaders/gold.py` extraction with TDD (test the type contract first).
-- [ ] **`synthetic_civ.py:70` uses deprecated `Series.fillna(method='ffill')`** — replace with `.ffill()`. Real warning, not just lint noise. Currently in PPF/synthetic CIV path.
-- [ ] **Possible additional bugs in `port-everything` path** (SCSS, REC bond, SGB loaders) — unable to verify until the gold-loader blocker is cleared.
+### Bugs FIXED during Phase C capture
+- [x] **main.py line 359 stale name `portfolio` → `portfolio_ts`** — silent failure of `--save-golden-data` pickle dump
+- [x] **gold_loader returned DataFrame; downstream expected Series.** Loader now returns `pd.Series` named `"price"`; main.py call-site simplified. Unit tests at `tests/unit/loaders/test_gold.py` pin the contract
+- [x] **PPF `load_ppf_civ` returned monthly series → NaN-laden after daily reindex.** Now reindexes to daily, forward-fills, extends to today carrying the most recent rate. Unit tests at `tests/unit/loaders/test_ppf.py`
+- [x] **`synthetic_civ.py:70` deprecated chained-inplace `.fillna(method='ffill', inplace=True)`** — silent no-op since pandas 2.x. Replaced with assignment-based `.ffill()`
+- [x] **`synthetic_civ.py:43` deprecated `freq="M"`** — replaced with `"ME"`
 
 ### Phase D — Decomposition + TDD cycles
 - [ ] Create `portfolio_analyzer/loaders/` package; move `gold_loader.py`, `sgb_loader.py` into it

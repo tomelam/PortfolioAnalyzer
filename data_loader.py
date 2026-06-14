@@ -682,9 +682,22 @@ def load_ppf_interest_rates(csv_file_path="data/ppf_interest_rates.csv"):
 
 
 def load_ppf_civ() -> pd.Series:
-    """Load PPF interest rates and return synthetic CIV series."""
+    """Load PPF interest rates and return a daily synthetic CIV series.
+
+    The underlying synthetic generator emits one row per month. We reindex
+    to a daily frequency and forward-fill so the series can be aligned
+    with daily mutual-fund NAVs without introducing NaNs (which would be
+    rejected by ``asset_timeseries.from_civ``). The series is extended
+    out to "today" carrying the most recent interest rate forward — PPF
+    rates change quarterly at most, so this matches how PPF balances
+    actually accrue between rate-change announcements.
+    """
     from synthetic_civ import calculate_ppf_relative_civ
-    return calculate_ppf_relative_civ(load_ppf_interest_rates())["civ"]
+
+    monthly = calculate_ppf_relative_civ(load_ppf_interest_rates())["civ"]
+    end = max(monthly.index.max(), pd.Timestamp.today().normalize())
+    daily_index = pd.date_range(monthly.index.min(), end, freq="D")
+    return monthly.reindex(daily_index).ffill().rename("PPF")
 
 
 def calculate_gold_cumulative_gain(gold_data, portfolio_start_date):
