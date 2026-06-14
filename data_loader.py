@@ -604,41 +604,13 @@ def validate_allocations(portfolio_details, tol=0.01):
 
 # Fetch NAV data
 def fetch_navs_of_mutual_fund(url, retries=10, timeout=20):
-    """
-    Fetch NAV data for a fund from the given API URL.
+    """Deprecated alias retained for backward compatibility.
 
-    Parameters:
-        url (str): API endpoint for fetching NAV data.
-        retries (int): Number of retry attempts on failure.
-        timeout (int): Request timeout duration in seconds.
-
-    Returns:
-        pd.DataFrame: DataFrame containing NAV data indexed by date.
+    The implementation lives in ``mutual_fund_loader.fetch_navs``.
     """
-    for attempt in range(retries):
-        try:
-            response = requests.get(url, timeout=timeout)
-            response.raise_for_status()
-            data = response.json()
-            if "data" not in data or not data["data"]:
-                raise KeyError(
-                    f"'data' key missing or empty in API response from {url}"
-                )
-            nav_data = pd.DataFrame(data["data"])
-            nav_data["date"] = pd.to_datetime(
-                nav_data["date"], dayfirst=True, errors="coerce"
-            )
-            nav_data["nav"] = nav_data["nav"].astype(float)
-            return nav_data.set_index("date").sort_index()
-        except requests.RequestException as e:
-            info(
-                f"[Error] Request failed for {url} (Attempt {attempt + 1}/{retries}): {e}"
-            )
-        except (ValueError, KeyError) as e:
-            info(
-                f"[Error] Data processing error for {url} (Attempt {attempt + 1}/{retries}): {e}"
-            )
-    raise RuntimeError(f"Failed to fetch NAV data from {url} after {retries} retries")
+    from mutual_fund_loader import fetch_navs
+
+    return fetch_navs(url, retries=retries, timeout=timeout)
 
 
 # Load the PPF interest rates from a CSV file
