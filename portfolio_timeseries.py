@@ -47,19 +47,29 @@ class PortfolioTimeseries:
 
     def combined_civ_series(self) -> TimeseriesCIV:
         """
-        True portfolio CIV: weighted sum of each asset's original CIV series.
-        """
-        weighted_navs = []
-        for name, asset in self.assets.items():
-            w = self.weights.get(name, 0.0)
-            nav = asset.civ.value_series() * w
-            weighted_navs.append(nav)
+        True portfolio CIV: weighted sum of each asset's NORMALIZED CIV series.
 
-        if not weighted_navs:
+        Each asset's CIV is rebased to 1.0 at the common start date before
+        applying its weight. Without this, an asset with a raw NAV of 2500
+        (e.g. PPF) would dominate one with NAV 18 (an MF) regardless of
+        intended allocation.
+        """
+        if not self.assets:
             return TimeseriesCIV(pd.Series(dtype=float))
 
-        df = pd.concat(weighted_navs, axis=1, join="inner")
-        combined = df.sum(axis=1).sort_index()
+        # First inner-join all raw CIVs so we can normalize from a common start.
+        raw = pd.concat(
+            {name: asset.civ.value_series() for name, asset in self.assets.items()},
+            axis=1,
+            join="inner",
+        ).sort_index()
+
+        if raw.empty:
+            return TimeseriesCIV(pd.Series(dtype=float))
+
+        normalized = raw.divide(raw.iloc[0])
+        weights = pd.Series(self.weights).reindex(normalized.columns).fillna(0.0)
+        combined = normalized.mul(weights, axis=1).sum(axis=1)
         combined.name = "value"
         return TimeseriesCIV(combined)
 

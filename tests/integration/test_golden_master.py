@@ -18,8 +18,10 @@ Limitations to lift in Phase D:
   the data-staleness gates; tests use the same config until the data
   files are refreshed (see KANBAN "Data freshness").
 - The daily-metrics Sharpe/Vol for portfolios with synthetic CIVs
-  (PPF/SCSS/REC) look implausibly large (Sharpe 4.99–7.25); the
-  golden pins existing behavior pending Phase D investigation.
+  (PPF/SCSS/REC) still look large (Sharpe ~5–7) even after the
+  CIV-normalization fix (2026-06-15); the residual issue is the
+  zero-return-days from forward-filled synthetic CIVs distorting
+  the variance denominator. KANBAN tracks the next fix.
 - True determinism requires either a `--today YYYY-MM-DD` flag in
   main.py or a pickle-replay path. Both are KANBAN items.
 """
