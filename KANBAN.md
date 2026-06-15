@@ -68,12 +68,12 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 - [ ] Port tmp4 `bonus/ppf_annualized_interest_rate.py` as an analysis tool under `scripts/`.
 
 ### Phase F — Integration + docs
-- [ ] `tests/integration/test_main_e2e.py` — subprocess invocation of CLI
-- [ ] `docs/ARCHITECTURE.md` (new) — module-level diagram
-- [ ] `docs/TESTING.md` (new) — golden-master rationale and how-to-regenerate procedure
-- [ ] `docs/CONTRIBUTING.md` (new) — TDD-first rule, pre-commit, KANBAN expectation
-- [ ] Push, tag `v0.1-salvage`
-- [ ] Decide whether to make GitHub repo private during salvage
+- [x] `tests/integration/test_main_e2e.py` — 3 subprocess tests: --help exits clean; missing TOML → non-zero exit; full-run smoke produces CSV. Integration-marked; one is `network`-marked.
+- [x] `docs/ARCHITECTURE.md` — module map + pipeline diagram + design decisions (pure-function math layer; unit-free daily-calendar CIV; synthetic CIVs; risk-free rate convention).
+- [x] `docs/TESTING.md` — three test tiers, marker matrix, golden tolerances, regeneration recipe, why-CSV-not-pickle.
+- [x] `docs/CONTRIBUTING.md` — TDD-first rule, decomposition guidance, pre-commit, KANBAN expectation, anti-patterns (yfinance, hypothetical abstractions, what-comments).
+- [ ] Push, tag `v0.1-salvage` (user-driven; awaiting go-ahead)
+- [ ] Decide whether to make GitHub repo private during salvage (user decision)
 
 ### Data freshness (separate from salvage; user responsibility)
 - [ ] **Refresh stale data files.** As of 2026-06-14, the canonical data files in `data/` are 13+ months out of date and the code's own staleness checks refuse to run against them:
