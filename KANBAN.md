@@ -57,8 +57,7 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 - [ ] Walk through `tests/TODO.md` checklist — deferred to Phase F. Most items are CLI-flag/TOML-override and failure-mode testing that overlaps with the planned `tests/integration/test_main_e2e.py`.
 
 ### Phase E — Salvage from old checkpoints
-- [ ] Port `fetch_gold_spot.py` live-gold from `~/Projects/PortfolioAnalyzer.attic/feb2025/` into `gold_loader.py` behind a `live = true` TOML flag (opt-in)
-- [ ] Add `with_live_gold` golden fixture (yfinance mocked)
+- [x] **Live-gold via yfinance: DROPPED.** User: "yfinance probably cannot be depended upon by a stable program." yfinance scrapes an undocumented Yahoo endpoint that breaks without warning. Keep the static monthly `data/gold_monthly_inr.csv` path; document the manual refresh procedure in `docs/DATA_REFRESH.md` (see Data freshness section). If a stable public gold-price API surfaces later, port it then — but not yfinance.
 - [ ] Quick `diff -r` between attic/tmp4-apr2025 and current repo: anything `TimeseriesFrame` variant worth porting?
 
 ### Phase F — Integration + docs
@@ -91,13 +90,24 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 
 ## In Progress
 
-- [ ] Phase B: Foundation scaffolding (pyproject, CI, pre-commit, KANBAN, docs/ conversions)
+- [ ] Phase E: minimal scope post-yfinance drop — diff attic/tmp4-apr2025 for `TimeseriesFrame` salvage candidates.
+- [ ] Phase F: integration test, docs, tag `v0.1-salvage`.
 
 ## Done
 
 - [x] Phase 1 exploration: mapped four checkpoints across `~/Projects/PortfolioAnalyzer{,-tmp/{tmp,tmp3,tmp4}}/`
 - [x] Decision: promote tmp3 as canonical (Jun 7 2025, commit d37278b, branch main, GitHub remote)
 - [x] Written plan committed (`/Users/tom/.claude/plans/concurrent-stargazing-shore.md`)
+- [x] **Phase B: Foundation scaffolding** — pyproject.toml, CI, pre-commit, KANBAN, docs/ conversions all in place.
+- [x] **Phase C: Golden-master safety net** — 3 portfolios × 2 methods, 6 goldens captured + re-captured after the two CIV fixes. All green.
+- [x] **Phase D: Decomposition + TDD cycles (2026-06-15 → 2026-06-16).** Closed.
+  - Two portfolio-CIV bugs fixed (scale-invariance, daily-frequency consistency); daily ≡ monthly Sharpe/Vol now agree to within ~1pp on every golden.
+  - Pure-function `metrics.py` extracted; all `TimeseriesReturn` metric methods delegate.
+  - Loaders extracted into 7 standalone modules (mutual_fund, ppf, benchmark, risk_free, scss, rec_bond, sgb) with unit tests each.
+  - 22 of 22 originally-broken legacy tests unblocked.
+  - Suite: 142 pass / 0 skip / 6 goldens green (was 19+ skips at Phase D start).
+  - Tests added: synthetic_civ (6), civ_to_returns (6), Timeseries classes (11), PortfolioCIV normalization (2) + frequency (2), get-aligned-portfolio-civs behavioral (2), allocations + staleness unblocks (2).
+  - All "decide fate" investigations resolved (portfolio_calculator, visualizer kept; bond_calculators audit deferred; salvage branch reviewed and closed; config/ kept; *.pkl audited).
 - [x] Phase A: Repo consolidation
   - tmp3 → `~/Projects/PortfolioAnalyzer/`
   - Old Feb tree, tmp/Mar, tmp4/Apr + `.bak`, chatgpt-amfi → `~/Projects/PortfolioAnalyzer.attic/` (chmod read-only)
