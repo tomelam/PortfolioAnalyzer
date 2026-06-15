@@ -31,12 +31,12 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 - [x] Extract `fetch_and_standardize_risk_free_rates` + `align_dynamic_risk_free_rates` → `risk_free_loader.py` with 5 tests (Series return, percent→decimal, staleness, weekend-gap interpolation, alignment).
 - [x] Extract NSI SCSS scraper → `scss_loader.py`, decomposed into pure `parse_scss_html` + network `fetch_scss_html` + composed `load_scss_interest_rates`. 8 tests using static HTML fixture, all in 0.5s.
 - [x] Extract REC bond from `main.py` → `rec_bond_loader.py` honoring the TOML `coupon` field (was silently hardcoded 5.25%). 5 tests.
-- [ ] Add unit tests for `sgb_loader.py` (currently 0 coverage — it's the only loader without tests).
+- [x] Unit tests for `sgb_loader.py` (added in commit 791d955; KANBAN was stale).
 - [ ] Consolidate all `*_loader.py` files into a `loaders/` package as one big-bang rename commit.
 - [ ] Consolidate the four `*timeseries*.py` files (timeseries.py 22.9 KB, timeseries_civ.py, asset_timeseries.py, portfolio_timeseries.py) into a `portfolio_analyzer/timeseries/` package
 - [ ] Test `TimeseriesCIV`, `TimeseriesReturn`, `AssetTimeseries`, `PortfolioTimeseries` independently
-- [ ] Unit tests for `synthetic_civ.py` (PPF/SCSS interest-rate compounding)
-- [ ] Unit tests for `civ_to_returns.py` (CIV→returns round-trip identity)
+- [x] Unit tests for `synthetic_civ.py` — 6 tests pin PPF monthly accrual, March yearly credit, mid-year rate changes, and Series/DataFrame input flexibility.
+- [x] Unit tests for `civ_to_returns.py` — 6 tests including the round-trip identity (CIV → returns → cumprod ≈ normalized CIV).
 - [ ] Replace dead/scattered metrics code with tested `metrics.py` (CAGR, vol, Sharpe, Sortino, alpha, beta, drawdowns)
 - [ ] Reference: `~/Projects/PortfolioAnalyzer.attic/tmp-mar2025/test_metrics.py` has golden formulas
 - [ ] Decide fate of `portfolio_calculator.py` (4.2 KB) — appears to overlap with `portfolio_timeseries.py`; possibly dead
