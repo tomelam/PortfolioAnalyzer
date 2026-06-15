@@ -14,7 +14,9 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 - [x] **`combined_civ_series` scale-mismatch bug FIXED.** Previously summed `asset.civ.value_series() * weight` without normalizing, so PPF (raw NAV ₹2566) dominated MFs (NAV ₹18) — contributing 95% of starting CIV despite 15% allocation. Now normalizes each asset's CIV to 1.0 at the common start before weighting. Two TDD tests pin the scale-invariance contract (`tests/unit/test_portfolio_civ_normalization.py`). All 6 goldens re-captured.
 - [x] **12 skip-marked metric tests** unblocked by rewriting each to call `metrics.sharpe/sortino/volatility` directly (option b). Suite now 115 passed / 3 skipped (where the 3 are unrelated legacy items below).
 - [x] **Reimplemented `max_drawdowns(threshold)`** — implemented as `metrics.max_drawdowns` (pure function), `TimeseriesReturn.max_drawdowns` delegates. Returns dicts with `start_date`, `trough_date`, `recovery_date`, `drawdown` (positive fraction), plus legacy aliases `depth_pct` (-percent × 100), `trough_value`, `recovery_value`. All 4 legacy tests unblocked.
-- [ ] **3 other legacy test failures** parked for Phase D follow-up: `test_calculate_portfolio_allocations` (allocation API drift), `test_get_aligned_portfolio_civs` (unmocked live mfapi call), `test_stale_data_with_no_input_aborts` (CLI exit-path assertion).
+- [x] **`test_calculate_portfolio_allocations` unblocked** — mock previously set `self.assets = {name: None}`, but `calculate_portfolio_allocations` now reads `asset.asset_allocation`. Rewrote the mock with `SimpleNamespace` assets carrying real allocation dicts.
+- [x] **`test_stale_data_with_no_input_aborts` unblocked** — pinned time with `freezegun` to a Tuesday afternoon so the function's Sunday/Monday-before-9am skip doesn't bypass the gate.
+- [ ] **`test_get_aligned_portfolio_civs`** still skipped — legitimately requires mfapi mocking (already KANBAN'd as Phase D follow-up). Has `network` mark; runs in the `network`-marker pass.
 
 ### Bugs FIXED during Phase C capture
 - [x] **main.py line 359 stale name `portfolio` → `portfolio_ts`** — silent failure of `--save-golden-data` pickle dump
