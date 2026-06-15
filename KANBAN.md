@@ -39,9 +39,9 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 - [x] Unit tests for `civ_to_returns.py` — 6 tests including the round-trip identity (CIV → returns → cumprod ≈ normalized CIV).
 - [ ] Replace dead/scattered metrics code with tested `metrics.py` (CAGR, vol, Sharpe, Sortino, alpha, beta, drawdowns)
 - [ ] Reference: `~/Projects/PortfolioAnalyzer.attic/tmp-mar2025/test_metrics.py` has golden formulas
-- [ ] Decide fate of `portfolio_calculator.py` (4.2 KB) — appears to overlap with `portfolio_timeseries.py`; possibly dead
-- [ ] Decide fate of `bond_calculators.py` (12.7 KB) — verify still used
-- [ ] Decide fate of `visualizer.py` (10.9 KB) — split from analysis if heavyweight matplotlib import slows tests
+- [x] Decided: `portfolio_calculator.py` — KEEP. Two functions live (`calculate_portfolio_allocations`, `calculate_gains_cumulative`); dropped dead `calculate_gain_daily_portfolio_series` and its unused import in main.py, plus the commented-out duplicate header.
+- [ ] Decide fate of `bond_calculators.py` (12.7 KB) — `calculate_variable_bond_cumulative_gain` is live (used by rec_bond_loader); the other 4 SGB-related funcs are unused but may inform Phase E live-gold port. Audit during Phase E.
+- [x] Decided: `visualizer.py` — KEEP. `plot_cumulative_returns` + `print_major_drawdowns` both live in main.py. Matplotlib import cost is acceptable for now; tests use `--disable-plot-display`.
 - [ ] Review `salvage/tmp3-uncommitted` branch (commit 9e899fb) file-by-file; cherry-pick or discard
 - [ ] Decide fate of `config/` directory (17 CLI-flag-combo test fixtures) — keep, restructure, or rely on pytest parametrize
 - [ ] Decide fate of `tests/data/*.pkl` pickled fixtures — replace with on-the-fly construction or keep with version pin

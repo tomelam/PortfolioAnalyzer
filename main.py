@@ -21,7 +21,6 @@ from data_loader import (
 from portfolio_calculator import (
     calculate_gains_cumulative,
     calculate_portfolio_allocations,
-    calculate_gain_daily_portfolio_series,
 )
 from visualizer import plot_cumulative_returns, print_major_drawdowns
 import utils
