@@ -17,11 +17,8 @@ Limitations to lift in Phase D:
 - Capture used `tests/fixtures/golden_master_config.toml` to bypass
   the data-staleness gates; tests use the same config until the data
   files are refreshed (see KANBAN "Data freshness").
-- The daily-metrics Sharpe/Vol for portfolios with synthetic CIVs
-  (PPF/SCSS/REC) still look large (Sharpe ~5–7) even after the
-  CIV-normalization fix (2026-06-15); the residual issue is the
-  zero-return-days from forward-filled synthetic CIVs distorting
-  the variance denominator. KANBAN tracks the next fix.
+- As of 2026-06-15, daily/monthly Sharpe and Vol agree to within ~1pp
+  across all 3 portfolios after the CIV scale + frequency fixes.
 - True determinism requires either a `--today YYYY-MM-DD` flag in
   main.py or a pickle-replay path. Both are KANBAN items.
 """

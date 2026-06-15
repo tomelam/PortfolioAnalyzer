@@ -47,27 +47,43 @@ class PortfolioTimeseries:
 
     def combined_civ_series(self) -> TimeseriesCIV:
         """
-        True portfolio CIV: weighted sum of each asset's NORMALIZED CIV series.
+        True portfolio CIV: weighted sum of each asset's NORMALIZED CIV series
+        on a common daily (business-day) calendar.
 
-        Each asset's CIV is rebased to 1.0 at the common start date before
-        applying its weight. Without this, an asset with a raw NAV of 2500
-        (e.g. PPF) would dominate one with NAV 18 (an MF) regardless of
-        intended allocation.
+        Two corrections vs. the legacy implementation:
+        1. Each asset's CIV is rebased to 1.0 at the common start date before
+           weighting. Without this, an asset with raw NAV ~2500 (e.g. PPF)
+           dominates one with NAV ~18 (an MF) regardless of intended weight.
+        2. Assets sampled at different frequencies (monthly gold, monthly
+           PPF, daily MFs) are reindexed onto a common business-day calendar
+           and forward-filled before joining. A plain inner-join collapses
+           the portfolio CIV to the *intersection* of all dates — effectively
+           monthly when gold or PPF is present — which then gets annualized
+           by ``sqrt(252)`` downstream, inflating volatility 10×.
         """
         if not self.assets:
             return TimeseriesCIV(pd.Series(dtype=float))
 
-        # First inner-join all raw CIVs so we can normalize from a common start.
-        raw = pd.concat(
-            {name: asset.civ.value_series() for name, asset in self.assets.items()},
-            axis=1,
-            join="inner",
-        ).sort_index()
+        raw_series = {
+            name: asset.civ.value_series().sort_index() for name, asset in self.assets.items()
+        }
 
-        if raw.empty:
+        # Common window = latest start across assets, earliest end across assets.
+        start = max(s.index.min() for s in raw_series.values())
+        end = min(s.index.max() for s in raw_series.values())
+        if start > end:
             return TimeseriesCIV(pd.Series(dtype=float))
 
-        normalized = raw.divide(raw.iloc[0])
+        calendar = pd.bdate_range(start, end)
+
+        reindexed = pd.DataFrame(
+            {name: s.reindex(calendar, method="ffill") for name, s in raw_series.items()}
+        ).dropna(how="any")
+
+        if reindexed.empty:
+            return TimeseriesCIV(pd.Series(dtype=float))
+
+        normalized = reindexed.divide(reindexed.iloc[0])
         weights = pd.Series(self.weights).reindex(normalized.columns).fillna(0.0)
         combined = normalized.mul(weights, axis=1).sum(axis=1)
         combined.name = "value"
