@@ -58,7 +58,14 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 
 ### Phase E — Salvage from old checkpoints
 - [x] **Live-gold via yfinance: DROPPED.** User: "yfinance probably cannot be depended upon by a stable program." yfinance scrapes an undocumented Yahoo endpoint that breaks without warning. Keep the static monthly `data/gold_monthly_inr.csv` path; document the manual refresh procedure in `docs/DATA_REFRESH.md` (see Data freshness section). If a stable public gold-price API surfaces later, port it then — but not yfinance.
-- [ ] Quick `diff -r` between attic/tmp4-apr2025 and current repo: anything `TimeseriesFrame` variant worth porting?
+- [x] **Audit of `attic/tmp4-apr2025` complete.** `TimeseriesFrame` in tmp4 ≈ current `TimeseriesReturn` (the rename happened during the OOP rewrite). Substantively additional surface in tmp4 is *reporting utilities*, not math: `info_summary`, `describe_as_report`, `to_csv_report`, `to_latex_table`, `compare_to`, `as_rolling`, `align_with`, `clip_to_overlap`, `aligned_to`, `interpolated`, `plot_with`. The math (cagr/vol/sharpe/sortino/max_drawdown/alpha/beta) is equivalent to current `metrics.py`. One semantic difference in tmp4: it divides annual `risk_free_rate` by `periods_per_year` internally; current pipeline does the conversion correctly upstream in `main.py` (geometric per-period rate), so no port needed. **Nothing blocks v0.1-salvage.** Reporting utilities backlogged below.
+- [x] **Audit of `attic/tmp4-apr2025/bonus/` complete.** 4 shell helpers (`plot_all.sh`, `run_all_configs.sh`, `run_all_metrics_to_csv.sh`, `single-asset-type.sh`) and one diagnostic script (`ppf_annualized_interest_rate.py`). Useful as references but non-blocking; backlogged for post-v0.1.
+
+### Phase E — backlog (post-v0.1 only)
+- [ ] Port tmp4's reporting helpers to current `TimeseriesReturn` if CSV/LaTeX export is wanted: `info_summary`, `describe_as_report`, `to_csv_report`, `to_latex_table`, `compare_to`, `as_rolling`.
+- [ ] Port tmp4's series-alignment helpers if cross-asset analysis grows beyond `combined_civ_series`: `align_with`, `clip_to_overlap`, `aligned_to`, `interpolated`.
+- [ ] Port tmp4 `bonus/` shell helpers (plot_all / run_all_configs / run_all_metrics_to_csv / single-asset-type) into a `scripts/` directory if the user wants CLI orchestration.
+- [ ] Port tmp4 `bonus/ppf_annualized_interest_rate.py` as an analysis tool under `scripts/`.
 
 ### Phase F — Integration + docs
 - [ ] `tests/integration/test_main_e2e.py` — subprocess invocation of CLI
@@ -90,7 +97,6 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 
 ## In Progress
 
-- [ ] Phase E: minimal scope post-yfinance drop — diff attic/tmp4-apr2025 for `TimeseriesFrame` salvage candidates.
 - [ ] Phase F: integration test, docs, tag `v0.1-salvage`.
 
 ## Done
@@ -100,6 +106,10 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 - [x] Written plan committed (`/Users/tom/.claude/plans/concurrent-stargazing-shore.md`)
 - [x] **Phase B: Foundation scaffolding** — pyproject.toml, CI, pre-commit, KANBAN, docs/ conversions all in place.
 - [x] **Phase C: Golden-master safety net** — 3 portfolios × 2 methods, 6 goldens captured + re-captured after the two CIV fixes. All green.
+- [x] **Phase E: salvage audit (2026-06-16).** Closed.
+  - yfinance live-gold path dropped per user feedback (yfinance unreliable).
+  - tmp4-apr2025 reviewed: math equivalent to current `metrics.py`; reporting/alignment utilities backlogged for post-v0.1; no blockers.
+  - `bonus/` shell helpers + diagnostic script backlogged; non-blocking.
 - [x] **Phase D: Decomposition + TDD cycles (2026-06-15 → 2026-06-16).** Closed.
   - Two portfolio-CIV bugs fixed (scale-invariance, daily-frequency consistency); daily ≡ monthly Sharpe/Vol now agree to within ~1pp on every golden.
   - Pure-function `metrics.py` extracted; all `TimeseriesReturn` metric methods delegate.
