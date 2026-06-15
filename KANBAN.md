@@ -16,7 +16,7 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 - [x] **Reimplemented `max_drawdowns(threshold)`** — implemented as `metrics.max_drawdowns` (pure function), `TimeseriesReturn.max_drawdowns` delegates. Returns dicts with `start_date`, `trough_date`, `recovery_date`, `drawdown` (positive fraction), plus legacy aliases `depth_pct` (-percent × 100), `trough_value`, `recovery_value`. All 4 legacy tests unblocked.
 - [x] **`test_calculate_portfolio_allocations` unblocked** — mock previously set `self.assets = {name: None}`, but `calculate_portfolio_allocations` now reads `asset.asset_allocation`. Rewrote the mock with `SimpleNamespace` assets carrying real allocation dicts.
 - [x] **`test_stale_data_with_no_input_aborts` unblocked** — pinned time with `freezegun` to a Tuesday afternoon so the function's Sunday/Monday-before-9am skip doesn't bypass the gate.
-- [ ] **`test_get_aligned_portfolio_civs`** still skipped — legitimately requires mfapi mocking (already KANBAN'd as Phase D follow-up). Has `network` mark; runs in the `network`-marker pass.
+- [x] **`test_get_aligned_portfolio_civs` unblocked** — rewrote the brittle pickled-golden comparison as two behavioral tests with mocked `requests.get`. Verify the contract (DataFrame structure, column-per-fund, date-intersection index, no NaN, dtype) on deterministic synthetic NAVs instead of byte-comparing against a stale historical run.
 
 ### Bugs FIXED during Phase C capture
 - [x] **main.py line 359 stale name `portfolio` → `portfolio_ts`** — silent failure of `--save-golden-data` pickle dump
