@@ -1,5 +1,6 @@
 import pandas as pd
 import pytest
+import metrics
 from timeseries import TimeseriesReturn
 
 # === Edge Case Extensions ===
@@ -28,18 +29,20 @@ def test_cagr_zero_start():
         ts.cagr()
 
 @pytest.mark.order(30)
-@pytest.mark.skip(reason="Phase D: metric math layer needs decomposition (see KANBAN Sharpe/Vol bug)")
 def test_volatility_empty():
-    """Volatility should raise on empty series."""
-    ts = TimeseriesReturn(pd.Series([], name="value"))
-    with pytest.raises(ValueError, match="at least two data points"):
-        ts.volatility()
+    """Volatility on an empty return series should be NaN.
+
+    pandas' ``std()`` of an empty series returns NaN; ``metrics.volatility``
+    inherits that semantic. (cagr / max_drawdown raise instead, but those
+    are anchored to a start/end value that genuinely cannot exist.)
+    """
+    import math
+    result = metrics.volatility(pd.Series([], dtype=float), periods_per_year=252)
+    assert math.isnan(result)
+
 
 @pytest.mark.order(31)
-@pytest.mark.skip(reason="Phase D: metric math layer needs decomposition (see KANBAN Sharpe/Vol bug)")
 def test_sharpe_zero_volatility():
-    """Sharpe should return +inf if returns are constant and positive."""
+    """Constant positive returns ⇒ zero std ⇒ Sharpe = +inf."""
     s = pd.Series([0.01] * 100, index=pd.bdate_range("2023-01-01", periods=100))
-    ts = TimeseriesReturn(s.rename("value"))
-    result = ts.sharpe()
-    assert result == float("inf")
+    assert metrics.sharpe(s, risk_free_rate=0.0, periods_per_year=252) == float("inf")
