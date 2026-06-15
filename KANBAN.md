@@ -44,10 +44,17 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 - [x] Decided: `portfolio_calculator.py` — KEEP. Two functions live (`calculate_portfolio_allocations`, `calculate_gains_cumulative`); dropped dead `calculate_gain_daily_portfolio_series` and its unused import in main.py, plus the commented-out duplicate header.
 - [ ] Decide fate of `bond_calculators.py` (12.7 KB) — `calculate_variable_bond_cumulative_gain` is live (used by rec_bond_loader); the other 4 SGB-related funcs are unused but may inform Phase E live-gold port. Audit during Phase E.
 - [x] Decided: `visualizer.py` — KEEP. `plot_cumulative_returns` + `print_major_drawdowns` both live in main.py. Matplotlib import cost is acceptable for now; tests use `--disable-plot-display`.
-- [ ] Review `salvage/tmp3-uncommitted` branch (commit 9e899fb) file-by-file; cherry-pick or discard
-- [ ] Decide fate of `config/` directory (17 CLI-flag-combo test fixtures) — keep, restructure, or rely on pytest parametrize
-- [ ] Decide fate of `tests/data/*.pkl` pickled fixtures — replace with on-the-fly construction or keep with version pin
-- [ ] Walk through `tests/TODO.md` checklist and convert each item to a real test
+- [x] Reviewed `salvage/tmp3-uncommitted` branch (commit 9e899fb) — file-by-file: nothing cherry-picked. Findings:
+  - `data_loader.py` (155 lines): ~90% ruff/black cosmetic; one substantive change (`load_index_data` calls `warn_if_stale(..., quiet=quiet)`) references an undefined `quiet` param — abandoned WIP.
+  - `utils.py` (11 lines): 100% formatting.
+  - `portfolio_timeseries.py` (21 lines): formatting plus DEBUG NaN-count prints in `from_multiple_nav_series` — noise.
+  - `ppf_calculator.py` (26 lines): formatting plus `ppf_df.reindex(master_dates).ffill()` referencing an undefined `master_dates` — broken WIP.
+  - `main.py` (2 lines): changes default `benchmark_date_format` from `%m/%d/%Y` to `%d-%m-%Y`. Current NIFTY CSV uses `MM/DD/YYYY`, so this change goes with a different data file we don't have.
+  - Two CSV diffs: `INDIRLTLT01STM.csv` (1 line), `NIFTY ... CSV` (large sort/encoding change) — appear to be the user's local data refreshes; KANBAN already tracks data refresh as a separate item.
+  - **Branch preserved** (not deleted) for the historical record; nothing actionable remains.
+- [x] Decided: `config/` directory — KEEP. 18 files: `example_config.toml` (documents the schema) + `mid-cap_config.toml` (named portfolio config) are useful; the 16 CLI-flag-combo files (`no_output_csv-...toml`) are not referenced from code but document hand-test scenarios. Move to `attic/config-handtest-fixtures/` if/when pytest-parametrize replaces them; not blocking salvage.
+- [x] Decided: `tests/data/*.pkl` — 5 of 7 are unused. Only `portfolio_civs.pkl` and `aligned_civs.pkl` are read (by `tests/test_alignment.py`). Others (`aligned_portfolio_civs.pkl`, `aligned_ppf_portfolio_civs.pkl`, `benchmark_data.pkl`, `benchmark_returns.pkl`, `benchmark_returns_series.pkl`) are written by main.py's `--save-golden-data` path but never read by any test. Safe to delete post-v0.1; left for now.
+- [ ] Walk through `tests/TODO.md` checklist — deferred to Phase F. Most items are CLI-flag/TOML-override and failure-mode testing that overlaps with the planned `tests/integration/test_main_e2e.py`.
 
 ### Phase E — Salvage from old checkpoints
 - [ ] Port `fetch_gold_spot.py` live-gold from `~/Projects/PortfolioAnalyzer.attic/feb2025/` into `gold_loader.py` behind a `live = true` TOML flag (opt-in)
