@@ -8,13 +8,19 @@ import pandas as pd
 import toml
 
 
-def display_toml_below_figure(ax_table, toml_file):
+def display_toml_below_figure(ax_table, toml_file, assets_meta=None):
     """
-    Reads a TOML file, extracts relevant portfolio data, and displays it as a formatted table inside a subplot.
-    
+    Reads a TOML file, extracts relevant portfolio data, and displays it
+    as a formatted table inside a subplot.
+
     Args:
         ax_table (matplotlib.axes.Axes): The subplot where the table is added.
         toml_file (str): Path to the TOML file.
+        assets_meta (list[dict] | None): Optional per-asset lifecycle metadata
+            produced by ``fund_lifecycle.build_assets_meta``. When supplied,
+            two extra columns appear: "Inaugurated" and "Closed" (latter is
+            empty for LIVE funds, the last-NAV date for DEFUNCT ones, and
+            blank for non-fund assets without a NAV history).
     """
     # Ensure file exists
     if not os.path.isfile(toml_file):
@@ -24,6 +30,26 @@ def display_toml_below_figure(ax_table, toml_file):
     with open(toml_file) as f:
         data = toml.load(f)
 
+    # Build a quick lookup keyed by asset display name so the per-row
+    # rendering can attach the inauguration / status columns cheaply.
+    meta_by_name: dict[str, dict] = {}
+    if assets_meta:
+        meta_by_name = {r["name"]: r for r in assets_meta}
+
+    def _lifecycle_cells(name: str) -> tuple[str, str]:
+        """Returns (inaugurated_str, closed_str) for the named asset."""
+        r = meta_by_name.get(name)
+        if r is None:
+            return "", ""
+        inaug = r.get("inauguration")
+        last = r.get("last_nav")
+        inaug_s = inaug.strftime("%Y-%m-%d") if inaug else ""
+        # 'Closed' column is only meaningful for DEFUNCT funds.
+        closed_s = last.strftime("%Y-%m-%d") if (r.get("status") == "DEFUNCT" and last) else ""
+        return inaug_s, closed_s
+
+    show_lifecycle = bool(meta_by_name)
+
     # Extract relevant details into table format
     table_data = []
     for key, value in data.items():
@@ -31,42 +57,51 @@ def display_toml_below_figure(ax_table, toml_file):
             continue
 
         if isinstance(value, dict) and "allocation" in value:
-            table_data.append([
+            name = value["name"].strip()
+            row = [
                 key.capitalize(),
-                value["name"].strip(),
-                f"{value['allocation'] * 100:6.2f}%"
-            ])
+                name,
+                f"{value['allocation'] * 100:6.2f}%",
+            ]
+            if show_lifecycle:
+                row.extend(_lifecycle_cells(name))
+            table_data.append(row)
         elif isinstance(value, list):
             for entry in value:
                 # Funds use 'name'; per-tranche [[sgb]] entries use 'tranche_id'.
                 if key == "sgb":
                     type_label = "SGB"
-                    asset_label = entry["tranche_id"]
+                    name = entry["tranche_id"]
+                    asset_label = name
                     units = entry.get("units_grams")
                     if units is not None:
                         asset_label += f" ({units} g)"
                 else:
                     type_label = "Fund"
-                    asset_label = entry["name"].strip()
-                table_data.append([
+                    name = entry["name"].strip()
+                    asset_label = name
+                row = [
                     type_label,
                     asset_label,
-                    f"{entry['allocation'] * 100:6.2f}%"
-                ])
+                    f"{entry['allocation'] * 100:6.2f}%",
+                ]
+                if show_lifecycle:
+                    row.extend(_lifecycle_cells(name))
+                table_data.append(row)
 
     max_rows = 15
     if len(table_data) > max_rows:
-        table_data = table_data[:max_rows - 1] + [["...", "...", "..."]]
+        ellipsis_row = ["..."] * (5 if show_lifecycle else 3)
+        table_data = table_data[:max_rows - 1] + [ellipsis_row]
 
+    # Column widths: 3 columns by default, 5 when lifecycle metadata is shown.
+    if show_lifecycle:
+        col_widths = [0.5 / 4.5, 2.0 / 4.5, 0.6 / 4.5, 0.7 / 4.5, 0.7 / 4.5]
+        col_labels = ["Type", "Asset", "Allocation", "Inaugurated", "Closed"]
+    else:
+        col_widths = [0.8 / 4.5, 3.0 / 4.5, 0.7 / 4.5]
+        col_labels = ["Type", "Asset", "Allocation"]
 
-    # Desired columns: Type (1.25x), Asset (4.0x), Allocation (1.25x)
-    # But colWidths must be FRACTIONAL, so let's do ratio = 1.25 : 4.0 : 1.25 => total 6.5
-    # Convert to fraction:
-    type_ratio = 0.8 / 4.5
-    asset_ratio = 3.0 / 4.5
-    allocation_ratio = 0.7 / 4.5
-
-    col_labels = ["Type", "Asset", "Allocation"]
     ax_table.axis("off")
 
     table = ax_table.table(
@@ -74,7 +109,7 @@ def display_toml_below_figure(ax_table, toml_file):
         colLabels=col_labels,
         cellLoc='left',
         loc='upper left',
-        colWidths=[type_ratio, asset_ratio, allocation_ratio],  # <-- Column width ratios
+        colWidths=col_widths,
         bbox=[0.05, 0, 0.65, 1]
     )
 
@@ -128,6 +163,7 @@ def plot_cumulative_returns(
         max_drawdowns=None,
         rebase_date=datetime(2008, 1, 1),
         save_path=None,
+        assets_meta=None,
 ):
     # -- PREREQUISITE CHECKS --
     # Must have a portfolio return series, and it must be a Series
@@ -260,7 +296,7 @@ def plot_cumulative_returns(
 
     # Add asset allocations table in the lower portion
     ax_table = fig.add_subplot(gs[1])
-    display_toml_below_figure(ax_table, toml_file)
+    display_toml_below_figure(ax_table, toml_file, assets_meta=assets_meta)
 
     # Show plot
     fig.canvas.mpl_connect('key_press_event', toggle_zoom)

@@ -55,6 +55,7 @@ def main(args):
 
     aligned_portfolio_civs = pd.DataFrame()
     portfolio_start_date = None
+    unaligned_portfolio_civs: dict = {}
     if "funds" in portfolio_dict:
         unaligned_portfolio_civs = fetch_portfolio_civs(portfolio_dict)
         aligned_portfolio_civs = align_portfolio_civs(unaligned_portfolio_civs)
@@ -322,6 +323,17 @@ def main(args):
             f"{recovery_days}"
         )
 
+    # Per-asset metadata: inauguration date + defunct-status check.
+    # Reuses the already-fetched per-fund NAV DataFrames; no extra network.
+    from fund_lifecycle import build_assets_meta
+    assets_meta = build_assets_meta(portfolio_dict, unaligned_portfolio_civs)
+    defunct = [r for r in assets_meta if r["status"] == "DEFUNCT"]
+    for r in defunct:
+        print(
+            f"⚠️  {r['name']} appears DEFUNCT — last NAV "
+            f"{r['last_nav']} ({r['days_since_last_nav']} days ago)."
+        )
+
     # If output_csv is enabled, write to file or stdout
     if settings["output_csv"]:
         if settings.get("output_dir"):
@@ -337,6 +349,12 @@ def main(args):
             dd_path = os.path.join(settings["output_dir"], stem + ".drawdowns.csv")
             write_drawdowns_csv(max_drawdowns, dd_path)
             print(f"📄 Drawdown table written to {dd_path}")
+            # Sibling per-asset CSV: one row per asset with inauguration /
+            # last-NAV / status (LIVE / DEFUNCT / N/A).
+            from fund_lifecycle import write_assets_csv
+            assets_path = os.path.join(settings["output_dir"], stem + ".assets.csv")
+            write_assets_csv(assets_meta, assets_path)
+            print(f"📄 Assets table written to {assets_path}")
         else:
             print(csv_line)
 
@@ -396,6 +414,7 @@ def main(args):
             max_drawdowns,
             portfolio_start_date,
             save_path=image_path,
+            assets_meta=assets_meta,
         )
 
     if settings.get("show_plot", True):
@@ -410,6 +429,7 @@ def main(args):
             metrics,
             max_drawdowns,
             portfolio_start_date,
+            assets_meta=assets_meta,
         )
 
     if settings["output_csv"] or settings["output_snapshot"]:

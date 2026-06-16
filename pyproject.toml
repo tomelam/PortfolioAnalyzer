@@ -70,6 +70,8 @@ py-modules = [
     "sgb_holdings",
     # Per-drawdown CSV companion to the single-row metrics CSV.
     "drawdowns_csv",
+    # Inauguration / defunct-status helpers (per-asset metadata).
+    "fund_lifecycle",
 ]
 
 [tool.ruff]
