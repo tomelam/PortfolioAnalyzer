@@ -1,6 +1,8 @@
-import pytest
-import pandas as pd
 from types import SimpleNamespace
+
+import pandas as pd
+import pytest
+
 from portfolio_calculator import calculate_portfolio_allocations
 
 

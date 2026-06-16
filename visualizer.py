@@ -1,9 +1,10 @@
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import pandas as pd
-import numpy as np
-from datetime import datetime
 import os
+from datetime import datetime
+
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import toml
 
 
@@ -20,12 +21,8 @@ def display_toml_below_figure(ax_table, toml_file):
         raise FileNotFoundError(f"File not found: {toml_file}")
 
     # Load TOML file
-    with open(toml_file, "r") as f:
+    with open(toml_file) as f:
         data = toml.load(f)
-
-    # Extract label
-    file_name = os.path.basename(toml_file)
-    label = data.get("label", "Unknown Portfolio")
 
     # Extract relevant details into table format
     table_data = []

@@ -1,5 +1,5 @@
 import pytest
-import toml
+
 from data_loader import load_portfolio_details
 
 mock_valid_toml = {

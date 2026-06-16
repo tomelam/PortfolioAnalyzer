@@ -1,6 +1,7 @@
 # bond_calculators.py
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 
 def calculate_bond_cumulative_gain(annual_rate, portfolio_start_date, end_date=None):
     """
@@ -256,8 +257,9 @@ def calculate_realistic_sgb_series(sgb_data, gold_series, default_coupon=2.50, e
     for i, row in df.iterrows():
         issue_date = row['Issue Date']
         try:
-            # Remove commas if any and convert to float.
-            issue_price = float(str(row.get('Issue price/unit (₹)', '')).replace(',', ''))
+            # Validate issue price parses as float (commas stripped); the value
+            # itself isn't used here — only the parse-success signal matters.
+            float(str(row.get('Issue price/unit (₹)', '')).replace(',', ''))
         except Exception:
             continue  # Skip this tranche if the issue price is not available
         

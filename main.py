@@ -1,35 +1,30 @@
-from logging import debug
 import pandas as pd
-import numpy as np
-from portfolio_timeseries import from_multiple_nav_series
-from timeseries import TimeseriesReturn  # TODO: FIXME: TimeseriesReturn is being obsoleted
-from timeseries_civ import TimeseriesCIV
-from civ_to_returns import civ_to_returns
+
+import utils
 from data_loader import (
-    load_config_toml,
-    load_timeseries_csv,
-    get_aligned_portfolio_civs,
-    load_portfolio_details,
-    extract_weights,
-    fetch_portfolio_civs,
-    align_portfolio_civs,
-    fetch_and_standardize_risk_free_rates,
     align_dynamic_risk_free_rates,
+    align_portfolio_civs,
+    extract_weights,
+    fetch_and_standardize_risk_free_rates,
+    fetch_portfolio_civs,
     get_benchmark_gain_daily,
+    load_config_toml,
+    load_portfolio_details,
     load_ppf_civ,
+    load_timeseries_csv,
 )
 from portfolio_calculator import (
     calculate_gains_cumulative,
     calculate_portfolio_allocations,
 )
-from visualizer import plot_cumulative_returns, print_major_drawdowns
-import utils
+from portfolio_timeseries import from_multiple_nav_series
+from timeseries import TimeseriesReturn  # TODO: FIXME: TimeseriesReturn is being obsoleted
 from utils import (
-    info,
     dbg,
-    warn_if_stale,
+    info,
     to_cutoff_date,
 )
+from visualizer import plot_cumulative_returns, print_major_drawdowns
 
 
 def main(args):
@@ -87,8 +82,8 @@ def main(args):
         aligned_portfolio_civs["PPF"] = load_ppf_civ()
 
     if "scss" in portfolio_dict:
-        from data_loader import load_scss_interest_rates
         from bond_calculators import calculate_variable_bond_cumulative_gain
+        from data_loader import load_scss_interest_rates
 
         scss_rates = load_scss_interest_rates()
         scss_series = calculate_variable_bond_cumulative_gain(scss_rates, scss_rates.index.min())
@@ -259,8 +254,6 @@ def main(args):
         ),
     }
 
-    # Benchmark returns object
-    benchmark_returns = TimeseriesReturn(benchmark_returns_series)
     if benchmark_returns_series is not None:
         metrics["Alpha"] = portfolio_daily_ret.alpha_capm(
             benchmark_daily_ret, risk_free_rate=risk_free_rate_daily
@@ -341,12 +334,6 @@ def main(args):
 
     # Optionally, if the flag is set, dump portfolio data to a pickle file.
     if settings["save_golden"]:
-        import pickle
-
-        portfolio_data = {
-            "gain_daily": gain_daily_portfolio_series,
-            "allocations": calculate_portfolio_allocations(portfolio_ts),
-        }
         dump_pickle("tests/data/aligned_civs.pkl", multiindex_aligned_civs)
         dump_pickle("tests/data/aligned_portfolio_civs.pkl", aligned_portfolio_civs)
         dump_pickle("tests/data/benchmark_data.pkl", benchmark_data)

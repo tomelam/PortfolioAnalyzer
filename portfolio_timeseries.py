@@ -1,15 +1,17 @@
-from typing import Dict, Optional
+
 import pandas as pd
+
 from asset_timeseries import AssetTimeseries, from_civ
 from timeseries_civ import TimeseriesCIV
 from utils import dbg
+
 
 class PortfolioTimeseries:
     """
     Represents a collection of AssetTimeseries objects,
     combined into a unified portfolio timeseries.
     """
-    def __init__(self, assets: Dict[str, AssetTimeseries], weights: Optional[Dict[str, float]] = None):
+    def __init__(self, assets: dict[str, AssetTimeseries], weights: dict[str, float] | None = None):
         if not assets:
             raise ValueError("PortfolioTimeseries requires at least one asset")
         self.assets = assets
@@ -91,8 +93,8 @@ class PortfolioTimeseries:
 
 
 def from_multiple_nav_series(
-    nav_dict: Dict[str, Optional[pd.Series]],
-    weights: Optional[Dict[str, float]] = None
+    nav_dict: dict[str, pd.Series | None],
+    weights: dict[str, float] | None = None
 ) -> PortfolioTimeseries:
     """
     Convert a dict of raw NAV series into a PortfolioTimeseries instance.
@@ -104,7 +106,7 @@ def from_multiple_nav_series(
     Returns:
         PortfolioTimeseries: The constructed portfolio
     """
-    assets: Dict[str, AssetTimeseries] = {}
+    assets: dict[str, AssetTimeseries] = {}
     for name, series in nav_dict.items():
         if series is None:
             dbg(f"Skipping '{name}': no data")

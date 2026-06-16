@@ -21,7 +21,6 @@ import requests
 
 from mutual_fund_loader import fetch_navs
 
-
 SAMPLE_RESPONSE = {
     "status": "SUCCESS",
     "meta": {"fund_house": "Test AMC", "scheme_code": 999999, "scheme_name": "Test Fund"},

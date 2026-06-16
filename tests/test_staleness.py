@@ -1,8 +1,11 @@
-import pandas as pd
 from datetime import datetime, timedelta
-from utils import warn_if_stale
 from unittest.mock import patch
+
+import pandas as pd
 import pytest
+
+from utils import warn_if_stale
+
 
 def test_fresh_data_does_not_warn():
     df = pd.DataFrame({

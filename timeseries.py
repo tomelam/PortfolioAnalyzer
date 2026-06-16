@@ -1,9 +1,9 @@
-from matplotlib.lines import drawStyles
-import pandas as pd
-import numpy as np
 import warnings
-from dateutil.relativedelta import relativedelta
-from utils import info  # if you use `info()` for logging
+
+import numpy as np
+import pandas as pd
+
+from utils import dbg, info  # if you use `info()` / `dbg()` for logging
 
 
 class TimeseriesReturn:
@@ -99,7 +99,7 @@ class TimeseriesReturn:
         """
         overlap = self.index.intersection(other.index)
         if overlap.empty:
-            raise TimeseriesValidationError("No overlapping dates between series.")
+            raise ValueError("No overlapping dates between series.")
         return self.loc[overlap], other.loc[overlap]
 
     def value_series(self):
@@ -481,7 +481,7 @@ class TimeseriesReturn:
         buffer.write(f"\\begin{{tabular}}{{{columns}}}\n\\toprule\n")
         buffer.write("Metric & " + name)
         if compare_to:
-            buffer.write(f" & Comparison")
+            buffer.write(" & Comparison")
         buffer.write(" \\\\\n\\midrule\n")
 
         for metric in metrics_self:

@@ -1,10 +1,13 @@
-import pandas as pd
-import numpy as np
 import warnings
+
+import numpy as np
+import pandas as pd
 import pytest
+
 import metrics
+from asset_timeseries import AssetTimeseries, from_civ
 from timeseries import TimeseriesReturn
-from asset_timeseries import from_civ, AssetTimeseries
+
 
 @pytest.mark.order(10)
 def test_timeseriesframe_cagr_two_years():
@@ -136,7 +139,7 @@ def test_from_civ_creates_asset_timeseries_correctly():
     assert ts.civ.value_series().iloc[0] == 100.0
     assert ts.civ.value_series().iloc[-1] == 106.0
     assert ts.ret.value_series().iloc[0] == pytest.approx(0.02)
-    assert ts.cumret.value_series().iloc[-1] == pytest.approx((106/100))
+    assert ts.cumret.value_series().iloc[-1] == pytest.approx(106/100)
 
 
 @pytest.mark.order(22)
@@ -263,7 +266,11 @@ def test_alpha_regression_known_series():
 
     ⚠️ NOTE: This is a **minimal** test of alpha_regression(). Add edge-case and robustness tests later.
     """
-    warnings.warn("⚠️ test_alpha_regression_known_series() is a minimal test — not full coverage.", UserWarning)
+    warnings.warn(
+        "⚠️ test_alpha_regression_known_series() is a minimal test — not full coverage.",
+        UserWarning,
+        stacklevel=2,
+    )
 
     dates = pd.bdate_range("2023-01-01", periods=5)
     port_returns = [0.012, 0.011, 0.013, 0.012, 0.014]
@@ -282,7 +289,11 @@ def test_beta_regression_known_series():
     """
     A portfolio that is exactly 3x the benchmark should have regression beta = 3.
     """
-    warnings.warn("⚠️ test_alpha_regression_known_series() is a minimal test — not full coverage.", UserWarning)
+    warnings.warn(
+        "⚠️ test_alpha_regression_known_series() is a minimal test — not full coverage.",
+        UserWarning,
+        stacklevel=2,
+    )
     dates = pd.bdate_range("2023-01-01", periods=5)
     bench_returns = np.random.normal(0.005, 0.001, size=5)
     port_returns = 3 * bench_returns

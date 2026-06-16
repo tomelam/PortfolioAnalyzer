@@ -18,19 +18,13 @@
 #    - extract_fom_values
 #    - align_fund_data
 #    - get_dynamic_risk_free_rate
-# 2. Low-Level Functions:
-#    - fetch_yahoo_finance_data
-#    - download_csv
-#    - file_modified_within
 
-from logging import debug
-import pandas as pd
-import requests
-import toml
 import os
-from datetime import timedelta, datetime
-from utils import info, dbg, warn_if_stale
-from timeseries import TimeseriesReturn
+
+import pandas as pd
+import toml
+
+from utils import info
 
 # DEBUG flag is set by main.py (‑d/‑‑debug). Fallback = False.
 try:
@@ -54,8 +48,8 @@ def load_portfolio_toml(portfolio_path: str) -> dict:
 
 
 def check_time_index_cleanliness(df, name="DataFrame"):
-    from utils import info
     import pandas as pd
+
 
     idx = df.index
     problems = []
@@ -160,42 +154,6 @@ def get_benchmark_gain_daily(benchmark_data):
     # Set the index name to "date" so it matches expected_result
     benchmark_gain_daily.index.name = "date"
     return benchmark_gain_daily
-
-
-# Function to download data from a given URL and save it as a CSV file
-def download_csv(url, output_file):
-    """
-    Download a CSV file from a given URL and save it locally.
-
-    Parameters:
-        url (str): The URL to download the CSV file from.
-        output_file (str): The path to save the downloaded CSV file.
-    """
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        with open(output_file, "wb") as file:
-            file.write(response.content)
-    except requests.RequestException as e:
-        raise RequestException(f"Failed to download data from {url}: {e}")
-
-
-# Check if the file was modified within a specific time frame
-def file_modified_within(file_path, hours):
-    """
-    Check if a file was modified within the last specified hours.
-
-    Parameters:
-        file_path (str): Path to the file.
-        hours (int): The time frame in hours.
-
-    Returns:
-        bool: True if the file was modified within the time frame, False otherwise.
-    """
-    if os.path.exists(file_path):
-        modification_time = datetime.fromtimestamp(os.path.getmtime(file_path))
-        return (datetime.now() - modification_time).total_seconds() < hours * 3600
-    return False
 
 
 # Backward-compatibility re-export. Implementation lives in scss_loader.
@@ -389,9 +347,8 @@ def fetch_navs_of_mutual_fund(url, retries=10, timeout=20):
     return fetch_navs(url, retries=retries, timeout=timeout)
 
 
-# Load the PPF interest rates from a CSV file
 # Backward-compatibility re-exports. Implementation lives in ppf_loader.
-from ppf_loader import load_ppf_civ, load_ppf_interest_rates  # noqa: E402
+from ppf_loader import load_ppf_civ, load_ppf_interest_rates  # noqa: E402, F401
 
 
 def calculate_gold_cumulative_gain(gold_data, portfolio_start_date):
@@ -428,44 +385,6 @@ def extract_fom_values(nav_data):
     """
     fom_values = nav_data.loc[nav_data.index.is_month_start]
     return fom_values
-
-
-# Fetch Yahoo Finance data
-def fetch_yahoo_finance_data(ticker, refresh_hours=6, period="max"):
-    """
-    Fetch historical data from Yahoo Finance for a given ticker symbol.
-
-    Parameters:
-        ticker (str): Yahoo Finance ticker symbol.
-        period (str): The time period for historical data (default is "max").
-        refresh_hours (int): Number of hours before refreshing the data (default is 6).
-
-    Returns:
-        pd.DataFrame: Historical data indexed by date.
-    """
-
-    file_path = f"{ticker.replace('^', '').replace('/', '_')}.csv"
-    if not file_modified_within(file_path, refresh_hours):
-        info(
-            f"The data for {ticker} is outdated or missing. Fetching it using yfinance..."
-        )
-        yf_ticker = yf.Ticker(ticker)
-        raw = yf_ticker.history(period=period)
-        raw.to_csv(file_path)
-        info(f"Data downloaded successfully and saved to {file_path}.")
-    else:
-        raw = pd.read_csv(file_path)
-
-    data = rename_yahoo_data_columns(raw)
-    """
-    # Convert the index to a datetime column
-    data["date"] = pd.to_datetime(data.index, errors="coerce")
-    data.reset_index(
-        drop=True, inplace=True
-    )  # Drop the old index    if "Date" not in data.columns:
-    """
-    assert data.index.name == "Date", "Index name mismatch: expected 'Date'"
-    return data
 
 
 # Load risk-free rate data

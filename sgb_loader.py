@@ -1,6 +1,7 @@
-import pandas as pd
-import numpy as np
 import argparse
+
+import pandas as pd
+
 
 def create_sgb_daily_returns(csv_path="sgb_data.csv", initial_value=100):
     """
@@ -40,6 +41,6 @@ if __name__ == "__main__":
     parser.add_argument("csv_path", type=str, nargs="?", default="sgb_data.csv", help="Path to the SGB CSV file (default: sgb_data.csv)")
     args = parser.parse_args()
 
-    sgb_df = create_sgb_dataframe(args.csv_path)
+    sgb_df = create_sgb_daily_returns(args.csv_path)
     print("\nSovereign Gold Bond Tranche Data:\n")
     print(sgb_df)

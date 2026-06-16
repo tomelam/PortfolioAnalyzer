@@ -64,8 +64,11 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM"]
+select = ["E", "F", "I", "UP", "B"]
 ignore = ["E501"]
+# SIM (flake8-simplify) intentionally omitted from the salvage release.
+# Mostly subjective style hints (ternaries vs if/else, nested-with vs
+# single-with). Re-enable post-v0.1 and address as a cleanup pass.
 
 [tool.mypy]
 python_version = "3.12"

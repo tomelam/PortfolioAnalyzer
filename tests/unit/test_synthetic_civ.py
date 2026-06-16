@@ -43,7 +43,7 @@ def test_monthly_accrual_at_constant_rate() -> None:
     assert civs[0] == pytest.approx(1000.0)
     # After 5 monthly accruals each month gets +10 more, monthly_civ = 1000 + 10*k.
     expected = [1000.0 + 10.0 * k for k in range(len(civs))]
-    for actual, exp in zip(civs, expected):
+    for actual, exp in zip(civs, expected, strict=True):
         assert actual == pytest.approx(exp, rel=1e-9)
 
 
@@ -88,7 +88,9 @@ def test_step_rate_change_takes_effect_in_following_month() -> None:
     # June onwards reads 24%, contributing +20 to accrued.
     # accrued: 0, 10, 20, 40, 60 → civ: 1000, 1010, 1020, 1040, 1060
     expected = [1000.0, 1010.0, 1020.0, 1040.0, 1060.0]
-    for actual, exp in zip(civs[: len(expected)], expected):
+    # strict=False: civs may be shorter than expected if the rate window
+    # doesn't extend to all 5 expected indices; we only verify the prefix.
+    for actual, exp in zip(civs[: len(expected)], expected, strict=False):
         assert actual == pytest.approx(exp, rel=1e-9)
 
 

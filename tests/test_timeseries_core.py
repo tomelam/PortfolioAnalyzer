@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
+
 from timeseries import TimeseriesReturn
-from asset_timeseries import from_civ
 
 # === Core Safety Tests ===
 

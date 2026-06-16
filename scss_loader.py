@@ -14,10 +14,9 @@ kept there as a thin re-export.
 
 from __future__ import annotations
 
-import urllib3
-
 import pandas as pd
 import requests
+import urllib3
 from bs4 import BeautifulSoup
 
 from utils import info
@@ -68,7 +67,7 @@ def _extract_rate_series(html: str) -> list[dict]:
             cells_text.extend([""] * (len(headers) - len(cells_text)))
         else:
             cells_text = cells_text[: len(headers)]
-        rate_series.append(dict(zip(headers, cells_text)))
+        rate_series.append(dict(zip(headers, cells_text, strict=True)))
     return rate_series
 
 

@@ -21,6 +21,7 @@ Notes:
 """
 import pandas as pd
 
+
 def calculate_ppf_relative_civ(ppf_interest_rates):
     """
     Calculate the monthly current investment value (CIV) gain for PPF, accruing monthly interest and
