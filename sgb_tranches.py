@@ -11,10 +11,9 @@ consolidated SGB master ledger with explicit verify-against-PRID
 notes per row where the issue date is an estimate rather than
 direct confirmation.
 
-The deeper modeling refactor (replacing the bogus daily-returns-from-
-consecutive-issue-prices logic in ``sgb_loader.py`` with proper
-per-tranche P&L driven by IBJA gold spot + coupon accrual) is
-KANBAN'd as a separate cycle.
+Companion to ``sgb_holdings.py``: that module's valuation engine looks
+up tranche details here (``lookup_tranche``) when building the CIV
+series.
 """
 
 from __future__ import annotations

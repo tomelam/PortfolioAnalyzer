@@ -76,7 +76,8 @@ def main(args):
         dbg(f"\nLatest launch date among all mutual funds: {latest_date.date()}")
         dbg(f'Fund with the latest launch date: "{latest_fund}"')
 
-    ppf_series = scss_series = rec_bond_series = sgb_series = gold_series = None
+    ppf_series = scss_series = rec_bond_series = gold_series = None
+    sgb_series_by_tranche: dict[str, pd.Series] = {}
 
     if "ppf" in portfolio_dict:
         aligned_portfolio_civs["PPF"] = load_ppf_civ()
@@ -94,9 +95,20 @@ def main(args):
         rec_bond_series = load_rec_bond_series(portfolio_dict["rec_bond"])
 
     if "sgb" in portfolio_dict:
-        from sgb_loader import create_sgb_daily_returns
+        # Phase 2: each [[sgb]] entry is a distinct holding. Per-tranche
+        # CIV is built from per-gram gold spot plus accrued coupons by
+        # the sgb_holdings engine (Phase 1 work).
+        from gold_loader import load_gold_prices_per_gram
+        from sgb_holdings import sgb_holding_civ
 
-        sgb_series = create_sgb_daily_returns("data/sgb_data.csv")
+        gold_per_gram = load_gold_prices_per_gram()
+        for entry in portfolio_dict["sgb"]:
+            asset_name = f"SGB {entry['tranche_id']}"
+            sgb_series_by_tranche[asset_name] = sgb_holding_civ(
+                tranche_id=entry["tranche_id"],
+                units_grams=entry["units_grams"],
+                gold_prices=gold_per_gram,
+            )
 
     if "gold" in portfolio_dict:
         from gold_loader import load_gold_prices
@@ -109,8 +121,8 @@ def main(args):
         ppf_series,
         scss_series,
         rec_bond_series,
-        sgb_series,
         gold_series,
+        *sgb_series_by_tranche.values(),
     ]
 
     asset_start_dates = []
@@ -139,8 +151,10 @@ def main(args):
         scss_series = scss_series[scss_series.index >= portfolio_start_date]
     if rec_bond_series is not None:
         rec_bond_series = rec_bond_series[rec_bond_series.index >= portfolio_start_date]
-    if sgb_series is not None:
-        sgb_series = sgb_series[sgb_series.index >= portfolio_start_date]
+    sgb_series_by_tranche = {
+        name: s[s.index >= portfolio_start_date]
+        for name, s in sgb_series_by_tranche.items()
+    }
     if gold_series is not None:
         gold_series = gold_series[gold_series.index >= portfolio_start_date]
     # === END OF ROBUST LOGIC ===
@@ -155,9 +169,10 @@ def main(args):
         ("ppf_series", ppf_series),
         ("scss_series", scss_series),
         ("rec_bond_series", rec_bond_series),
-        ("sgb_series", sgb_series),
         ("gold_series", gold_series),
     ]:
+        dbg(f"{name}: {type(var)}")
+    for name, var in sgb_series_by_tranche.items():
         dbg(f"{name}: {type(var)}")
 
     # Mutual funds as a dict of Series
@@ -172,14 +187,15 @@ def main(args):
             ("PPF", ppf_series, "value"),
             ("SCSS", scss_series, "var_rate_bond_value"),
             ("REC", rec_bond_series, "var_rate_bond_value"),
-            ("SGB", sgb_series, "value"),
             ("Gold", gold_series, "price"),
         ]
         if s is not None
     }
 
-    # Final nav_inputs
-    nav_inputs = {**fund_series_dict, **extra_assets}
+    # Final nav_inputs: per-tranche SGB series merge in alongside the
+    # other asset classes; each tranche is its own asset with its own
+    # weight in the portfolio.
+    nav_inputs = {**fund_series_dict, **extra_assets, **sgb_series_by_tranche}
     for v in nav_inputs.values():
         assert isinstance(v, pd.Series), f"Expected pd.Series, got {type(v)}"
 

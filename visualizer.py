@@ -37,11 +37,21 @@ def display_toml_below_figure(ax_table, toml_file):
                 f"{value['allocation'] * 100:6.2f}%"
             ])
         elif isinstance(value, list):
-            for fund in value:
+            for entry in value:
+                # Funds use 'name'; per-tranche [[sgb]] entries use 'tranche_id'.
+                if key == "sgb":
+                    type_label = "SGB"
+                    asset_label = entry["tranche_id"]
+                    units = entry.get("units_grams")
+                    if units is not None:
+                        asset_label += f" ({units} g)"
+                else:
+                    type_label = "Fund"
+                    asset_label = entry["name"].strip()
                 table_data.append([
-                    "Fund",
-                    fund["name"].strip(),
-                    f"{fund['allocation'] * 100:6.2f}%"
+                    type_label,
+                    asset_label,
+                    f"{entry['allocation'] * 100:6.2f}%"
                 ])
 
     max_rows = 15

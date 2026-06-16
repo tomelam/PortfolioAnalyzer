@@ -53,7 +53,6 @@ py-modules = [
     "bond_calculators",
     "ppf_calculator",
     "gold_loader",
-    "sgb_loader",
     "extract_gold_inr_from_excel",
     "utils",
     "visualizer",

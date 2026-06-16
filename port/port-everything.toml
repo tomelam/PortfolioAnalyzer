@@ -39,9 +39,21 @@ ppf_interest_rates_file = "ppf_interest_rates.csv"
 name = "Physical Gold"
 allocation = 0.10
 
-[sgb]
-name = "Sovereign Gold Bond"
-allocation = 0.10
+# SGB holdings — Phase 2 modeling refactor (2026-06-16): each tranche is
+# a distinct investment with its own CIV (gold mark-to-market + accrued
+# coupons). Two sample tranches preserve the 10% SGB total (split 5/5);
+# units_grams here are illustrative because PortfolioTimeseries
+# normalizes each asset to 1.0 at the common start before applying
+# weights.
+[[sgb]]
+tranche_id = "2019-20-IX"
+units_grams = 1
+allocation = 0.05
+
+[[sgb]]
+tranche_id = "2020-21-VII"
+units_grams = 1
+allocation = 0.05
 
 [scss]
 name = "Senior Citizen Savings Scheme"

@@ -240,15 +240,40 @@ def load_portfolio_details(toml_file_path):
             if not isinstance(gold["allocation"], (float, int)) or not (0 <= gold["allocation"] <= 1):
                 errors.append(f"Invalid allocation value for {gold_id}: Must be between 0 and 1")
     
-    # Validate SGB if present
+    # Validate SGB if present. Phase 2 of the SGB modeling refactor
+    # requires the [[sgb]] *list* schema — each tranche is a distinct
+    # investment with its own tranche_id, units_grams, and allocation.
+    # The legacy [sgb] *dict* form (single allocation, no tranche info)
+    # is rejected with a clear migration message.
     if "sgb" in portfolio_details:
-        sgb = portfolio_details["sgb"]
-        sgb_id = sgb.get("name", "SGB section")
-        if "allocation" not in sgb:
-            errors.append(f"Missing required key 'allocation' in {sgb_id}")
-        else:
-            if not isinstance(sgb["allocation"], (float, int)) or not (0 <= sgb["allocation"] <= 1):
-                errors.append(f"Invalid allocation value for {sgb_id}: Must be between 0 and 1")
+        sgb_section = portfolio_details["sgb"]
+        if isinstance(sgb_section, dict):
+            errors.append(
+                "Legacy [sgb] dict schema is no longer supported. "
+                "Replace with one or more [[sgb]] entries, each with "
+                "tranche_id, units_grams, and allocation."
+            )
+        elif isinstance(sgb_section, list):
+            for i, entry in enumerate(sgb_section, start=1):
+                entry_id = entry.get("tranche_id", f"sgb #{i}")
+                if "tranche_id" not in entry:
+                    errors.append(f"Missing required key 'tranche_id' in [[sgb]] #{i}")
+                if "units_grams" not in entry:
+                    errors.append(f"Missing required key 'units_grams' in [[sgb]] {entry_id}")
+                else:
+                    units = entry["units_grams"]
+                    if not isinstance(units, (float, int)) or units <= 0:
+                        errors.append(
+                            f"Invalid units_grams for [[sgb]] {entry_id}: must be a positive number"
+                        )
+                if "allocation" not in entry:
+                    errors.append(f"Missing required key 'allocation' in [[sgb]] {entry_id}")
+                else:
+                    alloc = entry["allocation"]
+                    if not isinstance(alloc, (float, int)) or not (0 <= alloc <= 1):
+                        errors.append(
+                            f"Invalid allocation for [[sgb]] {entry_id}: must be between 0 and 1"
+                        )
     
     # Validate SCSS if present
     if "scss" in portfolio_details:
@@ -310,10 +335,19 @@ def extract_weights(portfolio_dict):
         ("ppf", "PPF"),
         ("scss", "SCSS"),
         ("rec_bond", "REC"),
-        ("sgb", "SGB"),
     ]:
         if key in portfolio_dict:
             add_weight(key, label)
+
+    # SGB: one weight entry per [[sgb]] tranche. Keyed by tranche_id
+    # so the same key drops straight into PortfolioTimeseries.assets.
+    if "sgb" in portfolio_dict:
+        for entry in portfolio_dict["sgb"]:
+            if "tranche_id" not in entry or "allocation" not in entry:
+                raise ValueError(
+                    "❌ Each [[sgb]] entry must have 'tranche_id' and 'allocation'"
+                )
+            weights[f"SGB {entry['tranche_id']}"] = entry["allocation"]
 
     return weights
 
@@ -327,7 +361,9 @@ def validate_allocations(portfolio_details, tol=0.01):
     if "gold" in portfolio_details:
         total_allocation += portfolio_details["gold"].get("allocation", 0)
     if "sgb" in portfolio_details:
-        total_allocation += portfolio_details["sgb"].get("allocation", 0)
+        total_allocation += sum(
+            entry.get("allocation", 0) for entry in portfolio_details["sgb"]
+        )
     if "scss" in portfolio_details:
         total_allocation += portfolio_details["scss"].get("allocation", 0)
     if "rec_bond" in portfolio_details:

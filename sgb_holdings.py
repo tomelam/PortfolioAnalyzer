@@ -1,15 +1,15 @@
 """Per-tranche SGB valuation engine.
 
-Replaces the bogus ``pct_change``-on-consecutive-tranche-issue-prices
-logic in ``sgb_loader.py`` with a proper holder-side mark-to-market:
+Replaced the bogus ``pct_change``-on-consecutive-tranche-issue-prices
+logic in the now-deleted ``sgb_loader.py`` with a proper holder-side
+mark-to-market:
 
     CIV(t) = units_grams × gold_price_per_gram(t)        # capital
            + Σ(coupons paid on or before t)               # income
 
-This module is the pure-function valuation layer (Phase 1 of the
-SGB modeling refactor). Phase 2 will integrate it into ``main.py``
-and replace the existing ``sgb_loader.create_sgb_daily_returns``
-call site.
+This module is the pure-function valuation layer. ``main.py`` iterates
+the portfolio's ``[[sgb]]`` entries and calls ``sgb_holding_civ`` once
+per tranche.
 
 Coupon rules (from the user's RBI certificates and the master ledger):
 
