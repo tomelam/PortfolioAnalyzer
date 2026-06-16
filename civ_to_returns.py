@@ -17,6 +17,7 @@ Notes:
 """
 import pandas as pd
 
+
 def civ_to_returns(series: pd.Series, frequency: str = "monthly") -> pd.Series:
     """
     Convert a NAV/CIV series into a returns series.

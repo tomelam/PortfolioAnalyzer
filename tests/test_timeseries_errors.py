@@ -1,13 +1,15 @@
 import pandas as pd
 import pytest
-from timeseries import TimeseriesFrame
+
+import metrics
+from timeseries import TimeseriesReturn
 
 # === Edge Case Extensions ===
 
 @pytest.mark.order(24)
 def test_max_drawdown_empty():
     """Verify that .max_drawdown() raises on empty series."""
-    ts = TimeseriesFrame(pd.Series([], name="value"))
+    ts = TimeseriesReturn(pd.Series([], name="value"))
     with pytest.raises(ValueError, match="Max drawdown requires at least one data point"):
         ts.max_drawdown()
 
@@ -15,7 +17,7 @@ def test_max_drawdown_empty():
 def test_cagr_single_point():
     """CAGR should raise if fewer than two data points."""
     s = pd.Series([100.0], index=pd.to_datetime(["2022-01-01"]))
-    ts = TimeseriesFrame(s.rename("value"))
+    ts = TimeseriesReturn(s.rename("value"))
     with pytest.raises(ValueError, match="requires at least two data points"):
         ts.cagr()
 
@@ -23,21 +25,25 @@ def test_cagr_single_point():
 def test_cagr_zero_start():
     """CAGR should raise if starting value is zero."""
     dates = pd.to_datetime(["2022-01-01", "2023-01-01"])
-    ts = TimeseriesFrame(pd.Series([0.0, 100.0], index=dates, name="value"))
+    ts = TimeseriesReturn(pd.Series([0.0, 100.0], index=dates, name="value"))
     with pytest.raises(ValueError, match="start value is zero"):
         ts.cagr()
 
 @pytest.mark.order(30)
 def test_volatility_empty():
-    """Volatility should raise on empty series."""
-    ts = TimeseriesFrame(pd.Series([], name="value"))
-    with pytest.raises(ValueError, match="at least two data points"):
-        ts.volatility()
+    """Volatility on an empty return series should be NaN.
+
+    pandas' ``std()`` of an empty series returns NaN; ``metrics.volatility``
+    inherits that semantic. (cagr / max_drawdown raise instead, but those
+    are anchored to a start/end value that genuinely cannot exist.)
+    """
+    import math
+    result = metrics.volatility(pd.Series([], dtype=float), periods_per_year=252)
+    assert math.isnan(result)
+
 
 @pytest.mark.order(31)
 def test_sharpe_zero_volatility():
-    """Sharpe should return +inf if returns are constant and positive."""
+    """Constant positive returns ⇒ zero std ⇒ Sharpe = +inf."""
     s = pd.Series([0.01] * 100, index=pd.bdate_range("2023-01-01", periods=100))
-    ts = TimeseriesFrame(s.rename("value"))
-    result = ts.sharpe()
-    assert result == float("inf")
+    assert metrics.sharpe(s, risk_free_rate=0.0, periods_per_year=252) == float("inf")

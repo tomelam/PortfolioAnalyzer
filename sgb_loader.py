@@ -1,6 +1,7 @@
-import pandas as pd
-import numpy as np
 import argparse
+
+import pandas as pd
+
 
 def create_sgb_daily_returns(csv_path="sgb_data.csv", initial_value=100):
     """
@@ -12,7 +13,8 @@ def create_sgb_daily_returns(csv_path="sgb_data.csv", initial_value=100):
     Returns:
         pd.DataFrame: DataFrame with DateTime index (issue dates) and issue prices as values.
     """
-    df = pd.read_csv(csv_path, parse_dates=["Issue Date"])
+    df = pd.read_csv(csv_path)
+    df["Issue Date"] = pd.to_datetime(df["Issue Date"], dayfirst=True)
     df.set_index("Issue Date", inplace=True)
     df.sort_index(inplace=True)
 
@@ -39,6 +41,6 @@ if __name__ == "__main__":
     parser.add_argument("csv_path", type=str, nargs="?", default="sgb_data.csv", help="Path to the SGB CSV file (default: sgb_data.csv)")
     args = parser.parse_args()
 
-    sgb_df = create_sgb_dataframe(args.csv_path)
+    sgb_df = create_sgb_daily_returns(args.csv_path)
     print("\nSovereign Gold Bond Tranche Data:\n")
     print(sgb_df)

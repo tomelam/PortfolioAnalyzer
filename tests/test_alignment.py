@@ -1,7 +1,9 @@
 import pytest
-from test_utils import load_pickle
 from pandas.testing import assert_frame_equal
+from test_utils import load_pickle
+
 from data_loader import align_portfolio_civs
+
 
 @pytest.mark.order(6)  # test_align_portfolio_civs(mocker)
 def test_align_portfolio_civs(mocker):

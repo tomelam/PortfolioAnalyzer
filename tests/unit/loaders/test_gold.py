@@ -1,0 +1,55 @@
+"""Tests for the gold-price loader.
+
+Contract: gold_loader.load_gold_prices() returns a pd.Series indexed by
+date and named 'price'. main.py expects every asset's nav_inputs entry
+to be a pd.Series (see main.py:200 assertion). The previous DataFrame
+return + dict-style conversion at the call site was broken and silently
+asserted out for any portfolio with a [gold] section.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pandas as pd
+import pytest
+
+from gold_loader import load_gold_prices
+
+FIXTURES = Path(__file__).resolve().parent.parent.parent / "fixtures" / "data"
+
+
+def test_returns_series() -> None:
+    s = load_gold_prices(csv_path=str(FIXTURES / "gold_tiny.csv"))
+    assert isinstance(s, pd.Series), f"expected pd.Series, got {type(s)}"
+
+
+def test_series_name_is_price() -> None:
+    s = load_gold_prices(csv_path=str(FIXTURES / "gold_tiny.csv"))
+    assert s.name == "price"
+
+
+def test_datetime_index() -> None:
+    s = load_gold_prices(csv_path=str(FIXTURES / "gold_tiny.csv"))
+    assert isinstance(s.index, pd.DatetimeIndex)
+
+
+def test_sorted_ascending() -> None:
+    s = load_gold_prices(csv_path=str(FIXTURES / "gold_tiny.csv"))
+    assert s.index.is_monotonic_increasing
+
+
+def test_values_are_float() -> None:
+    s = load_gold_prices(csv_path=str(FIXTURES / "gold_tiny.csv"))
+    assert s.dtype == float
+
+
+def test_first_and_last_values() -> None:
+    s = load_gold_prices(csv_path=str(FIXTURES / "gold_tiny.csv"))
+    assert s.iloc[0] == pytest.approx(62000.50)
+    assert s.iloc[-1] == pytest.approx(65000.00)
+
+
+def test_missing_file_raises() -> None:
+    with pytest.raises(RuntimeError, match="not found"):
+        load_gold_prices(csv_path="/nonexistent/path/gold.csv")

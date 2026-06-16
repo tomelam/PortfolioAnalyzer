@@ -1,5 +1,6 @@
-import pytest
 import pandas as pd
+import pytest
+
 #from test_utils import mock_nav_data
 from data_loader import fetch_navs_of_mutual_fund
 

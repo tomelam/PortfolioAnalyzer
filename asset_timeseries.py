@@ -1,7 +1,9 @@
-from typing import Dict, Optional
-import pandas as pd
 from dataclasses import dataclass
+
+import pandas as pd
+
 from timeseries import TimeseriesReturn
+
 
 @dataclass
 class AssetTimeseries:

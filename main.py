@@ -1,37 +1,30 @@
-from logging import debug
 import pandas as pd
-import numpy as np
-from portfolio_timeseries import from_multiple_nav_series
-from timeseries import TimeseriesReturn  # TODO: FIXME: TimeseriesReturn is being obsoleted
-from timeseries_civ import TimeseriesCIV
-from civ_to_returns import civ_to_returns
+
+import utils
 from data_loader import (
-    load_config_toml,
-    load_timeseries_csv,
-    load_index_data,
-    get_aligned_portfolio_civs,
-    load_portfolio_details,
-    extract_weights,
-    fetch_portfolio_civs,
-    align_portfolio_civs,
-    fetch_and_standardize_risk_free_rates,
     align_dynamic_risk_free_rates,
+    align_portfolio_civs,
+    extract_weights,
+    fetch_and_standardize_risk_free_rates,
+    fetch_portfolio_civs,
     get_benchmark_gain_daily,
+    load_config_toml,
+    load_portfolio_details,
     load_ppf_civ,
+    load_timeseries_csv,
 )
 from portfolio_calculator import (
     calculate_gains_cumulative,
     calculate_portfolio_allocations,
-    calculate_gain_daily_portfolio_series,
 )
-from visualizer import plot_cumulative_returns, print_major_drawdowns
-import utils
+from portfolio_timeseries import from_multiple_nav_series
+from timeseries import TimeseriesReturn  # TODO: FIXME: TimeseriesReturn is being obsoleted
 from utils import (
-    info,
     dbg,
-    warn_if_stale,
+    info,
     to_cutoff_date,
 )
+from visualizer import plot_cumulative_returns, print_major_drawdowns
 
 
 def main(args):
@@ -89,21 +82,16 @@ def main(args):
         aligned_portfolio_civs["PPF"] = load_ppf_civ()
 
     if "scss" in portfolio_dict:
-        from data_loader import load_scss_interest_rates
         from bond_calculators import calculate_variable_bond_cumulative_gain
+        from data_loader import load_scss_interest_rates
 
         scss_rates = load_scss_interest_rates()
         scss_series = calculate_variable_bond_cumulative_gain(scss_rates, scss_rates.index.min())
 
     if "rec_bond" in portfolio_dict:
-        from bond_calculators import calculate_variable_bond_cumulative_gain
+        from rec_bond_loader import load_rec_bond_series
 
-        rec_bond_rates = pd.DataFrame(
-            {"rate": [5.25]}, index=pd.date_range("2000-01-01", pd.Timestamp.today(), freq="D")
-        )
-        rec_bond_series = calculate_variable_bond_cumulative_gain(
-            rec_bond_rates, rec_bond_rates.index.min()
-        )
+        rec_bond_series = load_rec_bond_series(portfolio_dict["rec_bond"])
 
     if "sgb" in portfolio_dict:
         from sgb_loader import create_sgb_daily_returns
@@ -114,10 +102,6 @@ def main(args):
         from gold_loader import load_gold_prices
 
         gold_series = load_gold_prices()
-        if gold_series is not None and "Spot Price" in gold_series.columns:
-            gold_series = gold_series[["Spot Price"]].rename(columns={"Spot Price": "price"})
-        print(gold_series.head())
-        print(gold_series.columns)
 
     # === ROBUST PORTFOLIO START DATE LOGIC ===
     asset_series_list = [
@@ -270,8 +254,6 @@ def main(args):
         ),
     }
 
-    # Benchmark returns object
-    benchmark_returns = TimeseriesReturn(benchmark_returns_series)
     if benchmark_returns_series is not None:
         metrics["Alpha"] = portfolio_daily_ret.alpha_capm(
             benchmark_daily_ret, risk_free_rate=risk_free_rate_daily
@@ -352,14 +334,6 @@ def main(args):
 
     # Optionally, if the flag is set, dump portfolio data to a pickle file.
     if settings["save_golden"]:
-        import pickle
-
-        portfolio_data = {
-            "gain_daily": gain_daily_portfolio_series,
-            "allocations": calculate_portfolio_allocations(portfolio),
-            # You can extend this dictionary with other intermediate outputs
-            # such as cumulative returns if desired.
-        }
         dump_pickle("tests/data/aligned_civs.pkl", multiindex_aligned_civs)
         dump_pickle("tests/data/aligned_portfolio_civs.pkl", aligned_portfolio_civs)
         dump_pickle("tests/data/benchmark_data.pkl", benchmark_data)

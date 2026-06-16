@@ -1,61 +1,62 @@
-import pytest
+from types import SimpleNamespace
+
 import pandas as pd
+import pytest
+
 from portfolio_calculator import calculate_portfolio_allocations
+
 
 @pytest.mark.order(4)
 def test_calculate_portfolio_allocations():
-    """
-    Test asset allocation calculation with mocked portfolio.
+    """``calculate_portfolio_allocations`` aggregates each asset's
+    ``asset_allocation`` mapping, weighted by its portfolio weight.
+
+    The legacy mock used ``self.assets = {name: None}`` because an
+    earlier API read from ``portfolio.funds`` (a list of dicts). The
+    current API reads from ``portfolio.assets`` and pulls
+    ``asset.asset_allocation``, so each mocked asset must expose that
+    attribute.
     """
 
     class MockPortfolio:
         def __init__(self):
+            nifty = SimpleNamespace(
+                asset_allocation={
+                    "equity": 99.89,
+                    "debt": 0.0,
+                    "real_estate": 0.0,
+                    "commodities": 0.0,
+                    "cash": 0.11,
+                }
+            )
+            bluechip = SimpleNamespace(
+                asset_allocation={
+                    "equity": 92.69,
+                    "debt": 0.35,
+                    "real_estate": 0.0,
+                    "commodities": 0.0,
+                    "cash": 6.96,
+                }
+            )
             self.assets = {
-                'ICICI_Nifty_50_Index_Fund': None,
-                'ICICI_Prudential_Bluechip_Fund': None,
+                "ICICI_Nifty_50_Index_Fund": nifty,
+                "ICICI_Prudential_Bluechip_Fund": bluechip,
             }
             self.weights = {
-                'ICICI_Nifty_50_Index_Fund': 0.6,
-                'ICICI_Prudential_Bluechip_Fund': 0.4,
+                "ICICI_Nifty_50_Index_Fund": 0.6,
+                "ICICI_Prudential_Bluechip_Fund": 0.4,
             }
-            self.funds = [
-                {
-                    'name': 'ICICI_Nifty_50_Index_Fund',
-                    'url': 'https://api.mfapi.in/mf/120620',
-                    'allocation': 0.6,
-                    'asset_allocation': {
-                        'equity': 99.89,
-                        'debt': 0.0,
-                        'real_estate': 0.0,
-                        'commodities': 0.0,
-                        'cash': 0.11
-                    }
-                },
-                {
-                    'name': 'ICICI_Prudential_Bluechip_Fund',
-                    'url': 'https://api.mfapi.in/mf/120586',
-                    'allocation': 0.4,
-                    'asset_allocation': {
-                        'equity': 92.69,
-                        'debt': 0.35,
-                        'real_estate': 0.0,
-                        'commodities': 0.0,
-                        'cash': 6.96
-                    }
-                }
-            ]
-            self.label = 'Portfolio X: 60% NIFTY50 + 40% Bluechip'
 
-    portfolio = MockPortfolio()
+    expected = pd.Series(
+        {
+            "equity": 0.6 * 0.9989 + 0.4 * 0.9269,
+            "debt": 0.6 * 0.0 + 0.4 * 0.0035,
+            "real_estate": 0.0,
+            "commodities": 0.0,
+            "cash": 0.6 * 0.0011 + 0.4 * 0.0696,
+        }
+    )
 
-    expected = pd.Series({
-        'equity': 0.9701,
-        'debt': 0.0014,
-        'real_estate': 0.0000,
-        'commodities': 0.0000,
-        'cash': 0.0285
-    })
+    result = calculate_portfolio_allocations(MockPortfolio())
 
-    result = calculate_portfolio_allocations(portfolio)
-
-    pd.testing.assert_series_equal(result.sort_index(), expected.sort_index(), rtol=1e-4)
+    pd.testing.assert_series_equal(result.sort_index(), expected.sort_index(), rtol=1e-9)

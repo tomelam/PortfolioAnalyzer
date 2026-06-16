@@ -21,6 +21,7 @@ Notes:
 """
 import pandas as pd
 
+
 def calculate_ppf_relative_civ(ppf_interest_rates):
     """
     Calculate the monthly current investment value (CIV) gain for PPF, accruing monthly interest and
@@ -40,7 +41,7 @@ def calculate_ppf_relative_civ(ppf_interest_rates):
     extended_dates = pd.date_range(
         start=first_date - pd.DateOffset(months=1),
         end=ppf_interest_rates.index.max(),
-        freq="M",
+        freq="ME",
     )
     monthly_rates = ppf_interest_rates.reindex(extended_dates, method="pad")
 
@@ -67,6 +68,6 @@ def calculate_ppf_relative_civ(ppf_interest_rates):
     civ_df = pd.DataFrame(civs)
     civ_df["date"] = pd.to_datetime(civ_df["date"])
     civ_df.set_index("date", inplace=True)
-    civ_df["civ"].fillna(method="ffill", inplace=True)
+    civ_df["civ"] = civ_df["civ"].ffill()
 
     return civ_df
