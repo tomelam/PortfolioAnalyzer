@@ -19,8 +19,15 @@ class PortfolioTimeseries:
 
         # Normalize weights to sum to 1.0
         total_weight = sum(self.weights.values())
-        if total_weight != 1:
-            raise ValueError("PortfolioTimeseries asset weights must sum to 1")
+        # Tolerance matches data_loader.validate_allocations (1% band).
+        # Hand-typed TOML fractions routinely sum to 0.9999999999999999
+        # (IEEE-754 rounding) or 1.0000000000000002; the strict `!= 1`
+        # check rejected legitimate portfolios spuriously.
+        if abs(total_weight - 1) > 0.01:
+            raise ValueError(
+                f"PortfolioTimeseries asset weights must sum to 1 "
+                f"(got {total_weight:.6f})"
+            )
         if total_weight > 0:
             self.weights = {k: v / total_weight for k, v in self.weights.items()}
 

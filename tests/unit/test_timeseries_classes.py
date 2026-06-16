@@ -121,6 +121,52 @@ def test_portfolio_rejects_weights_that_dont_sum_to_one() -> None:
         )
 
 
+def test_portfolio_accepts_weights_off_by_floating_point_noise() -> None:
+    """Real-world portfolios constructed by hand-typed fractions in TOML
+    routinely sum to 0.9999999999999999 (FP rounding) or 1.0000000000000002.
+    A strict ``!= 1`` check rejects them spuriously. Use a tolerance band
+    matching ``validate_allocations``'s ``tol=0.01``.
+    """
+    a = _values_series([100.0, 101.0])
+    b = _values_series([200.0, 201.0])
+    # Six-fund split that sums to 0.9999999999999999 in IEEE-754.
+    weights = {
+        "a": 0.10526315789473684,
+        "b": 0.2631578947368421,
+        "c": 0.26842105263157887,
+        "d": 0.21052631578947367,
+        "e": 0.05263157894736842,
+        "f": 0.10,
+    }
+    # Build six assets via copying a/b so the check can run.
+    c = _values_series([300.0, 301.0])
+    d = _values_series([400.0, 401.0])
+    e = _values_series([500.0, 501.0])
+    f = _values_series([600.0, 601.0])
+    assets = {
+        "a": from_civ(a),
+        "b": from_civ(b),
+        "c": from_civ(c),
+        "d": from_civ(d),
+        "e": from_civ(e),
+        "f": from_civ(f),
+    }
+    # Should not raise even though sum != 1 in strict FP terms.
+    portfolio = PortfolioTimeseries(assets=assets, weights=weights)
+    assert sum(portfolio.weights.values()) == pytest.approx(1.0)
+
+
+def test_portfolio_rejects_weights_off_by_more_than_tolerance() -> None:
+    """One percentage point off is a real schema error, not FP noise."""
+    a = _values_series([100.0, 101.0])
+    b = _values_series([200.0, 201.0])
+    with pytest.raises(ValueError, match="weights must sum to 1"):
+        PortfolioTimeseries(
+            assets={"a": from_civ(a), "b": from_civ(b)},
+            weights={"a": 0.50, "b": 0.49},  # 0.99 — 1% off
+        )
+
+
 def test_portfolio_rejects_empty_assets() -> None:
     with pytest.raises(ValueError, match="at least one asset"):
         PortfolioTimeseries(assets={}, weights={})
