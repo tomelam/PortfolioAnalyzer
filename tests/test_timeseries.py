@@ -1,5 +1,3 @@
-import warnings
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -260,18 +258,12 @@ def test_alpha_beta_capm_empty_inputs():
 
 @pytest.mark.order(44)
 def test_alpha_regression_known_series():
-    """
-    A portfolio with consistently higher returns than the benchmark
+    """A portfolio with consistently higher returns than the benchmark
     should have a positive regression alpha.
 
-    ⚠️ NOTE: This is a **minimal** test of alpha_regression(). Add edge-case and robustness tests later.
+    NOTE: minimal coverage of ``alpha_regression`` — only the sign of the
+    result is checked. Edge cases and robustness tracked in KANBAN.
     """
-    warnings.warn(
-        "⚠️ test_alpha_regression_known_series() is a minimal test — not full coverage.",
-        UserWarning,
-        stacklevel=2,
-    )
-
     dates = pd.bdate_range("2023-01-01", periods=5)
     port_returns = [0.012, 0.011, 0.013, 0.012, 0.014]
     bench_returns = [0.007, 0.006, 0.008, 0.007, 0.006]
@@ -286,14 +278,10 @@ def test_alpha_regression_known_series():
 
 @pytest.mark.order(45)
 def test_beta_regression_known_series():
+    """A portfolio that is exactly 3x the benchmark should have regression beta = 3.
+
+    NOTE: minimal coverage of ``beta_regression`` — tracked in KANBAN.
     """
-    A portfolio that is exactly 3x the benchmark should have regression beta = 3.
-    """
-    warnings.warn(
-        "⚠️ test_alpha_regression_known_series() is a minimal test — not full coverage.",
-        UserWarning,
-        stacklevel=2,
-    )
     dates = pd.bdate_range("2023-01-01", periods=5)
     bench_returns = np.random.normal(0.005, 0.001, size=5)
     port_returns = 3 * bench_returns

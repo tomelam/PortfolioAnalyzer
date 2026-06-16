@@ -14,10 +14,7 @@ def create_sgb_daily_returns(csv_path="sgb_data.csv", initial_value=100):
         pd.DataFrame: DataFrame with DateTime index (issue dates) and issue prices as values.
     """
     df = pd.read_csv(csv_path)
-    # format="mixed" + dayfirst handles both the real ISO data (YYYY-MM-DD)
-    # and the test fixture's DD-MM-YYYY without the spurious dayfirst-warning
-    # that bare dayfirst=True emits against ISO dates.
-    df["Issue Date"] = pd.to_datetime(df["Issue Date"], format="mixed", dayfirst=True)
+    df["Issue Date"] = pd.to_datetime(df["Issue Date"], format="%Y-%m-%d")
     df.set_index("Issue Date", inplace=True)
     df.sort_index(inplace=True)
 
