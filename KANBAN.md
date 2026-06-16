@@ -6,6 +6,136 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 
 ## Backlog
 
+### Post-v0.1 product improvements (user-prioritized 2026-06-17)
+
+Grouped by impact. Top items meaningfully change what PortfolioAnalyzer does
+or how trustworthy its output is; bottom items are hygiene/cleanup.
+
+#### A. Output / reporting enhancements
+
+- [ ] **Add a drawdown table to the output CSV.** Currently the CSV is one
+  row per portfolio with only `Drawdowns` (count), `Max Drawdown %`, max-DD
+  `Start`, `Days`, `Recovery`. Extend to also emit a sibling CSV (e.g.
+  `<portfolio>.drawdowns.csv`) with one row per drawdown: `start_date`,
+  `trough_date`, `recovery_date`, `depth_pct`, `drawdown_days`,
+  `recovery_days`. The data is already produced by `metrics.max_drawdowns`
+  and printed to stdout via `print_major_drawdowns`; this just routes it
+  to disk.
+
+- [ ] **Add fund inauguration date + closing date (defunct funds) to both
+  the plot's allocation table and the output CSV.** The mfapi.in JSON
+  payload gives the full NAV history per fund; the *inauguration* date is
+  the earliest NAV date, and a fund is *defunct* if the most recent NAV is
+  older than e.g. 30 days. Surface both in:
+  - `visualizer.display_toml_below_figure` → new columns "Inaugurated"
+    and "Closed" (blank if active).
+  - The single-row metrics CSV → expand per-fund metadata, OR emit a
+    second sibling `<portfolio>.assets.csv` with one row per asset
+    showing name, allocation, inauguration date, status, closing date.
+  - Defunct funds should also raise a clear warning at run-time (not a
+    silent inclusion of stale data in the portfolio CIV).
+
+#### B. Determinism / trustworthiness
+
+- [ ] **Auto-update the benchmark CSV.** `data/NIFTY Total Returns Historical
+  Data.csv` is currently a manual investing.com download (last refreshed
+  2025-05-02; 13+ months stale as of today). Build a fetcher that pulls
+  fresh NIFTY 50 TRI data from a stable source — niftyindices.com publishes
+  daily total-return CSVs at
+  `https://www.niftyindices.com/IndexConstituent/ind_close_all_<DDMMYYYY>.csv`
+  or via their historical-data endpoint. Where a stable, no-auth source
+  exists for other benchmarks (e.g. India 10Y bond yield via FRED's
+  `INDIRLTLT01STM`), auto-refresh those too. Per-source rule: scheduled
+  background refresh (cron-able), with last-modified-date stamps so the
+  staleness gate can become "early warning, not a hard blocker." See
+  also the existing "Refresh stale data files" item under *Data freshness*.
+
+- [ ] **Add `--today YYYY-MM-DD` flag** so the safety-net tests are
+  deterministic without live mfapi drift. Once it exists, tighten golden
+  tolerances to 1e-9 (currently 5% relative). *(Already on Phase C
+  backlog; restated here for visibility.)*
+
+- [ ] **Build a pickle-replay path** (`main.py --replay-from
+  tests/golden/port-X/pickles/`). Removes the network dependency from
+  golden tests entirely. *(Already on Phase C backlog.)*
+
+#### C. Correctness bugs surfaced but not fixed
+
+- [ ] **Fix `PortfolioTimeseries.__init__` strict weight-sum check.**
+  Currently rejects portfolios whose `sum(weights) != 1.0` exactly; this
+  is a floating-point precision bug masquerading as a "TOML bug." The six
+  portfolios that failed the 2026-06-17 sweep (port-8, port-8-10%_ppf,
+  port-8-40%_ppf, port-8-60%_ppf, port-kl, port-kl3) sum to either
+  `0.9999999999999999` (FP rounding) or one part per million off. Fix:
+  replace `if total_weight != 1:` with `if abs(total_weight - 1) > tol:`
+  (e.g. `tol=1e-4` — same tolerance as `validate_allocations`). Then sweep
+  all 30 port/*.toml clean. Also surface the bug in a unit test.
+
+- [ ] **SGB premature-redemption pricing.** Currently every held SGB
+  tranche is marked to IBJA gold spot. When the holder actually
+  pre-redeems, RBI announces a price ~3 business days before each
+  coupon-payment date past the 5-year window — that price is the real
+  exit value. Extend `data/sgb_tranches.csv` with a sibling
+  `data/sgb_redemptions.csv` (tranche_id, redemption_date,
+  inr_per_gram, redemption_kind ∈ {PRE, MAT}); update `sgb_holding_civ`
+  to use the actual redemption price on those dates instead of the
+  IBJA-spot proxy. Reference: 4 confirmed redemptions are already noted
+  in `~/Downloads/sgb-master-ledger.md` (2017-18 Series IV ₹12,704,
+  Series XI ₹12,801, Series XIV ₹13,486, 2019-20 Series VII ₹15,275).
+
+- [ ] **Delete `combined_daily_returns()` — dead code with a footgun.**
+  After 2026-06-16's alpha/beta fix, no production code path calls it.
+  Only `civ_and_returns()` (itself unused) and two test files
+  (`test_timeseries_classes.py` pinning behavior, `test_plot_metric_
+  consistency.py` regression-doc). The function silently inner-joins per-
+  asset return series to the monthly intersection when any monthly asset
+  is present — a footgun for anyone who calls it. Delete it; rewrite the
+  regression-doc test to assert the *mathematical* fact (weighted-sum-of-
+  returns ≠ return-of-weighted-sum) without needing the function to exist.
+
+#### D. Structural improvements
+
+- [ ] **Consolidate `*_loader.py` into `loaders/` package** — 8 modules
+  at repo root. Cosmetic, improves discoverability. *(Already on Phase D
+  backlog.)*
+- [ ] **Consolidate `*timeseries*.py` into `timeseries/` package** — four
+  files doing related work. *(Already on Phase D backlog.)*
+- [ ] **Walk `tests/TODO.md` checklist** — 25+ CLI-flag/TOML-override/
+  failure-mode scenarios never converted to real tests. Most overlap with
+  `tests/integration/test_main_e2e.py` which currently has only 3 tests.
+- [ ] **Audit `bond_calculators.py`** — 4 of 5 functions unused (the
+  SGB-related ones). Now that the SGB modeling refactor is done, these
+  can probably be deleted.
+
+#### E. Quality gates
+
+- [ ] **Re-enable SIM (flake8-simplify) ruff family** disabled during the
+  v0.1 push. ~15 style hints to triage.
+- [ ] **Raise CI coverage gate** from 20% → 40% → 70%. Current coverage
+  was 66% at v0.1 merge; the gate can ratchet up immediately.
+- [ ] **Incremental type hints + per-module mypy strictness.** Currently
+  `ignore_missing_imports = true` globally. Tighten module-by-module.
+
+#### F. Optional features from the tmp4 attic
+
+- [ ] **Port tmp4's reporting helpers** to current `TimeseriesReturn`:
+  `info_summary`, `describe_as_report`, `to_csv_report`, `to_latex_table`,
+  `compare_to`, `as_rolling`. *(Already on Phase E backlog.)*
+- [ ] **Port tmp4's alignment helpers** if cross-asset analysis grows
+  beyond `combined_civ_series`: `align_with`, `clip_to_overlap`,
+  `aligned_to`, `interpolated`. *(Already on Phase E backlog.)*
+
+#### G. Housekeeping / decisions
+
+- [ ] Rename `port/` → `portfolios/` for clarity. *(Already on Hygiene
+  backlog.)*
+- [ ] Decide fate of `outputs/port-*/` cached runs. *(Already on Hygiene
+  backlog.)*
+- [ ] Add `.env.example` if any FRED-style API tokens are needed.
+- [ ] Relocate `docs/*.pdf` originals once `.md` sidecars exist.
+- [ ] Decide fate of `defunct_feature_var_rate_bonds` and `defunct_main`
+  branches.
+
 ### Phase C — Golden-master safety net (all 3 portfolios DONE)
 - [ ] Add `--today YYYY-MM-DD` flag to `main.py` so the safety net is deterministic without live mfapi drift; once it exists, tighten test tolerances to 1e-9
 - [ ] Build a pickle-replay path (e.g. `main.py --replay-from tests/golden/port-X/pickles/`) so the test no longer needs network
