@@ -328,7 +328,14 @@ def main(args):
     print(f"Recovery Days: {recovery_days}")
     print_major_drawdowns(max_drawdowns)
 
-    cumulative_historical, cumulative_benchmark = calculate_gains_cumulative(
+    # Plot the same series the headline metrics are derived from. Using
+    # cumprod(1 + combined_daily_returns) would be a parallel aggregation
+    # path that summed asset returns instead of asset values; for portfolios
+    # with mixed-frequency assets (e.g. daily MFs + monthly gold) it diverges
+    # from the CAGR by an order of magnitude. The CIV series already starts
+    # at 1.0 by construction (combined_civ_series normalizes each asset).
+    cumulative_historical = portfolio_civ_series.series
+    _, cumulative_benchmark = calculate_gains_cumulative(
         gain_daily_portfolio_series, benchmark_returns_series
     )
 
