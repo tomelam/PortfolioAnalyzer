@@ -37,9 +37,11 @@ def test_stale_data_with_no_input_aborts():
             "date": [datetime.now() - timedelta(days=3)],
             "value": [100]
         })
-        with patch("builtins.input", return_value="n"):
-            with pytest.raises(ValueError, match="stale data|too stale"):
-                warn_if_stale(df, label="Stale", quiet=False)
+        with (
+            patch("builtins.input", return_value="n"),
+            pytest.raises(ValueError, match="stale data|too stale"),
+        ):
+            warn_if_stale(df, label="Stale", quiet=False)
 
 def test_quiet_mode_skips_prompt():
     df = pd.DataFrame({

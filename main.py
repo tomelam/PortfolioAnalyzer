@@ -290,10 +290,7 @@ def main(args):
         metrics["Beta"] = None
     cagr = metrics["Annualized Return"] * 100
     vol = metrics["Volatility"] * 100
-    if metrics["Alpha"] is not None:
-        alpha = metrics["Alpha"] * 100
-    else:
-        alpha = None
+    alpha = metrics["Alpha"] * 100 if metrics["Alpha"] is not None else None
     beta = metrics["Beta"]
     max_drawdowns = portfolio_civ_series.max_drawdowns(threshold=0.05)
     if max_drawdowns:

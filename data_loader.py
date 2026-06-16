@@ -204,9 +204,14 @@ def load_portfolio_details(toml_file_path):
                 for key in required_fund_keys:
                     if key not in fund:
                         errors.append(f"Missing required key '{key}' in investment '{fund_id}'")
-                if "allocation" in fund:
-                    if not isinstance(fund["allocation"], (float, int)) or not (0 <= fund["allocation"] <= 1):
-                        errors.append(f"Invalid allocation value for investment '{fund_id}': Must be between 0 and 1")
+                if "allocation" in fund and (
+                    not isinstance(fund["allocation"], (float, int))
+                    or not (0 <= fund["allocation"] <= 1)
+                ):
+                    errors.append(
+                        f"Invalid allocation value for investment '{fund_id}': "
+                        "Must be between 0 and 1"
+                    )
                 if "asset_allocation" in fund:
                     if not isinstance(fund["asset_allocation"], dict):
                         errors.append(f"'asset_allocation' must be a dictionary for investment '{fund_id}'")
@@ -291,13 +296,13 @@ def load_portfolio_details(toml_file_path):
         rec_id = rec.get("name", "REC Bond section")
         if "allocation" not in rec:
             errors.append(f"Missing required key 'allocation' in {rec_id}")
-        else:
-            if not isinstance(rec["allocation"], (float, int)) or not (0 <= rec["allocation"] <= 1):
-                errors.append(f"Invalid allocation value for {rec_id}: Must be between 0 and 1")
+        elif not isinstance(rec["allocation"], (float, int)) or not (0 <= rec["allocation"] <= 1):
+            errors.append(f"Invalid allocation value for {rec_id}: Must be between 0 and 1")
         # Optionally, validate coupon if provided.
-        if "coupon" in rec:
-            if not isinstance(rec["coupon"], (float, int)) or rec["coupon"] <= 0:
-                errors.append(f"Invalid coupon value for {rec_id}: Must be a positive number")
+        if "coupon" in rec and (
+            not isinstance(rec["coupon"], (float, int)) or rec["coupon"] <= 0
+        ):
+            errors.append(f"Invalid coupon value for {rec_id}: Must be a positive number")
     
     if errors:
         all_errors = "\n".join(errors)

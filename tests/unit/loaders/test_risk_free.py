@@ -48,7 +48,7 @@ def test_align_to_portfolio_dates() -> None:
     portfolio_returns = pd.Series(0.001, index=portfolio_dates)
 
     aligned = align_dynamic_risk_free_rates(portfolio_returns, rf)
-    assert isinstance(aligned, pd.Series) or isinstance(aligned, pd.DataFrame)
+    assert isinstance(aligned, (pd.Series, pd.DataFrame))
     aligned_series = aligned if isinstance(aligned, pd.Series) else aligned.iloc[:, 0]
     assert len(aligned_series) == len(portfolio_dates)
     assert not aligned_series.isnull().any(), "alignment must fill all gaps"

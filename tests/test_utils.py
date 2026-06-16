@@ -10,12 +10,12 @@ from pandas.testing import assert_frame_equal
 def assert_identical(actual, expected, tolerance=1e-6):
     """Ensure two objects are identical within a tolerance."""
     if isinstance(actual, dict) and isinstance(expected, dict):
-        for key in actual.keys():
+        for key in actual:
             assert key in expected, f"Missing key: {key} in expected"
             assert_identical(actual[key], expected[key], tolerance)
     elif isinstance(actual, (int, float, np.number)):
         assert abs(actual - expected) < tolerance, f"Mismatch: {actual} != {expected}"
-    elif isinstance(actual, pd.Series) or isinstance(actual, pd.DataFrame):
+    elif isinstance(actual, (pd.Series, pd.DataFrame)):
         assert actual.equals(expected), f"Data mismatch in {actual.name if hasattr(actual, 'name') else 'DataFrame'}"
     else:
         assert actual == expected, f"Objects differ: {actual} != {expected}"
