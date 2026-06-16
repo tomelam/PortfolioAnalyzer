@@ -13,27 +13,23 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
 
 #### A. Output / reporting enhancements
 
-- [ ] **Add a drawdown table to the output CSV.** Currently the CSV is one
-  row per portfolio with only `Drawdowns` (count), `Max Drawdown %`, max-DD
-  `Start`, `Days`, `Recovery`. Extend to also emit a sibling CSV (e.g.
-  `<portfolio>.drawdowns.csv`) with one row per drawdown: `start_date`,
-  `trough_date`, `recovery_date`, `depth_pct`, `drawdown_days`,
-  `recovery_days`. The data is already produced by `metrics.max_drawdowns`
-  and printed to stdout via `print_major_drawdowns`; this just routes it
-  to disk.
+- [x] **Drawdown table sibling CSV** (2026-06-17, cycle 2). `main.py` writes
+  `<portfolio>.drawdowns.csv` alongside the metrics CSV: one row per
+  recovered drawdown plus the final unrecovered one if any. Columns:
+  `start_date, trough_date, recovery_date, depth_pct, drawdown_days,
+  recovery_days`. `depth_pct` uses the negative-percent form (e.g.
+  `-19.23`) matching the stdout summary. 5 TDD unit tests in
+  `drawdowns_csv.py`.
 
-- [ ] **Add fund inauguration date + closing date (defunct funds) to both
-  the plot's allocation table and the output CSV.** The mfapi.in JSON
-  payload gives the full NAV history per fund; the *inauguration* date is
-  the earliest NAV date, and a fund is *defunct* if the most recent NAV is
-  older than e.g. 30 days. Surface both in:
-  - `visualizer.display_toml_below_figure` → new columns "Inaugurated"
-    and "Closed" (blank if active).
-  - The single-row metrics CSV → expand per-fund metadata, OR emit a
-    second sibling `<portfolio>.assets.csv` with one row per asset
-    showing name, allocation, inauguration date, status, closing date.
-  - Defunct funds should also raise a clear warning at run-time (not a
-    silent inclusion of stale data in the portfolio CIV).
+- [x] **Fund inauguration + DEFUNCT status** (2026-06-17, cycle 3). Surfaced
+  in three places: plot's allocation table gains "Inaugurated" and "Closed"
+  columns; sibling `<portfolio>.assets.csv` with one row per asset
+  (`asset_type, asset_name, allocation, inauguration_date, last_nav_date,
+  status`); run-time stdout warning for every DEFUNCT fund. A fund is
+  DEFUNCT if its most recent NAV is older than 30 days (parameterizable).
+  Implemented as pure-function helpers in `fund_lifecycle.py` with 7 TDD
+  tests. Re-uses already-fetched NAV DataFrames — no extra mfapi.in
+  round-trips.
 
 #### B. Determinism / trustworthiness
 
@@ -61,15 +57,12 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
 
 #### C. Correctness bugs surfaced but not fixed
 
-- [ ] **Fix `PortfolioTimeseries.__init__` strict weight-sum check.**
-  Currently rejects portfolios whose `sum(weights) != 1.0` exactly; this
-  is a floating-point precision bug masquerading as a "TOML bug." The six
-  portfolios that failed the 2026-06-17 sweep (port-8, port-8-10%_ppf,
-  port-8-40%_ppf, port-8-60%_ppf, port-kl, port-kl3) sum to either
-  `0.9999999999999999` (FP rounding) or one part per million off. Fix:
-  replace `if total_weight != 1:` with `if abs(total_weight - 1) > tol:`
-  (e.g. `tol=1e-4` — same tolerance as `validate_allocations`). Then sweep
-  all 30 port/*.toml clean. Also surface the bug in a unit test.
+- [x] **Fixed `PortfolioTimeseries.__init__` weight-sum check** (2026-06-17,
+  cycle 1). Strict `!= 1` replaced with `abs(total_weight - 1) > 0.01`.
+  All 6 previously-failing portfolios now render. Two new unit tests:
+  one pinning that FP-rounding portfolios are accepted, one pinning that
+  off-by-1% portfolios are still rejected. Suite went from 24/30 to 30/30
+  rendered via `scripts/render-all.sh`.
 
 - [ ] **SGB premature-redemption pricing.** Currently every held SGB
   tranche is marked to IBJA gold spot. When the holder actually
@@ -83,15 +76,12 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   in `~/Downloads/sgb-master-ledger.md` (2017-18 Series IV ₹12,704,
   Series XI ₹12,801, Series XIV ₹13,486, 2019-20 Series VII ₹15,275).
 
-- [ ] **Delete `combined_daily_returns()` — dead code with a footgun.**
-  After 2026-06-16's alpha/beta fix, no production code path calls it.
-  Only `civ_and_returns()` (itself unused) and two test files
-  (`test_timeseries_classes.py` pinning behavior, `test_plot_metric_
-  consistency.py` regression-doc). The function silently inner-joins per-
-  asset return series to the monthly intersection when any monthly asset
-  is present — a footgun for anyone who calls it. Delete it; rewrite the
-  regression-doc test to assert the *mathematical* fact (weighted-sum-of-
-  returns ≠ return-of-weighted-sum) without needing the function to exist.
+- [x] **Deleted `combined_daily_returns()`** (2026-06-17, cycle 4). And
+  `civ_and_returns()` which was its only caller. Test churn:
+  `test_timeseries_classes.py` swapped to test the canonical
+  CIV-pct_change path; `test_plot_metric_consistency.py` regression-doc
+  test reframed as pure math (weighted-sum-of-returns ≠
+  return-of-weighted-sum) without needing the deleted function.
 
 #### D. Structural improvements
 
@@ -103,16 +93,23 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
 - [ ] **Walk `tests/TODO.md` checklist** — 25+ CLI-flag/TOML-override/
   failure-mode scenarios never converted to real tests. Most overlap with
   `tests/integration/test_main_e2e.py` which currently has only 3 tests.
-- [ ] **Audit `bond_calculators.py`** — 4 of 5 functions unused (the
-  SGB-related ones). Now that the SGB modeling refactor is done, these
-  can probably be deleted.
+- [x] **Audited `bond_calculators.py`** (2026-06-17, cycle 5). 4 unused
+  functions deleted (`calculate_bond_cumulative_gain` +
+  `calculate_sgb_cumulative_gain` + `calculate_merged_sgb_series` +
+  `calculate_realistic_sgb_series` — all SGB-related and superseded by
+  `sgb_holdings.sgb_holding_civ`). File shrank 298 → 53 lines. Surviving
+  `calculate_variable_bond_cumulative_gain` also cleaned (no
+  redundant-import, ternary→`max`, drop commented-out debug).
 
 #### E. Quality gates
 
-- [ ] **Re-enable SIM (flake8-simplify) ruff family** disabled during the
-  v0.1 push. ~15 style hints to triage.
-- [ ] **Raise CI coverage gate** from 20% → 40% → 70%. Current coverage
-  was 66% at v0.1 merge; the gate can ratchet up immediately.
+- [x] **Re-enabled SIM ruff family** (2026-06-17, cycle 6). 4 findings
+  autofixed (`--unsafe-fixes` for `with`-block merging, ternary
+  conversion, dict-keys iteration, isinstance-merge); 3 manual fixes
+  for nested-if guards. Suite clean.
+- [x] **Ratcheted CI coverage gate 20% → 65%** (2026-06-17, cycle 7).
+  Current coverage on the no-network slice is 73%; 65% gives a small
+  headroom for new scaffolding without immediately busting the gate.
 - [ ] **Incremental type hints + per-module mypy strictness.** Currently
   `ignore_missing_imports = true` globally. Tighten module-by-module.
 
