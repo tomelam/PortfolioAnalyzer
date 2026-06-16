@@ -326,12 +326,17 @@ def main(args):
     if settings["output_csv"]:
         if settings.get("output_dir"):
             os.makedirs(settings["output_dir"], exist_ok=True)
-            csv_path = os.path.join(
-                settings["output_dir"], Path(settings["portfolio_file"]).stem + ".csv"
-            )
+            stem = Path(settings["portfolio_file"]).stem
+            csv_path = os.path.join(settings["output_dir"], stem + ".csv")
             with open(csv_path, "w") as f:
                 f.write(csv_line + "\n")
             print(f"📄 CSV written to {csv_path}")
+            # Sibling per-drawdown CSV: one row per recovered drawdown,
+            # plus the final unrecovered drawdown if any.
+            from drawdowns_csv import write_drawdowns_csv
+            dd_path = os.path.join(settings["output_dir"], stem + ".drawdowns.csv")
+            write_drawdowns_csv(max_drawdowns, dd_path)
+            print(f"📄 Drawdown table written to {dd_path}")
         else:
             print(csv_line)
 

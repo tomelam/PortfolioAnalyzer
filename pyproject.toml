@@ -68,6 +68,8 @@ py-modules = [
     "sgb_tranches",
     # Phase 1 of the SGB modeling refactor: per-tranche valuation engine.
     "sgb_holdings",
+    # Per-drawdown CSV companion to the single-row metrics CSV.
+    "drawdowns_csv",
 ]
 
 [tool.ruff]
