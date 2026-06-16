@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # Catch deprecated GitHub Actions automatically.
+  # Without this, deprecation annotations (e.g. "Node.js 20 actions are
+  # deprecated") accumulate silently until the runtime is removed and
+  # CI hard-fails. Dependabot opens a PR when a newer major lands.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+  # Python deps: same idea — surface upgrades as PRs rather than
+  # rediscovering them on a routine CI run that breaks.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+      include: "scope"

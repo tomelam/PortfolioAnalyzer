@@ -92,3 +92,13 @@ markers = [
     "order: legacy ordering marker from pre-Phase-D test suite (effectively a no-op)",
 ]
 addopts = "-ra --strict-markers -m 'not network'"
+# Treat deprecation signals as test failures so they can't quietly
+# accumulate. DeprecationWarning + PendingDeprecationWarning catch
+# stdlib / library-author warnings; FutureWarning catches the
+# pandas / numpy "behavior will change in vN.M" notices that tend to
+# land as breaking changes a release later.
+filterwarnings = [
+    "error::DeprecationWarning",
+    "error::PendingDeprecationWarning",
+    "error::FutureWarning",
+]
