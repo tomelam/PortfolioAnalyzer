@@ -65,6 +65,8 @@ py-modules = [
     "risk_free_loader",
     "scss_loader",
     "rec_bond_loader",
+    # Post-v0.1: SGB tranche reference + lookup API.
+    "sgb_tranches",
 ]
 
 [tool.ruff]

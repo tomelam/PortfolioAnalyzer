@@ -1,0 +1,33 @@
+tranche_id,fiscal_year,series,series_num,issue_date,maturity_date,premature_first_date,issue_price_offline,issue_price_online,coupon_rate_pct,rbi_prid,notes
+2019-20-IX,2019-20,IX,9,2020-02-11,2028-02-11,2025-02-11,4070,4020,2.5,49299,Anchor: user's SBI certificate SBI2020000155331 (12 grams)
+2019-20-X,2019-20,X,10,2020-03-11,2028-03-11,2025-03-11,4260,4210,2.5,49455,Issue date estimated mid-Mar 2020; verify against PRID
+2020-21-I,2020-21,I,1,2020-04-28,2028-04-28,2025-04-28,4639,4589,2.5,49695,Issue date estimated end-Apr 2020; verify against PRID
+2020-21-II,2020-21,II,2,2020-05-19,2028-05-19,2025-05-19,4590,4540,2.5,49794,Issue date estimated mid-May 2020; verify against PRID
+2020-21-III,2020-21,III,3,2020-06-16,2028-06-16,2025-06-16,4677,4627,2.5,49912,Issue date estimated mid-Jun 2020; verify against PRID
+2020-21-IV,2020-21,IV,4,2020-07-14,2028-07-14,2025-07-14,4852,4802,2.5,50044,Issue date estimated mid-Jul 2020; verify against PRID
+2020-21-V,2020-21,V,5,2020-08-11,2028-08-11,2025-08-11,5334,5284,2.5,50154,Issue date estimated mid-Aug 2020; verify against PRID
+2020-21-VI,2020-21,VI,6,2020-09-08,2028-09-08,2025-09-08,5117,5067,2.5,50279,Issue date estimated early-Sep 2020; verify against PRID
+2020-21-VII,2020-21,VII,7,2020-10-20,2028-10-20,2025-10-20,5051,5001,2.5,50489,Anchor: user's HDFC certificates HDF2020004107231 + HDF2020004107232 (3+3 grams)
+2020-21-VIII,2020-21,VIII,8,2020-11-18,2028-11-18,2025-11-18,5177,5127,2.5,50636,Issue date estimated mid-Nov 2020; verify against PRID
+2020-21-IX,2020-21,IX,9,2021-01-11,2029-01-11,2026-01-11,5000,4950,2.5,50862,Issue date estimated early-Jan 2021; verify against PRID
+2020-21-X,2020-21,X,10,2021-01-19,2029-01-19,2026-01-19,5104,5054,2.5,50944,Issue date estimated mid-Jan 2021; verify against PRID
+2020-21-XI,2020-21,XI,11,2021-02-09,2029-02-09,2026-02-09,4912,4862,2.5,51045,Issue date estimated early-Feb 2021; verify against PRID
+2020-21-XII,2020-21,XII,12,2021-03-09,2029-03-09,2026-03-09,4662,4612,2.5,51197,Issue date estimated early-Mar 2021; verify against PRID
+2021-22-I,2021-22,I,1,2021-05-25,2029-05-25,2026-05-25,4777,4727,2.5,51580,Issue date estimated late-May 2021; verify against PRID
+2021-22-II,2021-22,II,2,2021-06-01,2029-06-01,2026-06-01,4842,4792,2.5,51623,Issue date estimated early-Jun 2021; verify against PRID
+2021-22-III,2021-22,III,3,2021-06-08,2029-06-08,2026-06-08,4889,4839,2.5,51652,Issue date estimated mid-Jun 2021; verify against PRID
+2021-22-IV,2021-22,IV,4,2021-07-20,2029-07-20,2026-07-20,4807,4757,2.5,51879,Issue date estimated late-Jul 2021; verify against PRID
+2021-22-V,2021-22,V,5,2021-08-17,2029-08-17,2026-08-17,4790,4740,2.5,52020,Issue date estimated mid-Aug 2021; verify against PRID
+2021-22-VI,2021-22,VI,6,2021-09-07,2029-09-07,2026-09-07,4732,4682,2.5,52132,Issue date estimated early-Sep 2021; PRID likely wrong (ledger note 2)
+2021-22-VII,2021-22,VII,7,2021-11-02,2029-11-02,2026-11-02,4761,4711,2.5,52132,Issue date estimated early-Nov 2021; PRID likely wrong (ledger note 2)
+2021-22-VIII,2021-22,VIII,8,2021-12-07,2029-12-07,2026-12-07,4791,4741,2.5,52132,Issue date estimated early-Dec 2021; PRID likely wrong (ledger note 2)
+2021-22-IX,2021-22,IX,9,2022-01-18,2030-01-18,2027-01-18,4786,4736,2.5,53067,Issue date estimated mid-Jan 2022; verify against PRID
+2021-22-X,2021-22,X,10,2022-03-08,2030-03-08,2027-03-08,5109,5059,2.5,53329,Issue date estimated early-Mar 2022; verify against PRID
+2022-23-I,2022-23,I,1,2022-06-28,2030-06-28,2027-06-28,5091,5041,2.5,53887,Issue date estimated late-Jun 2022; verify against PRID
+2022-23-II,2022-23,II,2,2022-08-30,2030-08-30,2027-08-30,5197,5147,2.5,54237,Issue date estimated late-Aug 2022; verify against PRID
+2022-23-III,2022-23,III,3,2022-12-27,2030-12-27,2027-12-27,5409,5359,2.5,54881,Issue date estimated late-Dec 2022; verify against PRID
+2022-23-IV,2022-23,IV,4,2023-03-14,2031-03-14,2028-03-14,5611,5561,2.5,55327,Issue date confirmed: 14-Mar-2023 (PIB PRID 1904035)
+2023-24-I,2023-24,I,1,2023-06-27,2031-06-27,2028-06-27,5926,5876,2.5,55876,Issue date confirmed: 27-Jun-2023 (PIB PRID 1932961)
+2023-24-II,2023-24,II,2,2023-09-20,2031-09-20,2028-09-20,5923,5873,2.5,56348,Issue date confirmed: 20-Sep-2023 (Newsonair / Business Standard); PRID may be wrong (ledger note 1)
+2023-24-III,2023-24,III,3,2023-12-28,2031-12-28,2028-12-28,6199,6149,2.5,56348,Issue date confirmed: 28-Dec-2023; PRID may be wrong (ledger note 1)
+2023-24-IV,2023-24,IV,4,2024-02-21,2032-02-21,2029-02-21,6263,6213,2.5,57299,Issue date confirmed: 21-Feb-2024 (final tranche; scheme discontinued in Union Budget 2025)
