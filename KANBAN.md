@@ -85,6 +85,8 @@ The detailed plan lives at `/Users/tom/.claude/plans/concurrent-stargazing-shore
 - [ ] Also refresh any other under-watched data sources used by `data_loader.py`: `ppf_interest_rates.csv`, REC bond coupon table, SCSS rate table (if file-backed) — audit `data/` for last-modified dates.
 
 ### Hygiene / tech debt
+- [x] **sgb_loader `dayfirst=True` warning** (surfaced during the post-v0.1 smoke run) — fixed 2026-06-16. Switched to `format="mixed", dayfirst=True` so real data (YYYY-MM-DD) parses without the spurious "dayfirst-conflicts-with-ISO" warning while the test fixture (DD-MM-YYYY) still parses correctly.
+- [ ] Re-enable `SIM` (flake8-simplify) lint family disabled during the v0.1 push; ~15 style hints to triage (mostly ternaries vs if/else, nested-with, dict.keys()).
 - [ ] Replace deprecated `.fillna(method='ffill')` (if still present) with `.ffill()`
 - [ ] Add type hints incrementally; switch `ignore_missing_imports` off per-module
 - [ ] Raise CI coverage gate from 20% → 40% → 70%
