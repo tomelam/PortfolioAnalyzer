@@ -1,5 +1,8 @@
-label = "SGB"
+label = "SGB (single sample tranche)"
 
-[sgb]
-name = "Sovereign Gold Bond"
+# Phase 2 schema: one [[sgb]] entry per tranche. Single-tranche fixture
+# used to exercise the SGB-only path end-to-end.
+[[sgb]]
+tranche_id = "2019-20-IX"
+units_grams = 1
 allocation = 1.00

@@ -1,5 +1,9 @@
 # Portfolio Analyzer
 
+> **In a hurry?** See [`QUICKSTART.md`](QUICKSTART.md) for the most common
+> invocations, the full CLI flag table, and `make all` / `scripts/render-all.sh`
+> for batch sweeps.
+
 This repository contains the Portfolio Analyzer application. It fetches historical NAV data for Indian mutual funds from [mfapi.in](https://mfapi.in), uses benchmark data from [investing.com](https://investing.com) or [niftyindices.com](https://in.investing.com/indices/nifty-total-returns-historical-data), uses risk-free rate data from [FRED](https://fred.stlouisfed.org), [RBI](https://rbi.org.in), or [DBIE (by advanced-searching "bill" while selecting "Weekly" Report Frequency and "Publication" Function)](https://data.rbi.org.in), and uses monthly-average gold spot prices from the link "Gold price averages in a range of currencies since 1978" on [gold.org](https://www.gold.org/goldhub/data/gold-prices), computes key portfolio performance metrics (such as annualized return, volatility, Sharpe/Sortino ratios, Alpha, Beta, and maximum drawdowns), and visualizes historical returns along with benchmark data.
 
 ---
