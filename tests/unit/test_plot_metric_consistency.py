@@ -151,35 +151,59 @@ def test_alpha_capm_is_sensible_for_mixed_frequency_portfolio() -> None:
     )
 
 
-def test_old_cumprod_path_disagrees_for_mixed_frequency() -> None:
-    """Pin the *reason* the old plot path was wrong: cumprod(1+r) on the
-    weighted-sum-of-asset-returns series materially disagrees with the
-    portfolio CIV / CAGR when assets are at different frequencies.
+def test_weighted_sum_of_returns_diverges_from_return_of_weighted_sum() -> None:
+    """Pin the mathematical reason a previous plot bug existed:
+    cumprod((1 + Σ w_i r_i)) ≠ Σ w_i (1 + r_i)^t in general.
 
-    Documents the bug for future contributors; if this ever passes, it
-    means ``combined_daily_returns`` has been independently re-aligned
-    and both aggregation paths agree."""
-    mf = _bdaily([100.0 * (1.0005**i) for i in range(252)])
-    gold = _monthly([5000.0 * (1.01**i) for i in range(12)])
+    The legacy ``PortfolioTimeseries.combined_daily_returns`` was
+    weighted-sum-of-asset-returns. Cumulative-product of that path
+    materially diverges from the portfolio CIV (= weighted sum of
+    asset *values*) whenever assets have different frequencies or
+    different growth rates. This test exhibits the gap so anyone
+    proposing to re-introduce the old aggregation has to confront the
+    math first.
+    """
+    # Construct asset returns by hand, no PortfolioTimeseries needed.
+    # MF: daily +0.05%/business-day for ~1 year, lifted to monthly via
+    # cumprod sampling at month-ends. Then compute returns of the
+    # monthly-sampled series. That's "weighted sum of asset returns" on
+    # the monthly intersection (because join="inner" with monthly gold
+    # would force that frequency in the legacy code).
+    mf_dates = pd.bdate_range("2024-01-01", periods=252)
+    mf_civ = pd.Series([100.0 * (1.0005**i) for i in range(252)], index=mf_dates)
+    gold_dates = pd.date_range("2024-01-31", periods=12, freq="ME")
+    gold_civ = pd.Series([5000.0 * (1.01**i) for i in range(12)], index=gold_dates)
 
-    portfolio = PortfolioTimeseries(
-        assets={"mf": from_civ(mf), "gold": from_civ(gold)},
-        weights={"mf": 0.7, "gold": 0.3},
-    )
+    # Align both to the monthly intersection (what the legacy inner-join did)
+    mf_monthly = mf_civ.reindex(gold_dates, method="ffill")
+    mf_ret = mf_monthly.pct_change().dropna()
+    gold_ret = gold_civ.pct_change().dropna()
+    # Weighted sum of *returns*.
+    w_mf, w_gold = 0.7, 0.3
+    weighted_returns = w_mf * mf_ret + w_gold * gold_ret
+    cumprod_path = (1 + weighted_returns).cumprod()
 
-    civ_series = portfolio.combined_civ_series().series
-    cagr = metrics.cagr(civ_series)
+    # Now build the *correct* CIV: weighted sum of asset values on a
+    # common business-day calendar with ffill on gold.
+    bday = pd.bdate_range(gold_dates.min(), gold_dates.max())
+    mf_aligned = mf_civ.reindex(bday, method="ffill")
+    gold_aligned = gold_civ.reindex(bday, method="ffill")
+    mf_norm = mf_aligned / mf_aligned.iloc[0]
+    gold_norm = gold_aligned / gold_aligned.iloc[0]
+    civ_correct = w_mf * mf_norm + w_gold * gold_norm
 
-    daily_returns = portfolio.combined_daily_returns()
-    old_plot_series = (1 + daily_returns).cumprod()
+    # Annualized growth implied by each path over its respective window.
+    cumprod_years = (cumprod_path.index[-1] - cumprod_path.index[0]).days / 365.25
+    civ_years = (civ_correct.index[-1] - civ_correct.index[0]).days / 365.25
+    cumprod_cagr = cumprod_path.iloc[-1] ** (1 / cumprod_years) - 1
+    civ_cagr = (civ_correct.iloc[-1] / civ_correct.iloc[0]) ** (1 / civ_years) - 1
 
-    years = (old_plot_series.index[-1] - old_plot_series.index[0]).days / 365.25
-    old_ratio = old_plot_series.iloc[-1]
-    expected_ratio = (1 + cagr) ** years
-
-    # The old path is materially off — assert disagreement of >5%.
-    assert abs(old_ratio - expected_ratio) / expected_ratio > 0.05, (
-        "combined_daily_returns now agrees with combined_civ_series — "
-        "delete this regression-documentation test and pin the consistency "
-        "as an invariant on combined_daily_returns instead."
+    # The two paths describe different growth. With synthetic data we
+    # demonstrate ~1pp divergence; with the real port-everything portfolio
+    # the gap was ~10pp. The math fact (≠ in general) holds at any scale.
+    assert abs(cumprod_cagr - civ_cagr) > 0.01, (
+        f"cumprod path CAGR {cumprod_cagr:.4f} and CIV-path CAGR "
+        f"{civ_cagr:.4f} agree more closely than expected. Either the "
+        "math is wrong here or the synthetic returns happened to land "
+        "such that ≠ became ≈. Adjust the synthetic data."
     )

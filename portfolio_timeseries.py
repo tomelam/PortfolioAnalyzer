@@ -31,29 +31,6 @@ class PortfolioTimeseries:
         if total_weight > 0:
             self.weights = {k: v / total_weight for k, v in self.weights.items()}
 
-    def combined_daily_returns(self) -> pd.Series:
-        """
-        Weighted sum of daily returns across all assets.
-        """
-        weighted_returns = []
-        for name, asset in self.assets.items():
-            weight = self.weights.get(name, 0.0)
-            ret = asset.ret.value_series().dropna() * weight
-            # Fail-fast if any missing in the raw return series
-            ret_series = asset.ret.value_series()
-            weight = self.weights.get(name, 0.0)
-            ret = ret_series.dropna() * weight
-            weighted_returns.append(ret)
-
-        if not weighted_returns:
-            return pd.Series(dtype=float)
-
-        df = pd.concat(weighted_returns, axis=1, join="inner")
-        # Guard against silently computing with missing values
-        if df.isnull().values.any():
-            raise ValueError("Combined portfolio returns contain NaNs")
-        return df.sum(axis=1).sort_index()
-
     def combined_civ_series(self) -> TimeseriesCIV:
         """
         True portfolio CIV: weighted sum of each asset's NORMALIZED CIV series
@@ -126,8 +103,4 @@ def from_multiple_nav_series(
     dbg("Returning from `from_multiple_nav_series`")
     return PortfolioTimeseries(assets=assets, weights=weights)
 
-
-def civ_and_returns(portfolio_ts: PortfolioTimeseries) -> tuple[pd.Series, pd.Series]:
-    """Conveniently get both the CIV and daily return series."""
-    return portfolio_ts.combined_civ_series(), portfolio_ts.combined_daily_returns()
 

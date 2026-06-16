@@ -209,13 +209,14 @@ def main(args):
     portfolio_civ_series = portfolio_ts.combined_civ_series()
 
     # Daily-return objects for CAPM Alpha/Beta come from pct_change() of
-    # the daily CIV, NOT from combined_daily_returns() — the latter
-    # inner-joins per-asset returns down to the monthly intersection when
-    # any monthly asset is present, and ``alpha_capm`` then applies a
-    # ^252 annualization to what are actually monthly returns. Symptom:
-    # Alpha = 139% on port-everything. The CIV-derived path keeps daily
-    # cadence and the annualization is correct. See
-    # tests/unit/test_plot_metric_consistency.py.
+    # the daily CIV. Historically there was a parallel
+    # ``combined_daily_returns`` aggregator that summed asset returns
+    # weighted; it inner-joined to the monthly intersection when any
+    # monthly asset was present and then ``alpha_capm`` ^252-annualized
+    # what were actually monthly means. Symptom: Alpha = 139% on
+    # port-everything. The aggregator is deleted; only the CIV-derived
+    # path remains. See tests/unit/test_plot_metric_consistency.py for
+    # the math fact (weighted-sum-of-returns ≠ return-of-weighted-sum).
     gain_daily_portfolio_series = portfolio_civ_series.series.pct_change().dropna()
     portfolio_daily_ret = TimeseriesReturn(gain_daily_portfolio_series.rename("value"))
 

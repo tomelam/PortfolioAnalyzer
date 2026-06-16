@@ -66,46 +66,28 @@ def test_timeseries_civ_max_drawdowns_unrecovered_reported_with_no_recovery_days
     assert drawdowns[0]["recovery_days"] is None
 
 
-# --- PortfolioTimeseries.combined_daily_returns --------------------------
+# --- Portfolio daily returns (now derived from CIV pct_change) ---------------
 
 
-def test_combined_daily_returns_weighted_sum_of_per_asset_returns() -> None:
-    """The portfolio's daily return is the weight-sum of asset daily returns."""
+def test_portfolio_daily_returns_via_civ_pct_change() -> None:
+    """Daily returns from pct_change of combined_civ_series — the canonical
+    path used in main.py for alpha/beta calculation. Two assets with
+    identical 1%-per-day exponential growth must produce a uniform daily
+    return series at exactly 1%."""
     a = _values_series([100.0 * (1.01**i) for i in range(20)])  # +1%/day
-    b = _values_series([200.0 * (1.005**i) for i in range(20)])  # +0.5%/day
+    b = _values_series([200.0 * (1.01**i) for i in range(20)])  # +1%/day too
 
     portfolio = PortfolioTimeseries(
         assets={"a": from_civ(a), "b": from_civ(b)},
         weights={"a": 0.4, "b": 0.6},
     )
-    combined = portfolio.combined_daily_returns()
+    civ = portfolio.combined_civ_series().series
+    daily_returns = civ.pct_change().dropna()
 
-    # Each day: 0.4 * 0.01 + 0.6 * 0.005 = 0.007
-    assert combined.iloc[0] == pytest.approx(0.007, rel=1e-12)
-    assert combined.iloc[-1] == pytest.approx(0.007, rel=1e-12)
-    # All 19 return rows (20 NAVs minus 1) are non-NaN.
-    assert len(combined) == 19
-    assert combined.notna().all()
-
-
-def test_combined_daily_returns_raises_when_inner_join_yields_nans() -> None:
-    """If asset returns can't be aligned, combine should fail-fast."""
-    a = _values_series([100.0 * (1.01**i) for i in range(20)])
-    # Asset b with totally non-overlapping dates.
-    b_idx = pd.bdate_range("2030-01-01", periods=20)
-    b = pd.Series(
-        [200.0 * (1.005**i) for i in range(20)], index=b_idx, name="value"
-    )
-
-    portfolio = PortfolioTimeseries(
-        assets={"a": from_civ(a), "b": from_civ(b)},
-        weights={"a": 0.4, "b": 0.6},
-    )
-    # Disjoint indices → inner-join yields empty DataFrame → sum gives
-    # empty Series. The function returns empty rather than raising,
-    # which is a reasonable contract; pin it.
-    combined = portfolio.combined_daily_returns()
-    assert len(combined) == 0
+    # 19 returns (20 CIV points minus 1), all non-NaN, all exactly 1%.
+    assert len(daily_returns) == 19
+    assert daily_returns.notna().all()
+    assert (daily_returns - 0.01).abs().max() < 1e-12
 
 
 # --- PortfolioTimeseries weight validation -------------------------------
