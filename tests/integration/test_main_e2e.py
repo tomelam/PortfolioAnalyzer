@@ -12,12 +12,14 @@ smoke run that hits mfapi.in is marked ``network``.
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-VENV_PYTHON = REPO_ROOT / "venv" / "bin" / "python"
+# Use the current interpreter so CI works without a checked-out venv.
+PYTHON = sys.executable
 GOLDEN_CONFIG = REPO_ROOT / "tests" / "fixtures" / "golden_master_config.toml"
 
 
@@ -25,7 +27,7 @@ GOLDEN_CONFIG = REPO_ROOT / "tests" / "fixtures" / "golden_master_config.toml"
 def test_help_exits_clean() -> None:
     """``python main.py --help`` should exit 0 and emit usage text."""
     result = subprocess.run(
-        [str(VENV_PYTHON), "main.py", "--help"],
+        [PYTHON, "main.py", "--help"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -41,7 +43,7 @@ def test_missing_portfolio_file_exits_nonzero(tmp_path: Path) -> None:
     bogus = tmp_path / "nope.toml"
     result = subprocess.run(
         [
-            str(VENV_PYTHON),
+            PYTHON,
             "main.py",
             "--config",
             str(GOLDEN_CONFIG),
@@ -70,7 +72,7 @@ def test_full_run_produces_csv(tmp_path: Path) -> None:
 
     result = subprocess.run(
         [
-            str(VENV_PYTHON),
+            PYTHON,
             "main.py",
             "--config",
             str(GOLDEN_CONFIG),
