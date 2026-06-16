@@ -57,6 +57,14 @@ py-modules = [
     "extract_gold_inr_from_excel",
     "utils",
     "visualizer",
+    # Phase D extractions:
+    "metrics",
+    "mutual_fund_loader",
+    "ppf_loader",
+    "benchmark_loader",
+    "risk_free_loader",
+    "scss_loader",
+    "rec_bond_loader",
 ]
 
 [tool.ruff]
