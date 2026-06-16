@@ -60,7 +60,10 @@ def test_only_tranches_from_feb_2020_onward() -> None:
 
 
 def test_lookup_2020_21_VII_matches_user_hdfc_certificate() -> None:
-    """User holds 2× this tranche (HDF2020004107231, HDF2020004107232).
+    """User holds 6 grams of this tranche (one investment line, lumped from
+    two HDFC certificates — HDF2020004107231 + HDF2020004107232, 3 g each,
+    both issued 20-Oct-2020 under the same scheme). Lumping rule:
+    same (tranche_id, issue_date, holder_pool) → one investment.
     Certificate values are the ground truth for these fields."""
     t = lookup_tranche("2020-21-VII")
     assert t["issue_date"] == dt.date(2020, 10, 20)
@@ -70,7 +73,9 @@ def test_lookup_2020_21_VII_matches_user_hdfc_certificate() -> None:
 
 
 def test_lookup_2019_20_IX_matches_user_sbi_certificate() -> None:
-    """User holds 1× this tranche (SBI2020000155331).
+    """User holds 12 grams of this tranche (one investment line; single SBI
+    certificate SBI2020000155331 issued 11-Feb-2020). Distinct from
+    2020-21-VII — different tranche, different investment by design.
     Certificate values are the ground truth for these fields."""
     t = lookup_tranche("2019-20-IX")
     assert t["issue_date"] == dt.date(2020, 2, 11)
