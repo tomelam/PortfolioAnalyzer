@@ -202,15 +202,21 @@ def main(args):
     weights = extract_weights(portfolio_dict)
     portfolio_ts = from_multiple_nav_series(nav_inputs, weights)
 
-    ### Comment and call to `civ_and_returns()` removed from this point
-    ### 10 lines moved here
-    # Build portfolio NAV (CIV) and returns
-    gain_daily_portfolio_series = portfolio_ts.combined_daily_returns()
-
-    # daily-return objects (for CAPM Alpha/Beta)
-    portfolio_daily_ret = TimeseriesReturn(gain_daily_portfolio_series.rename("value"))
-
+    # Build portfolio NAV (CIV) and returns. portfolio_civ_series is the
+    # canonical daily CIV from combined_civ_series — Phase D's frequency
+    # fix guarantees it's reindexed onto the common business-day calendar.
     portfolio_civ_series = portfolio_ts.combined_civ_series()
+
+    # Daily-return objects for CAPM Alpha/Beta come from pct_change() of
+    # the daily CIV, NOT from combined_daily_returns() — the latter
+    # inner-joins per-asset returns down to the monthly intersection when
+    # any monthly asset is present, and ``alpha_capm`` then applies a
+    # ^252 annualization to what are actually monthly returns. Symptom:
+    # Alpha = 139% on port-everything. The CIV-derived path keeps daily
+    # cadence and the annualization is correct. See
+    # tests/unit/test_plot_metric_consistency.py.
+    gain_daily_portfolio_series = portfolio_civ_series.series.pct_change().dropna()
+    portfolio_daily_ret = TimeseriesReturn(gain_daily_portfolio_series.rename("value"))
 
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(
         settings["risk_free_rates_file"],

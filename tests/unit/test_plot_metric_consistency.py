@@ -85,6 +85,72 @@ def test_plot_endpoint_matches_cagr_for_mixed_frequency_portfolio() -> None:
     _plot_series_matches_cagr(portfolio, rel_tol=1e-9)
 
 
+def test_alpha_capm_is_sensible_for_mixed_frequency_portfolio() -> None:
+    """``alpha_capm`` annualizes its inputs by ``^ 252`` (treating them as
+    daily returns). If a caller feeds it mean-monthly returns by mistake,
+    the alpha balloons by a factor of ~21 (monthly→daily annualization).
+
+    main.py used to derive ``portfolio_daily_ret`` from
+    ``combined_daily_returns()`` which silently collapsed to the *monthly*
+    intersection when any monthly asset (gold) was present, producing
+    Alpha = 139% for the ``port-everything`` portfolio (with Beta ~0.1).
+
+    Fixed path: derive the daily-return series from
+    ``combined_civ_series().series.pct_change()`` — that CIV is daily by
+    construction (Phase D frequency fix). This test pins the contract by
+    building a mixed-frequency portfolio with realistic noise, computing
+    alpha via the new path, and asserting the magnitude is in the same
+    order of magnitude as the portfolio's CAGR — not the 20×-inflated
+    monthly-treated-as-daily figure.
+    """
+    import numpy as np
+
+    from timeseries import TimeseriesReturn
+
+    rng = np.random.default_rng(seed=42)
+
+    # Daily MF with modest drift + noise; ~10%/yr CAGR target.
+    mf_idx = pd.bdate_range("2020-01-01", periods=500)
+    mf_rets = 0.0004 + 0.005 * rng.standard_normal(len(mf_idx))
+    mf = pd.Series(100.0 * np.cumprod(1 + mf_rets), index=mf_idx, name="value")
+
+    # Monthly gold with noise; ~7%/yr CAGR target.
+    gold_idx = pd.date_range("2020-01-31", periods=24, freq="ME")
+    gold_rets = 0.006 + 0.02 * rng.standard_normal(len(gold_idx))
+    gold = pd.Series(5000.0 * np.cumprod(1 + gold_rets), index=gold_idx, name="value")
+
+    portfolio = PortfolioTimeseries(
+        assets={"mf": from_civ(mf), "gold": from_civ(gold)},
+        weights={"mf": 0.7, "gold": 0.3},
+    )
+
+    # Benchmark with realistic noise; ~12%/yr CAGR.
+    bench_idx = pd.bdate_range(mf.index.min(), mf.index.max())
+    bench_rets = 0.0005 + 0.008 * rng.standard_normal(len(bench_idx))
+    bench_ret = pd.Series(bench_rets, index=bench_idx, name="value").iloc[1:]
+
+    # The NEW path — daily returns from combined_civ_series.
+    civ = portfolio.combined_civ_series().series
+    pf_daily_ret = civ.pct_change().dropna().rename("value")
+
+    alpha = TimeseriesReturn(pf_daily_ret).alpha_capm(
+        TimeseriesReturn(bench_ret),
+        risk_free_rate=0.0,
+    )
+
+    # With ~10% portfolio CAGR vs ~12% benchmark CAGR, |alpha| should be
+    # in the low-single-digit percent range — not 100%+.
+    assert abs(alpha) < 0.30, (
+        f"alpha_capm produced |{alpha:.4f}| > 30% on a portfolio whose "
+        "components have realistic single-digit-percent annual returns. "
+        "This indicates the annualization is being applied to monthly-"
+        "frequency inputs, not daily. Check that the caller is feeding "
+        "pct_change of combined_civ_series (daily) rather than "
+        "combined_daily_returns (which inner-joins to the monthly "
+        "intersection)."
+    )
+
+
 def test_old_cumprod_path_disagrees_for_mixed_frequency() -> None:
     """Pin the *reason* the old plot path was wrong: cumprod(1+r) on the
     weighted-sum-of-asset-returns series materially disagrees with the
