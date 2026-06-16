@@ -67,6 +67,8 @@ py-modules = [
     "rec_bond_loader",
     # Post-v0.1: SGB tranche reference + lookup API.
     "sgb_tranches",
+    # Phase 1 of the SGB modeling refactor: per-tranche valuation engine.
+    "sgb_holdings",
 ]
 
 [tool.ruff]

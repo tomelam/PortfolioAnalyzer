@@ -3,6 +3,13 @@
 Returns a ``pd.Series`` named ``"price"`` indexed by date so the result
 slots directly into ``main.py``'s ``nav_inputs`` dict alongside the
 mutual-fund Series.
+
+Unit caveat: ``data/gold_monthly_inr.csv`` stores prices in **INR per
+troy ounce** despite the ambiguous "Spot Price" column header. For
+relative-returns analysis (the existing main.py path) the units cancel
+in normalization and the value doesn't matter. For absolute valuation
+(the new SGB engine — where you multiply by ``units_grams``), call
+``load_gold_prices_per_gram`` to get the per-gram series.
 """
 
 from __future__ import annotations
@@ -10,6 +17,8 @@ from __future__ import annotations
 import os
 
 import pandas as pd
+
+GRAMS_PER_TROY_OUNCE = 31.1034768
 
 
 def load_gold_prices(csv_path: str = "data/gold_monthly_inr.csv") -> pd.Series:
@@ -49,3 +58,14 @@ def load_gold_prices(csv_path: str = "data/gold_monthly_inr.csv") -> pd.Series:
         .rename("price")
     )
     return series
+
+
+def load_gold_prices_per_gram(csv_path: str = "data/gold_monthly_inr.csv") -> pd.Series:
+    """Return the same series as :func:`load_gold_prices` but in **INR per gram**.
+
+    Wraps the underlying CSV's per-troy-ounce values with a single
+    documented division so callers doing absolute-INR valuation (the
+    SGB engine, P&L reports, position sizing) don't have to remember
+    the magic constant.
+    """
+    return load_gold_prices(csv_path) / GRAMS_PER_TROY_OUNCE

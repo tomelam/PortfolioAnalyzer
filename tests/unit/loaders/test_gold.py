@@ -14,7 +14,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from gold_loader import load_gold_prices
+from gold_loader import GRAMS_PER_TROY_OUNCE, load_gold_prices, load_gold_prices_per_gram
 
 FIXTURES = Path(__file__).resolve().parent.parent.parent / "fixtures" / "data"
 
@@ -53,3 +53,11 @@ def test_first_and_last_values() -> None:
 def test_missing_file_raises() -> None:
     with pytest.raises(RuntimeError, match="not found"):
         load_gold_prices(csv_path="/nonexistent/path/gold.csv")
+
+
+def test_per_gram_is_per_ounce_divided_by_31_103() -> None:
+    """Per-gram series = per-ounce series / GRAMS_PER_TROY_OUNCE, point by point."""
+    per_oz = load_gold_prices(csv_path=str(FIXTURES / "gold_tiny.csv"))
+    per_g = load_gold_prices_per_gram(csv_path=str(FIXTURES / "gold_tiny.csv"))
+    expected = per_oz / GRAMS_PER_TROY_OUNCE
+    pd.testing.assert_series_equal(per_g, expected, check_names=False)
