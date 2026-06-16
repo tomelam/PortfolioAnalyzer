@@ -122,6 +122,36 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   beyond `combined_civ_series`: `align_with`, `clip_to_overlap`,
   `aligned_to`, `interpolated`. *(Already on Phase E backlog.)*
 
+#### H. Integration with money-vault (do NOT work without explicit go-ahead)
+
+User-raised 2026-06-17: PortfolioAnalyzer could serve as the
+*quantitative* backtester for portfolio allocations that the
+*qualitative* money-vault LLM-wiki-cum-RAG system at
+`~/Projects/money-vault/` recommends. Current state: the two repos
+are unaware of each other.
+
+- [ ] **Money-vault integration (capability question).** Treat
+  PortfolioAnalyzer as a downstream tool for money-vault portfolio
+  suggestions: vault recommends a sized allocation across asset
+  classes (Indian equity/debt/gold/PPF/SGB tranches/REC bonds);
+  PortfolioAnalyzer renders the historical CAGR / vol / Sharpe /
+  drawdowns / alpha-vs-NIFTY for that allocation. Open questions:
+  what's the input/output contract (human-translated TOML, or auto-
+  generated)? does the analyzer need any vault-side conventions
+  (asset-class labels, default weights)? what's the scope —
+  Indian-only or extended? **Do not begin work without user's
+  explicit go-ahead.**
+
+- [ ] **Design the money-vault ↔ PortfolioAnalyzer bridge** —
+  separate, larger cycle. Inputs needed before sketching: the
+  relevant money-vault wiki pages (which sections produce portfolio
+  recommendations, in what shape), the user's preferred integration
+  posture (manual TOML hand-off vs. auto-generated TOML vs. inline
+  API call), and whether to extend the analyzer's loader set for
+  any asset classes the vault recommends that PortfolioAnalyzer
+  doesn't currently cover. **Do not begin work without user's
+  explicit go-ahead.**
+
 #### G. Housekeeping / decisions
 
 - [ ] Rename `port/` → `portfolios/` for clarity. *(Already on Hygiene
