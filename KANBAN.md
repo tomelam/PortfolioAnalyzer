@@ -285,7 +285,7 @@ are unaware of each other.
   backlog.)*
 - [ ] Decide fate of `outputs/port-*/` cached runs. *(Already on Hygiene
   backlog.)*
-- [ ] Add `.env.example` if any FRED-style API tokens are needed.
+- [x] **`.env.example` not needed** (reconciled 2026-06-17). Repo-wide grep finds no `os.environ` / `getenv` / API-token / `.env` usage; all data sources are local CSVs or unauthenticated HTTP (mfapi.in, nsiindia.gov.in). Revisit if a token-gated source (e.g. FRED) is ever added.
 - [ ] Relocate `docs/*.pdf` originals once `.md` sidecars exist.
 - [ ] Decide fate of `defunct_feature_var_rate_bonds` and `defunct_main`
   branches.
@@ -342,7 +342,7 @@ are unaware of each other.
 - [ ] Replace dead/scattered metrics code with tested `metrics.py` (CAGR, vol, Sharpe, Sortino, alpha, beta, drawdowns)
 - [ ] Reference: `~/Projects/PortfolioAnalyzer.attic/tmp-mar2025/test_metrics.py` has golden formulas
 - [x] Decided: `portfolio_calculator.py` — KEEP. Two functions live (`calculate_portfolio_allocations`, `calculate_gains_cumulative`); dropped dead `calculate_gain_daily_portfolio_series` and its unused import in main.py, plus the commented-out duplicate header.
-- [ ] Decide fate of `bond_calculators.py` (12.7 KB) — `calculate_variable_bond_cumulative_gain` is live (used by rec_bond_loader); the other 4 SGB-related funcs are unused but may inform Phase E live-gold port. Audit during Phase E.
+- [x] **Audited `bond_calculators.py`** (already done in post-v0.1 cleanup cycle 5; reconciled 2026-06-17). The 4 unused funcs (`calculate_bond_cumulative_gain` + 3 pre-refactor SGB approximations) were deleted — superseded by `sgb_holdings.sgb_holding_civ`. Only the live `calculate_variable_bond_cumulative_gain` remains (used by `loaders/rec_bond.py` + `main.py` SCSS path); file is now ~52 lines at 100% coverage. Their removal is preserved in git history (no future rationale — superseded, not parked).
 - [x] Decided: `visualizer.py` — KEEP. `plot_cumulative_returns` + `print_major_drawdowns` both live in main.py. Matplotlib import cost is acceptable for now; tests use `--disable-plot-display`.
 - [x] Reviewed `salvage/tmp3-uncommitted` branch (commit 9e899fb) — file-by-file: nothing cherry-picked. Findings:
   - `data_loader.py` (155 lines): ~90% ruff/black cosmetic; one substantive change (`load_index_data` calls `warn_if_stale(..., quiet=quiet)`) references an undefined `quiet` param — abandoned WIP.
@@ -400,15 +400,15 @@ are unaware of each other.
 - [x] **Pytest now treats `DeprecationWarning` / `PendingDeprecationWarning` / `FutureWarning` as test failures** (`pyproject.toml` `filterwarnings = ["error::..."]`). Catches stdlib + pandas/numpy "behavior will change in vN.M" notices automatically — they can't quietly accumulate. Verified: 151/0/0 today, and all 6 live `main.py` invocations clean under `python -W error::DeprecationWarning -W error::FutureWarning`.
 - [x] **Dependabot configured** for `github-actions` and `pip` (weekly, 5 PRs max each). Without it, deprecation annotations like the Node-20 one accumulate silently until the runtime is removed and CI hard-fails. PRs go through CI like any other change.
 - [x] **GitHub Actions Node-20 deprecation fixed** — `actions/checkout@v4 → @v5`, `actions/setup-python@v5 → @v6`. Both newer majors ship Node 24.
-- [ ] Re-enable `SIM` (flake8-simplify) lint family disabled during the v0.1 push; ~15 style hints to triage (mostly ternaries vs if/else, nested-with, dict.keys()).
-- [ ] Replace deprecated `.fillna(method='ffill')` (if still present) with `.ffill()`
+- [x] **`SIM` (flake8-simplify) lint family re-enabled** (reconciled 2026-06-17). `SIM` is in `[tool.ruff.lint] select` and `ruff check .` is clean — no outstanding hints.
+- [x] **No deprecated `.fillna(method='ffill')` remain** (reconciled 2026-06-17). Repo-wide grep is clean; the `synthetic_civ.py` cases were fixed earlier (see Phase-C bug-fix log).
 - [ ] Add type hints incrementally; switch `ignore_missing_imports` off per-module
-- [ ] Raise CI coverage gate 70% → 85% (set to `--cov-fail-under=70` on 2026-06-17; baseline TOTAL is 78%. Next step 85% needs real test additions — data_loader.py at 59% is the main lever.)
-- [ ] Decide fate of `defunct_feature_var_rate_bonds` and `defunct_main` branches (likely delete after v0.1)
+- [ ] Raise CI coverage gate 70% → 85% (set to `--cov-fail-under=70` on 2026-06-17; baseline TOTAL is 82% after data_loader.py reached 99%. The remaining levers are real tests for `main.py` — currently 1% as a subprocess-measurement artifact — and the unused `visualizer.py` / `ppf_calculator.py`.)
+- [ ] Decide fate of `defunct_feature_var_rate_bonds` and `defunct_main` branches. **Recommendation (2026-06-17): delete both (local + origin) once `v0.1-salvage` is tagged.** Deferred until then per the original "after v0.1" gate; not deleting now since they still exist on `origin` and the tag isn't cut. Both are superseded (defunct_main = pre-salvage main; defunct_feature_var_rate_bonds = the variable-rate-bond work now live in `bond_calculators.calculate_variable_bond_cumulative_gain`).
 - [ ] Decide fate of `port/` directory naming — rename to `portfolios/` for clarity?
 - [ ] Investigate `outputs/port-*/` cached runs — keep as canonical examples or move to attic?
-- [ ] Remove `Makefile~` editor backup
-- [ ] Add `.env.example` if FRED API tokens are needed
+- [x] **`Makefile~` editor backup** — already absent (reconciled 2026-06-17); not tracked, not on disk.
+- [x] **`.env.example` not needed** (2026-06-17) — no env-var/token usage anywhere; revisit if a token-gated data source is added.
 - [ ] Consider relocating `docs/*.pdf` originals to a `docs/sources/` subdirectory once `.md` sidecars exist
 
 ## In Progress
