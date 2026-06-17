@@ -414,7 +414,10 @@ are unaware of each other.
 
 ## In Progress
 
-- [ ] Phase F: integration test, docs, tag `v0.1-salvage`.
+_Nothing active. Phase F (the last salvage track) closed 2026-06-17 — see
+Done. Everything remaining is optional backlog (type hints, coverage→85%,
+naming/`outputs/` decisions, money-vault integration) or the separate
+user-owned Data-freshness work._
 
 ## Done
 
@@ -428,6 +431,7 @@ are unaware of each other.
   - tmp4-apr2025 reviewed: math equivalent to current `metrics.py`; reporting/alignment utilities backlogged for post-v0.1; no blockers.
   - `bonus/` shell helpers + diagnostic script backlogged; non-blocking.
 - [x] **Phase D: Decomposition + TDD cycles (2026-06-15 → 2026-06-16).** Closed.
+- [x] **Phase F: Integration + docs + release tag (2026-06-17).** Closed. `test_main_e2e.py`; ARCHITECTURE/TESTING/CONTRIBUTING docs; `v0.1-salvage` tagged + pushed (`1b53d5c`); decided to keep the repo public.
   - Two portfolio-CIV bugs fixed (scale-invariance, daily-frequency consistency); daily ≡ monthly Sharpe/Vol now agree to within ~1pp on every golden.
   - Pure-function `metrics.py` extracted; all `TimeseriesReturn` metric methods delegate.
   - Loaders extracted into 7 standalone modules (mutual_fund, ppf, benchmark, risk_free, scss, rec_bond, sgb) with unit tests each.
