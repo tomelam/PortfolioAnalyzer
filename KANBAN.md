@@ -281,7 +281,12 @@ are unaware of each other.
   branches.
 
 ### Phase C — Golden-master safety net (all 3 portfolios DONE)
-- [ ] Now that `--as-of` exists (cycle 16), tighten golden-master test tolerances 5% → 1e-9 for deterministic runs
+- [x] **Tightened golden-master tolerances 5% → 1e-9** (2026-06-17). Pin
+  the test with `--as-of 2026-06-13` so series are trimmed to `<= AS_OF`
+  and runs reproduce bit-for-bit; re-captured all 6 goldens at that date.
+  Every numeric column now compared at 1e-9 (was 5% relative); drawdowns
+  count also asserted. Still `network` (needs mfapi reachable, but its
+  values for dates <= AS_OF are stable).
 - [ ] Build a pickle-replay path (e.g. `main.py --replay-from tests/golden/port-X/pickles/`) so the test no longer needs network
 - [ ] Record coverage baseline (after Phase D test additions)
 - [x] **Daily-method Sharpe/Vol inflation on synthetic-CIV portfolios FIXED.** Root cause was *not* zero-return-days as suspected — it was `pd.concat(join="inner")` in `combined_civ_series` collapsing the portfolio CIV to the *intersection* of dates. With monthly-sampled gold or PPF present, that intersection was monthly, so applying `sqrt(252)` annualization yielded 10× inflated Vol. Fix: reindex every asset onto a common business-day calendar with ffill before joining. Result: port-mf-ppf-gold daily Sharpe 4.98 → 0.46 (matches monthly 0.43); port-everything daily Sharpe 7.33 → 0.76 (matches monthly 0.69); daily/monthly Vol now within ~1pp. TDD tests at `tests/unit/test_portfolio_civ_frequency.py`.

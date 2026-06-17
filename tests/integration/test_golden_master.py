@@ -7,20 +7,25 @@ Phase C safety net captured 2026-06-14. Covers three portfolios:
 - port-everything: 5 MFs + PPF + Gold + SGB + SCSS + REC Bond
   (exercises every loader)
 
-Limitations to lift in Phase D:
+Determinism: runs are pinned with `--as-of {AS_OF}`, which trims every
+loaded series to `<= AS_OF`. Indian MF NAVs for settled past dates are
+immutable, so newly-ingested NAV points are excluded and a run
+reproduces the captured goldens bit-for-bit regardless of when it
+executes. Every numeric column is therefore compared at 1e-9; the
+anchored drawdown columns (start date, durations) are compared exactly.
 
-- Hits mfapi.in for live NAV data → marked `network`. CAGR / Sharpe /
-  Sortino / Volatility drift slightly as the API ingests new NAV
-  points; numeric tolerances accommodate ~1 week of drift. Drawdown
-  start dates and durations are anchored to historical events and
-  compared exactly.
+Notes:
+
+- Still hits mfapi.in for NAV history → marked `network`. The `--as-of`
+  pin removes *drift*, not the network dependency; the test needs mfapi
+  reachable, but the values it returns for dates <= AS_OF are stable.
 - Capture used `tests/fixtures/golden_master_config.toml` to bypass
   the data-staleness gates; tests use the same config until the data
   files are refreshed (see KANBAN "Data freshness").
-- As of 2026-06-15, daily/monthly Sharpe and Vol agree to within ~1pp
-  across all 3 portfolios after the CIV scale + frequency fixes.
-- True determinism requires either a `--as-of YYYY-MM-DD` flag in
-  main.py or a pickle-replay path. Both are KANBAN items.
+- Re-capture: run main.py for each (portfolio, method) with the same
+  `--config`, `--lookback 5Y`, and `--as-of` used here, writing the CSV
+  into tests/golden/<portfolio>/<method>/. Bump AS_OF only when you
+  re-capture, never independently.
 """
 
 from __future__ import annotations
@@ -52,6 +57,15 @@ GOLDEN_CONFIG = REPO_ROOT / "tests" / "fixtures" / "golden_master_config.toml"
 PORTFOLIOS = ["port-1", "port-mf-ppf-gold", "port-everything"]
 METHODS = ["daily", "monthly"]
 
+# Reference date the goldens were captured at. Pinning --as-of trims all
+# series to <= AS_OF, making runs deterministic. Bump only on re-capture.
+AS_OF = "2026-06-13"
+
+# Floating-point comparison tolerance for every numeric column. With the
+# --as-of pin the inputs are identical run-to-run, so output reproduces
+# exactly; 1e-9 absorbs only CSV float-formatting noise.
+TOL = 1e-9
+
 
 def _parse_pct(s: str) -> float:
     return float(s.rstrip("%"))
@@ -80,6 +94,8 @@ def _run_main(toml: str, method: str, out_dir: Path) -> None:
         method,
         "--lookback",
         "5Y",
+        "--as-of",
+        AS_OF,
         f"port/{toml}.toml",
     ]
     result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, timeout=180)
@@ -113,24 +129,14 @@ def test_golden(tmp_path: Path, portfolio: str, method: str) -> None:
     assert actual[10] == expected[10], "drawdown days drift"
     assert actual[11] == expected[11], "recovery days drift"
 
-    # Numeric tolerances reflect ~1 week of live mfapi.in NAV drift.
-    # Synthetic-CIV portfolios produce larger Sharpe/Vol magnitudes, so
-    # we scale tolerance to the magnitude of the expected value (5% relative).
-    def rel_tol(v: float) -> float:
-        return max(0.5, abs(v) * 0.05)
-
-    cagr_e = _parse_pct(expected[1])
-    vol_e = _parse_pct(expected[2])
-    sharpe_e = float(expected[3])
-    sortino_e = float(expected[4])
-    alpha_e = _parse_pct(expected[5])
-    beta_e = float(expected[6])
-    mdd_e = _parse_pct(expected[8])
-
-    assert abs(_parse_pct(actual[1]) - cagr_e) < rel_tol(cagr_e), "CAGR drift > tolerance"
-    assert abs(_parse_pct(actual[2]) - vol_e) < rel_tol(vol_e), "Volatility drift > tolerance"
-    assert abs(float(actual[3]) - sharpe_e) < rel_tol(sharpe_e), "Sharpe drift > tolerance"
-    assert abs(float(actual[4]) - sortino_e) < rel_tol(sortino_e), "Sortino drift > tolerance"
-    assert abs(_parse_pct(actual[5]) - alpha_e) < rel_tol(alpha_e), "Alpha drift > tolerance"
-    assert abs(float(actual[6]) - beta_e) < rel_tol(beta_e), "Beta drift > tolerance"
-    assert abs(_parse_pct(actual[8]) - mdd_e) < 0.2, "max drawdown drift"
+    # With --as-of pinned the run is deterministic, so every numeric
+    # column must reproduce the golden to within float-formatting noise.
+    assert abs(_parse_pct(actual[1]) - _parse_pct(expected[1])) < TOL, "CAGR drift"
+    assert abs(_parse_pct(actual[2]) - _parse_pct(expected[2])) < TOL, "Volatility drift"
+    assert abs(float(actual[3]) - float(expected[3])) < TOL, "Sharpe drift"
+    assert abs(float(actual[4]) - float(expected[4])) < TOL, "Sortino drift"
+    assert abs(_parse_pct(actual[5]) - _parse_pct(expected[5])) < TOL, "Alpha drift"
+    assert abs(float(actual[6]) - float(expected[6])) < TOL, "Beta drift"
+    assert abs(_parse_pct(actual[8]) - _parse_pct(expected[8])) < TOL, "max drawdown drift"
+    # Drawdowns count is an int that no longer drifts under the pin.
+    assert actual[7] == expected[7], "drawdowns count drift"
