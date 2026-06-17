@@ -150,7 +150,7 @@ def fetch_niftyindices_tri(
     start: str = "01-Jan-2007",
     end: str | None = None,
     session=None,
-    retries: int = 3,
+    retries: int = 1,
     timeout: int = 20,
     backoff: float = 1.5,
 ) -> pd.DataFrame:
@@ -165,7 +165,13 @@ def fetch_niftyindices_tri(
         start: inclusive start, ``DD-Mon-YYYY`` (default covers full history).
         end: inclusive end, ``DD-Mon-YYYY``; defaults to today.
         session: optional pre-built requests Session (for tests / reuse).
-        retries: attempts for the POST before giving up.
+        retries: number of whole-flow attempts. **Defaults to 1 on purpose.**
+            niftyindices throttles *bursts* of requests very aggressively (a
+            block takes minutes to clear), so rapid in-process retries can't
+            beat it and only deepen the block. A single clean attempt succeeds
+            when the IP hasn't been hit recently; the real "retry" is the next
+            scheduled run (the daily ``portfolio-analyzer-update`` cron). Raise
+            this only for a deliberately patient, long-``backoff`` batch.
     """
     end = end or dt.date.today().strftime("%d-%b-%Y")
     # cinfo is a (single-quoted) JSON string embedded inside the JSON body;
@@ -178,8 +184,9 @@ def fetch_niftyindices_tri(
     last_error: Exception | None = None
     for attempt in range(retries):
         try:
-            # niftyindices is flaky; retry the WHOLE flow (cookie-prime + POST)
-            # on a fresh session so a hung prime can't strand the attempt.
+            # One whole flow (cookie-prime + POST) on a fresh session. Extra
+            # attempts (if retries>1) wait backoff*n — but see the docstring:
+            # for niftyindices, fewer/no rapid retries is the robust choice.
             sess = session or requests.Session()
             sess.headers.setdefault("User-Agent", _NIFTY_UA)
             sess.get(NIFTY_HIST_PAGE, timeout=timeout)  # mint session cookies

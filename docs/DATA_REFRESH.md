@@ -47,12 +47,20 @@ failed (so one flaky feed doesn't page you).
 
 ## niftyindices rate-limiting
 
-niftyindices throttles an IP that hits it repeatedly in a short window. Normal
-use is light — at most one request per run, and only when the local data is
-stale (a fresh file triggers **zero** requests). Don't hammer it: avoid
-running the live network test in a tight loop, and prefer the daily cron over
-forcing refreshes by hand. The fetcher retries with backoff and, if throttled,
-degrades to "warn and use existing data".
+niftyindices throttles **bursts** very aggressively: a single isolated request
+succeeds (verified — it returns full TRI history in one call), but a handful in
+a short window trips an IP block that takes minutes to clear. Because of that,
+`fetch_niftyindices_tri` makes a **single attempt by default** (`retries=1`) —
+rapid in-process retries can't beat the block and only deepen it. The real
+"retry" is the next scheduled run.
+
+Practical guidance:
+- Prefer the **daily cron** (`portfolio-analyzer-update`) — one hit/day never
+  trips the limit.
+- A fresh local file triggers **zero** requests (refresh only fires when stale).
+- Don't run the live network test in a loop; if throttled it skips (clearly
+  labelled upstream throttling, not a code defect), and an on-run refresh just
+  warns and uses existing data.
 
 ## Re-capturing goldens after a source change
 
