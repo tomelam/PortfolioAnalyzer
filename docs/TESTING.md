@@ -11,21 +11,38 @@ the unit tier only — fast (<3 s) and network-free.
 | Integration | `integration` | CLI subprocess invocation, missing-file error path, end-to-end smoke | Some `network` |
 | Golden | `golden` | Full pipeline run vs. captured CSV outputs for 3 portfolios × 2 methods | No (replay fixtures) |
 
+Run all test commands from the **project root**
+(`/Users/tom/Projects/PortfolioAnalyzer`) using the project venv, so the
+package imports resolve and the broken-shebang `venv/bin/pytest` wrapper is
+bypassed:
+
 ```bash
+cd /Users/tom/Projects/PortfolioAnalyzer
+
 # Default — unit + golden tiers; fast and network-free.
-pytest
+./venv/bin/python -m pytest
 
 # Just the goldens.
-pytest -m golden tests/integration/
+./venv/bin/python -m pytest -m golden tests/integration/
 
-# Include the remaining live-network tests too.
-pytest -m ""
+# The live-network tier only (live FRED + niftyindices fetch + full e2e run).
+./venv/bin/python -m pytest -m network
+
+# Everything, including the network tier.
+./venv/bin/python -m pytest -m ""
 ```
 
 The default `addopts` in `pyproject.toml` is `-m 'not network'`, so CI
 and the routine local loop never hit a live endpoint. The goldens run in
 this default loop: they replay committed fixtures (see below) instead of
 fetching from mfapi.in / nsiindia.gov.in.
+
+The `network` tier hits live services and is non-deterministic (throttling,
+outages), so it is excluded by default — run it on demand with the
+`-m network` command above. Its `test_fetch_niftyindices_tri_live` needs the
+optional `browser` extra (`./venv/bin/python -m pip install '.[browser]' &&
+./venv/bin/python -m playwright install chromium`); without it that one test
+skips with a clear reason rather than failing.
 
 ## Unit tests
 
@@ -42,7 +59,7 @@ Pure-function tests under `tests/unit/`. Notable files:
 Run a single test:
 
 ```bash
-pytest tests/unit/test_metrics.py::test_sharpe_exactly_one -v
+./venv/bin/python -m pytest tests/unit/test_metrics.py::test_sharpe_exactly_one -v
 ```
 
 ## Golden-master tests
@@ -108,7 +125,7 @@ for p in port-1 port-mf-ppf-gold port-everything; do
   done
 done
 
-pytest -m golden tests/integration/ -v
+./venv/bin/python -m pytest -m golden tests/integration/ -v
 ```
 
 Inspect `tests/golden/$p/$m/$p.csv` to confirm the new numbers are what you
@@ -138,7 +155,7 @@ CI gates at `--cov-fail-under=85` (`.github/workflows/ci.yml`, `pytest
 **TOTAL: 87%**. Reproduce with:
 
 ```bash
-pytest --cov=. --cov-report=term-missing
+./venv/bin/python -m pytest --cov=. --cov-report=term-missing
 ```
 
 Notable modules:

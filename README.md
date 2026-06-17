@@ -244,15 +244,21 @@ Test dependencies are declared as the `dev` extra of the package:
 ```bash
 pip install -e ".[dev]"
 ```
-The default suite excludes `network`-marked tests (golden-master + the
-full subprocess smoke). Run them explicitly with `pytest -m network` or
-`pytest -m 'not network or network'`. See [`docs/TESTING.md`](docs/TESTING.md)
-for the marker matrix and golden-regeneration recipe.
+The default suite excludes `network`-marked tests (live FRED + niftyindices
+fetch + the full subprocess smoke; the golden-master tests are *not* network —
+they replay committed fixtures). Run everything from the **project root** with
+the project venv. See [`docs/TESTING.md`](docs/TESTING.md) for the marker
+matrix and golden-regeneration recipe.
 
 ```bash
-pytest                       # unit + non-network integration
-pytest -m network            # adds golden-master + e2e smoke
+cd /Users/tom/Projects/PortfolioAnalyzer
+./venv/bin/python -m pytest                # unit + golden + non-network integration
+./venv/bin/python -m pytest -m network     # live FRED + niftyindices + e2e smoke
 ```
+
+The niftyindices live test needs the optional `browser` extra
+(`./venv/bin/python -m pip install '.[browser]' && ./venv/bin/python -m
+playwright install chromium`); without it it skips rather than fails.
 
 ---
 
