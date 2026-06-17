@@ -31,6 +31,28 @@ class PortfolioTimeseries:
         if total_weight > 0:
             self.weights = {k: v / total_weight for k, v in self.weights.items()}
 
+    def effective_window(self) -> dict:
+        """Return the portfolio's effective time window and the assets that set it.
+
+        Bounded by the latest asset inception (``start``) and the earliest
+        asset last-NAV (``end``). The accompanying ``*_limited_by`` keys
+        name which asset sat at each bound — useful for the stdout banner
+        that explains why a portfolio with a defunct fund plots up to
+        that fund's last reported NAV rather than today.
+        """
+        if not self.assets:
+            raise ValueError("PortfolioTimeseries has no assets")
+        starts = {n: a.civ.value_series().index.min() for n, a in self.assets.items()}
+        ends = {n: a.civ.value_series().index.max() for n, a in self.assets.items()}
+        start_name, start_date = max(starts.items(), key=lambda kv: kv[1])
+        end_name, end_date = min(ends.items(), key=lambda kv: kv[1])
+        return {
+            "start": start_date,
+            "end": end_date,
+            "start_limited_by": start_name,
+            "end_limited_by": end_name,
+        }
+
     def combined_civ_series(self) -> TimeseriesCIV:
         """
         True portfolio CIV: weighted sum of each asset's NORMALIZED CIV series

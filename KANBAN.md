@@ -122,6 +122,89 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   beyond `combined_civ_series`: `align_with`, `clip_to_overlap`,
   `aligned_to`, `interpolated`. *(Already on Phase E backlog.)*
 
+#### I. User-raised 2026-06-17 (post-cycle-7 review)
+
+- [ ] **Preserve generated PNGs/CSVs by default.** Current `make clean`
+  removes `outputs/` wholesale and the user does not want that as a
+  default. Rules: (a) `make` (Makefile) rebuilds outputs only when the
+  PNG/CSV is *missing or older than its TOML* — never deletes existing
+  files as a side-effect; (b) a separate shell script (e.g.
+  `scripts/rerender-all.sh` or a flag on `scripts/render-all.sh`)
+  re-creates every PNG/CSV unconditionally, regardless of whether they
+  already exist. Rationale: outputs are expensive to recompute (mfapi
+  round-trips) and the user often wants to keep historical renders for
+  comparison. Document the policy in `docs/OUTPUTS.md` (new) and
+  cross-link from `README.md` + `QUICKSTART.md`.
+
+- [x] **Clip portfolio at earliest component "death"** (2026-06-17,
+  cycle 9). `PortfolioTimeseries.combined_civ_series` already trimmed
+  the portfolio CIV to `[max(asset.start), min(asset.end)]`; the
+  missing piece was *surfacing* it. Added
+  `PortfolioTimeseries.effective_window()` returning
+  `{start, end, start_limited_by, end_limited_by}` so `main.py` can
+  print the banner "Effective window: <s> → <e>. End set by '<asset>';
+  start set by '<asset>'." Also trims `benchmark_returns_series` at
+  `<= end` so the alpha/beta computation reflects the same window.
+  4 TDD unit tests in `test_portfolio_effective_window.py`. Suite
+  186 → 190; 6 goldens still green. CSV outputs unchanged because
+  metrics already derive from the (already-clipped) `combined_civ_series`.
+
+- [x] **Simplified CLI invocation** (2026-06-17, cycle 8). Added
+  `[project.scripts] portfolio-analyzer = "main:cli"` to
+  `pyproject.toml`; refactored `main.py`'s `if __name__ == "__main__":`
+  block into a `cli()` function and renamed `def main(args):` →
+  `def main(settings):` to make the parameter name match its actual
+  use (the old name only worked because `if __name__ == "__main__":`
+  variables happen to land in module globals). New invocation:
+  `./venv/bin/portfolio-analyzer port/port-1.toml`. Updated
+  `QUICKSTART.md`, `Makefile`, and all `scripts/*.sh` to prefer the
+  entry-point form. `python main.py …` still works (script delegates
+  to `cli()`). README + ARCHITECTURE refresh tracked separately below.
+
+- [x] **Explained: 7 "deselected" tests are network-marked, not
+  broken** (2026-06-17). Investigated for KANBAN clarity. They are
+  deselected by the `-m 'not network'` default in
+  `pyproject.toml [tool.pytest.ini_options].addopts`. The set is the
+  6 golden-master tests (`tests/integration/test_golden_master.py`,
+  3 portfolios × 2 methods — they each invoke `main.py` end-to-end,
+  which fetches NAVs from mfapi.in) plus
+  `tests/integration/test_main_e2e.py::test_full_run_produces_csv`
+  (also a real subprocess run hitting the network). They are *not*
+  skipped or broken — they pass when run with `pytest -m network` or
+  `pytest -m 'not network or network'`. Whether to keep them in the
+  default-deselected bucket vs. wire them through the planned
+  `--replay-from <pickles>` path is the open question (see Phase C
+  pickle-replay item).
+
+- [ ] **Audit pickle dependency in tests / golden capture.** Status as
+  of 2026-06-17: yes, pickle is still in active use. Three places:
+  (a) `main.py --save-golden-data` writes 5 pickles into `tests/data/`;
+  (b) `tests/test_utils.py:26` `pickle.load()` helper used by
+  `tests/test_alignment.py` and `tests/test_get_alignment.py`;
+  (c) `tests/golden/port-*/pickles/*.pkl` co-exist with the CSV
+  goldens that the Phase C/F integration test
+  (`tests/integration/test_golden_master.py`) actually compares
+  against. The CSVs are the canonical golden mechanism (per
+  `docs/TESTING.md`'s "why CSV not pickle" section); the pickles are
+  legacy and only `portfolio_civs.pkl` + `aligned_civs.pkl` have
+  readers. Decide: (1) delete the unused pickles, (2) port
+  `test_alignment.py` / `test_get_alignment.py` off pickle onto
+  CSV/synthetic fixtures, (3) remove the `--save-golden-data` flag
+  and pickle writers from `main.py`. After all three: drop the
+  pickle import entirely and document in `docs/TESTING.md`.
+
+- [ ] **Audit README.md and docs/ARCHITECTURE.md for staleness.**
+  Spot-check on 2026-06-17 found at least: README's *Modular Design*
+  bullet still lists `metrics_calculator.py` (the actual module is
+  `metrics.py`) and `sgb_loader.py` (deleted in the SGB Phase-2
+  integration, replaced by `sgb_holdings.py` + `sgb_tranches.py`).
+  Full pass needed: every file/module name referenced in README and
+  ARCHITECTURE must exist; the pipeline diagram in ARCHITECTURE must
+  match the current `main.py` flow (post-SGB-refactor, post-loaders
+  extraction, post-CIV-frequency fix); the data-source list in README
+  must match the live loaders; the CLI examples in both should use
+  the new `portfolio-analyzer` entry point once that lands.
+
 #### H. Integration with money-vault (do NOT work without explicit go-ahead)
 
 User-raised 2026-06-17: PortfolioAnalyzer could serve as the

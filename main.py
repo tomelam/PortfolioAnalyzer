@@ -27,7 +27,7 @@ from utils import (
 from visualizer import plot_cumulative_returns, print_major_drawdowns
 
 
-def main(args):
+def main(settings):
     import os
     from pathlib import Path
 
@@ -202,6 +202,22 @@ def main(args):
 
     weights = extract_weights(portfolio_dict)
     portfolio_ts = from_multiple_nav_series(nav_inputs, weights)
+
+    # Effective window banner. combined_civ_series already clips the
+    # portfolio CIV at the earliest-dying asset's last NAV; surface
+    # which asset set the cutoff so a portfolio carrying one defunct
+    # fund doesn't silently report metrics that stop months in the past.
+    window = portfolio_ts.effective_window()
+    print(
+        f"Effective window: {window['start'].strftime('%Y-%m-%d')} → "
+        f"{window['end'].strftime('%Y-%m-%d')}. "
+        f"End set by '{window['end_limited_by']}'; "
+        f"start set by '{window['start_limited_by']}'."
+    )
+    if benchmark_returns_series is not None:
+        benchmark_returns_series = benchmark_returns_series[
+            benchmark_returns_series.index <= window["end"]
+        ]
 
     # Build portfolio NAV (CIV) and returns. portfolio_civ_series is the
     # canonical daily CIV from combined_civ_series — Phase D's frequency
@@ -531,7 +547,12 @@ def parse_arguments():
     return args
 
 
-if __name__ == "__main__":
+def cli():
+    """Console entry point. Wired into pyproject [project.scripts].
+
+    Installs as `portfolio-analyzer` on PATH inside the venv after
+    `pip install -e .`. Also invoked by `python main.py ...` for back-compat.
+    """
     import sys
     import traceback
 
@@ -540,6 +561,7 @@ if __name__ == "__main__":
     # If config file is missing, fallback to empty config dict (intended behavior)
     config = load_config_toml(args.config)
 
+    settings = None
     try:
         settings = {
             "portfolio_file": args.toml_file,
@@ -572,8 +594,12 @@ if __name__ == "__main__":
         main(settings)
     except Exception as e:
         print(f"\nError: {e}", file=sys.stderr)
-        if settings["debug"]:
+        if settings and settings.get("debug"):
             print(traceback.format_exc(), file=sys.stderr)
         else:
             print("Run again with --debug for more details.", file=sys.stderr)
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    cli()
