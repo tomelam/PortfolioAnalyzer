@@ -93,7 +93,7 @@ After `pip install -e .`, the console entry point `portfolio-analyzer` is on `PA
 ```bash
 portfolio-analyzer --help
 portfolio-analyzer <path_to_portfolio_toml_file> [options]
-portfolio-analyzer port/port-1.toml --max-drawdown-threshold 10 --skip-age-check
+portfolio-analyzer port/port-1.toml --max-drawdown-threshold 10 --allow-stale
 ```
 
 ### `./pa` — run without activating the venv
@@ -103,7 +103,7 @@ venv — no `source venv/bin/activate`, no `PATH` changes, nothing touched
 outside the project directory. It `cd`s into the project root itself, so it
 works from anywhere and in-repo paths resolve:
 ```bash
-./pa port/port-1.toml --max-drawdown-threshold 10 --skip-age-check
+./pa port/port-1.toml --max-drawdown-threshold 10 --allow-stale
 ./pa --help
 ```
 It just `exec`s `venv/bin/python main.py "$@"`, so it's exactly equivalent to
@@ -165,22 +165,23 @@ Each of the options (except for `--config`) can also be set in the config TOML, 
     📂  Loading «path/to/file.csv»
         ↳ last record 2025‑04‑18 (2 days old, max allowed 2)
     ```
-  * Default freshness limits are **2 days for the benchmark** and the value of
-    `max_riskfree_delay` (default 61) for the risk‑free series.  
-  * If a series is staler than its limit, the `utils.warn_if_stale` prompt is
-    triggered.
+  * The per-source freshness provenance line (`last data …, fetched …`)
+    is printed for each reference feed (benchmark, risk‑free).
 
 - `--disable-plot-display` (`-dpd`) → `show_plot = false`:
   Disables on-screen display of plots. Use this when running from scripts or environments without a graphical display.
 
-- `--skip-age-check` → `skip_age_check = true`:
-  Bypasses the hard blocker on a stale benchmark CSV and risk-free-rate CSV.
-  When active, the run prints a one-line warning so the bypass is never silent.
-  Default behavior is strict: a stale CSV exits non-zero with "data is outdated".
-  
-  `--quiet` (`-q`) → `quiet = true`:
-  Suppresses the “Continue anyway?” prompt when stale data is detected, and automatically proceeds as if you answered yes.  
-  Useful for automation, headless runs, or testing where manual input isn’t possible.
+- `--allow-stale` → `allow_stale = true`:
+  Reference data (benchmark + risk-free) is a correctness invariant: when a
+  source cannot be certified current the run is **blocked by default**, since
+  stale reference data corrupts alpha/beta/Sharpe/Sortino. `--allow-stale` is
+  the single override — it proceeds and prints a warning naming the degraded
+  metrics. No effect under `--as-of` / `--replay-from` (which neither fetch nor
+  block). See [Data freshness](docs/DATA_REFRESH.md).
+
+- `--quiet` (`-q`) → `quiet = true`:
+  Run non-interactively (assume “yes” to any prompt). Useful for automation,
+  headless runs, or testing where manual input isn’t possible.
 
 - `--max-drawdown-threshold <float>` (`-dt`) → `max_drawdown_threshold = 5.0`:  
   Sets the percentage threshold for reporting drawdowns.

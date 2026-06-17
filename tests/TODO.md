@@ -41,13 +41,18 @@ This checklist helps verify the behavior of portfolio analysis logic across TOML
 
 ---
 
-## ✅ Staleness and Safety Behaviors
+## ✅ Data-freshness invariant (block-by-default)
 
-- [ ] Benchmark and risk-free files are checked for freshness
-- [ ] Age warning prompt appears interactively
-- [ ] `--skip-age-check` suppresses the prompt
-- [ ] `quiet=True` suppresses prompt output in automation mode
-- [ ] Program exits cleanly on "n" response to prompt
+Covered by `tests/unit/test_data_update.py` (cadence logic / once-a-day gate)
+and `tests/unit/test_freshness_gate.py` (the main.py block / --allow-stale glue).
+
+- [x] Reference sources are refreshed when behind their publication cadence
+- [x] A source that can't be certified current blocks the run by default
+- [x] `--allow-stale` proceeds with a warning naming the degraded metrics
+- [x] niftyindices is contacted at most once per day (attempt-stamped)
+- [x] `--as-of` / `--replay-from` neither fetch nor block (deterministic)
+- [x] Retired flags (`--skip-age-check`/`--no-auto-update`/`--max-riskfree-delay`)
+      fail fast with a pointer to `--allow-stale`
 
 ---
 

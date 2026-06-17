@@ -11,10 +11,14 @@ Each :class:`DataSource` maps one upstream feed to a local CSV that the
 pipeline's ``load_timeseries_csv`` already knows how to read. A fetcher
 returns a date-indexed ``value`` DataFrame; :func:`write_normalized_csv`
 writes it with a ``date``-named column and a loader-recognized value column
-(``rate``/``price``). :func:`update_all` refreshes every source, writes a
-last-fetched stamp, and isolates failures so one dead feed can't abort the
-rest. The whole thing is cron-able via the ``portfolio-analyzer-update``
-console script (see :mod:`data_update_cli`).
+(``rate``/``price``). :func:`ensure_reference_data_fresh` is the on-run path
+``main.py`` calls: it refreshes any reference source that has fallen behind its
+publication cadence (business day for NIFTY, month for FRED) and reports a
+per-source status the freshness gate blocks on. :func:`update_all` is the
+unconditional refresh behind the optional ``portfolio-analyzer-update`` console
+script (see :mod:`data_update_cli`); both stamp ``data/.last_fetched.json`` and
+isolate failures so one dead feed can't abort the rest. No cron — the analyzer
+refreshes on demand.
 
 Sources
 -------
@@ -255,7 +259,7 @@ def fetch_niftyindices_tri(
 
 @dataclass
 class DataSource:
-    """One refreshable feed → one local CSV the pipeline reads."""
+    """One refreshable reference feed → one local CSV the pipeline reads."""
 
     name: str
     target_path: str
@@ -264,6 +268,16 @@ class DataSource:
     out_value_col: str  # one of: rate / price / close / yield
     out_date_format: str  # strftime; must match the config's date_format
     description: str
+    # Publication cadence the freshness gate measures "behind" against:
+    # "business_day" (the feed updates every trading day) or "month".
+    cadence: str = "business_day"
+    # True for hosts that punish repeated hits (niftyindices) — every attempt
+    # is stamped and a second attempt the same day is suppressed.
+    day_gated: bool = False
+    # Human-readable metrics this source bears on, named in the stale warning.
+    affects: str = ""
+    # Short label for provenance / messages.
+    label: str = ""
 
 
 def write_normalized_csv(source: DataSource, df: pd.DataFrame) -> None:
@@ -289,6 +303,10 @@ REGISTRY: dict[str, DataSource] = {
         out_value_col="rate",
         out_date_format="%Y-%m-%d",
         description="FRED India 10Y government bond rate (monthly); risk-free proxy.",
+        cadence="month",
+        day_gated=False,  # clean public CSV, no ban risk: refresh whenever behind
+        affects="Sharpe, Sortino, alpha",
+        label="FRED India 10Y (risk-free)",
     ),
     "benchmark_nifty_tri": DataSource(
         name="benchmark_nifty_tri",
@@ -299,6 +317,10 @@ REGISTRY: dict[str, DataSource] = {
         out_date_format="%m/%d/%Y",
         description="NIFTY 50 TRI from niftyindices.com via stealth browser "
         "(needs 'browser' extra; live fetch unverified in CI).",
+        cadence="business_day",
+        day_gated=True,  # anti-scrape host: at most one attempt per day
+        affects="alpha, beta",
+        label="NIFTY 50 TRI (benchmark)",
     ),
 }
 
@@ -313,13 +335,22 @@ def _read_stamps() -> dict:
         return {}
 
 
-def _write_stamp(name: str, last_data_date: str, rows: int) -> None:
+def read_stamp(name: str) -> dict:
+    """Provenance for one source: ``last_date`` / ``fetched_at`` / ``rows`` /
+    ``attempted_at`` (whatever has been recorded), or ``{}`` if never stamped."""
+    return _read_stamps().get(name, {})
+
+
+def _now_iso() -> str:
+    return pd.Timestamp.utcnow().isoformat()
+
+
+def _update_stamp(name: str, **fields) -> None:
+    """Merge ``fields`` into the stamp entry for ``name`` (preserving the rest)."""
     stamps = _read_stamps()
-    stamps[name] = {
-        "fetched_at": pd.Timestamp.utcnow().isoformat(),
-        "last_date": last_data_date,
-        "rows": rows,
-    }
+    entry = stamps.get(name, {})
+    entry.update(fields)
+    stamps[name] = entry
     parent = os.path.dirname(STAMP_FILE)
     if parent:
         os.makedirs(parent, exist_ok=True)
@@ -327,15 +358,30 @@ def _write_stamp(name: str, last_data_date: str, rows: int) -> None:
         json.dump(stamps, f, indent=2, sort_keys=True)
 
 
+def _is_today(iso: str | None, today: pd.Timestamp) -> bool:
+    """True if ISO timestamp ``iso`` falls on ``today`` (date comparison)."""
+    if not iso:
+        return False
+    try:
+        return pd.Timestamp(iso).date() == today.date()
+    except (ValueError, TypeError):
+        return False
+
+
 # --- update orchestration --------------------------------------------------
 
 def update_source(name: str, *, session=None) -> dict:
-    """Fetch one source, write its CSV, and stamp it. Raises on fetch error."""
+    """Fetch one source, write its CSV, and stamp it. Raises on fetch error.
+
+    The stamp records both ``attempted_at`` and ``fetched_at`` (a successful
+    update is also an attempt) plus ``last_date`` / ``rows``.
+    """
     src = REGISTRY[name]
     df = src.fetch(session=session)
     write_normalized_csv(src, df)
     last_date = df.index.max().date().isoformat()
-    _write_stamp(name, last_date, len(df))
+    now = _now_iso()
+    _update_stamp(name, attempted_at=now, fetched_at=now, last_date=last_date, rows=len(df))
     return {"name": name, "ok": True, "rows": len(df), "last_date": last_date}
 
 
@@ -351,7 +397,7 @@ def update_all(*, session=None) -> list[dict]:
     return results
 
 
-# --- staleness-driven refresh (the on-run "force refresh when stale" path) -
+# --- cadence-driven freshness (the on-run "refresh if behind" path) --------
 
 def source_for_path(path: str) -> DataSource | None:
     """Return the registered source that writes ``path`` (basename match)."""
@@ -371,45 +417,123 @@ def local_last_date(source: DataSource) -> pd.Timestamp | None:
         return None
 
 
-def refresh_path_if_stale(
-    path: str, max_age_days: int, *, session=None, today=None
-) -> dict:
-    """Force-refresh the source feeding ``path`` if its local data is older
-    than ``max_age_days``. Returns a status dict with a user-facing
-    ``message`` (empty when nothing to say).
+def cadence_frontier(cadence: str, today) -> pd.Timestamp:
+    """The most recent date the feed *should* have published by ``today``.
 
-    Statuses: ``fresh`` (already current), ``refreshed`` (pulled new data),
-    ``failed`` (upstream unavailable — warn and keep existing data, an
-    early-warning rather than a hard block), ``no_source`` (``path`` has no
-    registered upstream, so it can't be auto-updated).
+    Local data on or after this date is current by the feed's own cadence;
+    older than it is "behind". No magic-number tolerance — the frontier is
+    the cadence boundary itself.
+
+    - ``business_day``: the most recent trading day on or before ``today``
+      (rolls a weekend back to Friday).
+    - ``month``: the first of ``today``'s month (monthly feeds stamp the 1st).
+    """
+    today = pd.Timestamp(today).normalize()
+    if cadence == "business_day":
+        return pd.offsets.BDay().rollback(today).normalize()
+    if cadence == "month":
+        return today.replace(day=1)
+    raise ValueError(f"unknown cadence: {cadence!r}")
+
+
+def assess_freshness(source: DataSource, *, today=None) -> dict:
+    """Read local data + stamp and report where ``source`` stands today.
+
+    ``current`` is the certification the block gate cares about: a source is
+    current if its local data meets the cadence frontier *or* a successful
+    fetch already happened today (the latter covers exchange holidays / feed
+    lag, where a fetch returns the latest the source offers even though the
+    calendar frontier is technically ahead of it).
     """
     today = (
         pd.Timestamp(today).normalize() if today is not None else pd.Timestamp.today().normalize()
     )
-    src = source_for_path(path)
-    if src is None:
-        return {"status": "no_source", "message": ""}
-    last = local_last_date(src)
-    cutoff = today - pd.Timedelta(days=max_age_days)
-    if last is not None and last >= cutoff:
-        return {"status": "fresh", "last_date": last.date().isoformat(), "message": ""}
+    last = local_last_date(source)
+    frontier = cadence_frontier(source.cadence, today)
+    behind = last is None or last < frontier
+    stamp = read_stamp(source.name)
+    fetched_today = _is_today(stamp.get("fetched_at"), today)
+    attempted_today = _is_today(stamp.get("attempted_at"), today)
+    return {
+        "last_date": last,
+        "frontier": frontier,
+        "behind": behind,
+        "fetched_today": fetched_today,
+        "attempted_today": attempted_today,
+        "current": (not behind) or fetched_today,
+    }
+
+
+def ensure_source_current(name: str, *, session=None, today=None) -> dict:
+    """Refresh ``name`` if it is behind its cadence, honouring the day-gate.
+
+    Returns a status dict with a user-facing ``message`` (empty when nothing
+    to say), plus ``affects`` (the metrics this source bears on) for the
+    caller's stale warning. Statuses:
+
+    - ``current``: already on cadence, or already fetched today — no fetch.
+    - ``refreshed``: was behind, fetched fresh data this run.
+    - ``stale``: behind and could not be certified current — either the fetch
+      failed, or a day-gated source already attempted (and failed) today so a
+      retry is suppressed. The block gate stops the run on this unless
+      ``--allow-stale``.
+    """
+    today = (
+        pd.Timestamp(today).normalize() if today is not None else pd.Timestamp.today().normalize()
+    )
+    src = REGISTRY[name]
+    a = assess_freshness(src, today=today)
+    last_iso = a["last_date"].date().isoformat() if a["last_date"] is not None else None
+
+    if a["current"]:
+        return {"name": name, "status": "current", "last_date": last_iso, "message": "",
+                "affects": src.affects}
+
+    # Behind and not yet certified current today. Day-gated hosts get at most
+    # one attempt per day: if today's attempt already happened (and left us
+    # not-current, i.e. it failed), don't poke the host again.
+    if src.day_gated and a["attempted_today"]:
+        return {
+            "name": name, "status": "stale", "last_date": last_iso,
+            "message": (
+                f"⚠️  {src.label} is behind and already attempted today; not "
+                f"retrying ({src.name} is contacted at most once per day)."
+            ),
+            "affects": src.affects,
+        }
+
+    # Record the attempt *before* fetching so a day-gated host can't be hit
+    # twice in a day even if the fetch raises.
+    _update_stamp(name, attempted_at=_now_iso())
     try:
-        res = update_source(src.name, session=session)
+        res = update_source(name, session=session)
         return {
-            "status": "refreshed",
-            "last_date": res["last_date"],
+            "name": name, "status": "refreshed", "last_date": res["last_date"],
             "message": (
-                f"🔄 Auto-updated {src.name}: {res['rows']} rows "
-                f"through {res['last_date']}."
+                f"🔄 Refreshed {src.label}: {res['rows']} rows through {res['last_date']}."
             ),
+            "affects": src.affects,
         }
-    except Exception as e:  # noqa: BLE001 — upstream down ⇒ early-warning, not a crash
-        loc = f"last {last.date()}" if last is not None else "no local copy"
+    except Exception as e:  # noqa: BLE001 — upstream down ⇒ stale, gate decides the rest
+        loc = f"last {last_iso}" if last_iso else "no local copy"
         return {
-            "status": "failed",
-            "last_date": last.date().isoformat() if last is not None else None,
+            "name": name, "status": "stale", "last_date": last_iso,
             "message": (
-                f"⚠️  Could not auto-update {src.name} ({type(e).__name__}); "
-                f"proceeding with existing data ({loc})."
+                f"⚠️  Could not refresh {src.label} ({type(e).__name__}); "
+                f"existing data is stale ({loc})."
             ),
+            "affects": src.affects,
         }
+
+
+def ensure_reference_data_fresh(paths, *, session=None, today=None) -> list[dict]:
+    """Run :func:`ensure_source_current` for every ``path`` that maps to a
+    registered reference source. Unregistered paths (e.g. a legacy manual CSV)
+    are silently skipped — they have no upstream to certify against."""
+    results = []
+    for path in paths:
+        src = source_for_path(path)
+        if src is None:
+            continue
+        results.append(ensure_source_current(src.name, session=session, today=today))
+    return results

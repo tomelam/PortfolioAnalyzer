@@ -126,3 +126,54 @@ and aligns onto the portfolio's date index. `main.py` converts the annual rate
 to a per-period geometric rate before passing into Sharpe/Sortino, so
 `metrics.sharpe(returns, risk_free_rate=...)` expects a pre-normalized
 per-period rate.
+
+### Data freshness as a correctness invariant
+
+The program's job is correct metrics. Stale **reference** data (the benchmark
+and the risk-free rate) silently corrupts results — a stale benchmark skews
+alpha/beta, a stale risk-free skews Sharpe/Sortino/alpha — so freshness is not
+a user-tunable policy; it is an invariant the program defends. The model:
+
+- **Scope = reference data only.** Benchmark (NIFTY TRI) and risk-free (FRED)
+  are the auto-refreshable upstream feeds. Mutual-fund NAVs are fetched live
+  every run, so they are current by construction. Gold/PPF are manual CSVs
+  with no feed to pull — they can only warn, never block.
+- **Block by default.** If the program cannot certify the reference data is
+  current, it stops rather than print degraded metrics. The single override is
+  `--allow-stale`, which proceeds after printing a warning that names the
+  affected metrics (so the user knows *what* is degraded, not just *that*
+  something is).
+- **Auto-refresh is built in, not a flag.** When a reference source is behind,
+  the program refreshes it before computing. Refreshing *is* the remedy; an
+  age-check that doesn't refresh would just nag.
+- **No magic-number thresholds.** "Behind" is not an arbitrary age tolerance;
+  it is *having fallen off the feed's own publication cadence* — older than the
+  most recent **business day** (NIFTY) or **month** (FRED). A successful fetch
+  yields the latest the source offers, so it is *current by definition*,
+  whatever the calendar says. (Accepted edge case: on an exchange holiday the
+  benchmark can look "behind" and trigger one harmless refresh that finds
+  nothing new — cheaper than maintaining a holiday calendar.)
+- **niftyindices is contacted at most once per day.** It is an anti-scrape host
+  that blocks the source IP, so this is the one genuine guard in the system:
+  every *attempt* (success or failure) is stamped in `data/.last_fetched.json`,
+  and a second attempt the same day is suppressed. FRED is a clean public CSV
+  with no such risk, so it refreshes whenever it is behind.
+- **Provenance in the output.** For each reference source the report prints
+  both `last_date` (the latest data point — what bears on correctness) and
+  `fetched_at` (when our copy was pulled), read from the stamp file. This is
+  documentation of result quality, not decoration.
+- **Deterministic modes opt out cleanly.** `--as-of DATE` and `--replay-from`
+  neither fetch nor block: data pinned through the as-of date is current *as of
+  that date*.
+
+Deliberately **not** done: FRED publishes a release calendar, so risk-free
+refreshes could be scheduled to release days only. Wiring up a release-calendar
+dependency to save a handful of harmless FRED hits is not worth the coupling;
+once-a-day "check if behind" is the pragmatic floor. Revisit only if a cheap,
+reliable publication oracle for *both* feeds becomes available.
+
+Implementation lives in `loaders/data_update.py` (registry, fetchers,
+cadence-gated refresh) and `main.py` (the block/allow-stale gate + provenance
+line). Operational details — the `browser` extra for the
+niftyindices stealth fetch, manual refresh — are in
+[`DATA_REFRESH.md`](DATA_REFRESH.md).

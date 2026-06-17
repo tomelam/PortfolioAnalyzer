@@ -219,7 +219,24 @@ def test_update_all_isolates_failures(tmp_path, monkeypatch):
     assert (tmp_path / "good.csv").exists()
 
 
-# --- staleness-driven refresh ---------------------------------------------
+# --- cadence frontier ------------------------------------------------------
+
+def test_cadence_frontier_business_day_rolls_back_over_weekend():
+    # A Saturday's most-recent business day is the preceding Friday.
+    assert du.cadence_frontier("business_day", pd.Timestamp("2026-06-13")) == pd.Timestamp(
+        "2026-06-12"
+    )
+    # A weekday is its own frontier.
+    assert du.cadence_frontier("business_day", pd.Timestamp("2026-06-15")) == pd.Timestamp(
+        "2026-06-15"
+    )
+
+
+def test_cadence_frontier_month_is_first_of_current_month():
+    assert du.cadence_frontier("month", pd.Timestamp("2026-06-18")) == pd.Timestamp("2026-06-01")
+
+
+# --- cadence-driven freshness ----------------------------------------------
 
 def _rf_source(tmp_path, fetch):
     return du.DataSource(
@@ -230,6 +247,26 @@ def _rf_source(tmp_path, fetch):
         out_value_col="rate",
         out_date_format="%Y-%m-%d",
         description="test",
+        cadence="month",
+        day_gated=False,
+        affects="Sharpe, Sortino, alpha",
+        label="FRED India 10Y (risk-free)",
+    )
+
+
+def _bench_source(tmp_path, fetch):
+    return du.DataSource(
+        name="bench",
+        target_path=str(tmp_path / "NIFTY Total Returns Historical Data.csv"),
+        fetch=fetch,
+        out_date_col="Date",
+        out_value_col="Price",
+        out_date_format="%m/%d/%Y",
+        description="test",
+        cadence="business_day",
+        day_gated=True,
+        affects="alpha, beta",
+        label="NIFTY 50 TRI (benchmark)",
     )
 
 
@@ -238,12 +275,11 @@ def test_source_for_path_matches_by_basename():
     assert du.source_for_path("data/does-not-exist.csv") is None
 
 
-def test_refresh_path_if_stale_skips_when_fresh(tmp_path, monkeypatch):
+def test_ensure_current_when_local_meets_cadence(tmp_path, monkeypatch):
+    """Local data on the cadence frontier is certified current — no fetch."""
     monkeypatch.setattr(du, "STAMP_FILE", str(tmp_path / ".s.json"))
     target = tmp_path / "INDIRLTLT01STM.csv"
-    # a file whose latest date is "today" — not stale
-    today = pd.Timestamp.today().normalize()
-    target.write_text(f"observation_date,rate\n{today.date()},7.0\n")
+    target.write_text("observation_date,rate\n2026-06-01,7.0\n")  # June present
     called = {"n": 0}
 
     def _fetch(session=None):
@@ -251,39 +287,131 @@ def test_refresh_path_if_stale_skips_when_fresh(tmp_path, monkeypatch):
         return du.parse_fred_csv(FRED_SAMPLE)
 
     monkeypatch.setattr(du, "REGISTRY", {"rf": _rf_source(tmp_path, _fetch)})
-    res = du.refresh_path_if_stale(str(target), max_age_days=40)
-    assert res["status"] == "fresh"
-    assert called["n"] == 0  # no fetch when fresh
+    res = du.ensure_source_current("rf", today="2026-06-18")
+    assert res["status"] == "current"
+    assert called["n"] == 0
 
 
-def test_refresh_path_if_stale_refreshes_when_stale(tmp_path, monkeypatch):
+def test_ensure_refreshes_when_behind(tmp_path, monkeypatch):
+    """Behind the cadence frontier ⇒ fetch; a successful fetch is current."""
     monkeypatch.setattr(du, "STAMP_FILE", str(tmp_path / ".s.json"))
     target = tmp_path / "INDIRLTLT01STM.csv"
-    target.write_text("observation_date,rate\n2011-12-01,8.0\n")  # ancient
+    target.write_text("observation_date,rate\n2026-04-01,7.0\n")  # April < June-01
     monkeypatch.setattr(
-        du, "REGISTRY", {"rf": _rf_source(tmp_path, lambda session=None: du.parse_fred_csv(FRED_SAMPLE))}
+        du,
+        "REGISTRY",
+        {"rf": _rf_source(tmp_path, lambda session=None: du.parse_fred_csv(FRED_SAMPLE))},
     )
-    res = du.refresh_path_if_stale(str(target), max_age_days=40, today="2012-04-01")
+    res = du.ensure_source_current("rf", today="2026-06-18")
     assert res["status"] == "refreshed"
-    assert "Auto-updated rf" in res["message"]
+    stamps = json.loads((tmp_path / ".s.json").read_text())
+    # both the attempt and the success are stamped
+    assert "attempted_at" in stamps["rf"] and "fetched_at" in stamps["rf"]
 
 
-def test_refresh_path_if_stale_warns_on_failure(tmp_path, monkeypatch):
+def test_ensure_stale_when_refresh_fails(tmp_path, monkeypatch):
+    """An unreachable upstream leaves the source stale but preserves data, and
+    records the attempt so a day-gated source won't retry immediately."""
     monkeypatch.setattr(du, "STAMP_FILE", str(tmp_path / ".s.json"))
     target = tmp_path / "INDIRLTLT01STM.csv"
-    target.write_text("observation_date,rate\n2011-12-01,8.0\n")
+    target.write_text("observation_date,rate\n2026-04-01,7.0\n")
 
     def _boom(session=None):
         raise RuntimeError("upstream down")
 
     monkeypatch.setattr(du, "REGISTRY", {"rf": _rf_source(tmp_path, _boom)})
-    res = du.refresh_path_if_stale(str(target), max_age_days=40, today="2026-06-13")
-    assert res["status"] == "failed"
-    assert "Could not auto-update" in res["message"]
-    # existing data is preserved (file untouched), not deleted
-    assert target.exists()
+    res = du.ensure_source_current("rf", today="2026-06-18")
+    assert res["status"] == "stale"
+    assert "Could not refresh" in res["message"]
+    assert target.exists()  # existing data preserved
+    stamps = json.loads((tmp_path / ".s.json").read_text())
+    assert "attempted_at" in stamps["rf"]  # failed attempt is recorded
 
 
-def test_refresh_path_no_registered_source():
-    res = du.refresh_path_if_stale("data/India 10-Year Bond Yield Historical Data.csv", 40)
-    assert res["status"] == "no_source"
+def test_fetched_today_is_current_even_if_cadence_behind(tmp_path, monkeypatch):
+    """The holiday/lag case: cadence says behind, but a successful fetch
+    already happened today, so the source is current (latest the feed offers)
+    and we don't fetch again."""
+    monkeypatch.setattr(du, "STAMP_FILE", str(tmp_path / ".s.json"))
+    target = tmp_path / "NIFTY Total Returns Historical Data.csv"
+    target.write_text("Date,Price\n06/12/2026,100\n")  # Friday; Monday is the frontier
+    (tmp_path / ".s.json").write_text(
+        json.dumps({"bench": {"fetched_at": "2026-06-15T03:00:00+00:00"}})
+    )
+    called = {"n": 0}
+
+    def _fetch(session=None):
+        called["n"] += 1
+        return du.parse_niftyindices_tri_json(NIFTY_TRI_FIXTURE)
+
+    monkeypatch.setattr(du, "REGISTRY", {"bench": _bench_source(tmp_path, _fetch)})
+    res = du.ensure_source_current("bench", today="2026-06-15")  # Monday
+    assert res["status"] == "current"
+    assert called["n"] == 0
+
+
+def test_benchmark_once_per_day_suppresses_second_attempt(tmp_path, monkeypatch):
+    """niftyindices is day-gated: a failed attempt earlier today blocks any
+    retry the same day (ban-avoidance), leaving the source stale."""
+    monkeypatch.setattr(du, "STAMP_FILE", str(tmp_path / ".s.json"))
+    target = tmp_path / "NIFTY Total Returns Historical Data.csv"
+    target.write_text("Date,Price\n01/01/2026,100\n")  # ancient, behind
+    (tmp_path / ".s.json").write_text(
+        json.dumps({"bench": {"attempted_at": "2026-06-17T08:00:00+00:00"}})
+    )
+    called = {"n": 0}
+
+    def _fetch(session=None):
+        called["n"] += 1
+        return du.parse_niftyindices_tri_json(NIFTY_TRI_FIXTURE)
+
+    monkeypatch.setattr(du, "REGISTRY", {"bench": _bench_source(tmp_path, _fetch)})
+    res = du.ensure_source_current("bench", today="2026-06-17")
+    assert res["status"] == "stale"
+    assert called["n"] == 0  # day-gate blocked the retry
+
+
+def test_fred_retries_within_day_when_not_day_gated(tmp_path, monkeypatch):
+    """FRED carries no ban risk, so a failed attempt earlier today does not
+    suppress a later retry the same day."""
+    monkeypatch.setattr(du, "STAMP_FILE", str(tmp_path / ".s.json"))
+    target = tmp_path / "INDIRLTLT01STM.csv"
+    target.write_text("observation_date,rate\n2026-04-01,7.0\n")
+    (tmp_path / ".s.json").write_text(
+        json.dumps({"rf": {"attempted_at": "2026-06-18T08:00:00+00:00"}})
+    )
+    called = {"n": 0}
+
+    def _fetch(session=None):
+        called["n"] += 1
+        return du.parse_fred_csv(FRED_SAMPLE)
+
+    monkeypatch.setattr(du, "REGISTRY", {"rf": _rf_source(tmp_path, _fetch)})
+    res = du.ensure_source_current("rf", today="2026-06-18")
+    assert res["status"] == "refreshed"
+    assert called["n"] == 1
+
+
+def test_ensure_reference_data_fresh_skips_unregistered(tmp_path, monkeypatch):
+    monkeypatch.setattr(du, "STAMP_FILE", str(tmp_path / ".s.json"))
+    target = tmp_path / "INDIRLTLT01STM.csv"
+    target.write_text("observation_date,rate\n2026-06-01,7.0\n")
+    monkeypatch.setattr(
+        du, "REGISTRY", {"rf": _rf_source(tmp_path, lambda session=None: None)}
+    )
+    results = du.ensure_reference_data_fresh(
+        ["data/legacy-unregistered.csv", str(target)], today="2026-06-18"
+    )
+    assert [r["name"] for r in results] == ["rf"]
+    assert results[0]["status"] == "current"
+
+
+def test_read_stamp_exposes_provenance(tmp_path, monkeypatch):
+    monkeypatch.setattr(du, "STAMP_FILE", str(tmp_path / ".s.json"))
+    (tmp_path / ".s.json").write_text(
+        json.dumps({"rf": {"last_date": "2026-05-01", "fetched_at": "2026-06-17T14:00:00+00:00"}})
+    )
+    st = du.read_stamp("rf")
+    assert st["last_date"] == "2026-05-01"
+    assert st["fetched_at"].startswith("2026-06-17")
+    assert du.read_stamp("missing") == {}

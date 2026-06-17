@@ -71,6 +71,27 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   - Cron-able `portfolio-analyzer-update` console script. See
     `docs/DATA_REFRESH.md`. Goldens re-captured against the FRED risk-free.
 
+- [x] **Data-freshness redesign — block-by-default invariant** (2026-06-18).
+  Reworked freshness from a warn/skip/tune-the-age model into a correctness
+  invariant (spec: `docs/ARCHITECTURE.md` → "Data freshness as a correctness
+  invariant"). Reference data (benchmark + risk-free) is auto-refreshed when it
+  has fallen off the feed's own publication **cadence** (business day for
+  NIFTY, month for FRED) — no magic-number age thresholds. A source that can't
+  be certified current **blocks** the run; the single override is the new
+  `--allow-stale` (warns, naming the degraded metrics). niftyindices is
+  contacted **≤ once/day** (every attempt stamped in `data/.last_fetched.json`;
+  a second same-day attempt is suppressed); FRED refreshes whenever behind. The
+  report prints per-source provenance (`last_date` + `fetched_at`). `--as-of` /
+  `--replay-from` opt out cleanly (neither fetch nor block). **No cron** — the
+  analyzer is self-sufficient; `portfolio-analyzer-update` remains an optional
+  manual one-shot. Hard-removed `--skip-age-check`, `--no-auto-update`,
+  `--max-riskfree-delay` (tombstoned → one-line error pointing to
+  `--allow-stale`). `refresh_path_if_stale` replaced by
+  `ensure_reference_data_fresh` / `ensure_source_current` / `cadence_frontier`.
+  TDD: rewrote `test_data_update.py` freshness section + new
+  `test_freshness_gate.py`; goldens stay green at 1e-9. Docs updated
+  (ARCHITECTURE, DATA_REFRESH, README, QUICKSTART).
+
 - [ ] **Confirm niftyindices TRI scrape works in steady state (unattended).**
   The fetch is now **stealth-browser-only** (Playwright + `playwright-stealth`),
   ported from the proven `~/Projects/mysore-spa-intelligence-engine` scraper:
@@ -83,14 +104,16 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   data (20 rows, last 36174.80). Needs the optional `browser` extra
   (`pip install '.[browser]' && playwright install chromium`); without it the
   fetch raises a clear install-guiding error.
-  - **Still open — verify in steady state:** let the daily cron run for a few
-    days and confirm `data/NIFTY Total Returns Historical Data.csv` +
-    `.last_fetched.json` actually advance unattended. One verified hit is not
-    proof of unattended reliability; the user (2026-06-17) is right that the
-    earlier "it's just burst throttling" diagnosis could have been wrong, so
-    treat this as open until the cron is demonstrably reliable.
-  - **Further hardening avenues if the cron ever stalls** (not needed unless it
-    does): `launch_persistent_context(user_data_dir=…)` for a returning-user
+  - **Still open — verify in steady state:** let a few normal runs (or the
+    optional `portfolio-analyzer-update` one-shot) execute over several days
+    and confirm `data/NIFTY Total Returns Historical Data.csv` +
+    `.last_fetched.json` actually advance via the on-run refresh. One verified
+    hit is not proof of unattended reliability; the user (2026-06-17) is right
+    that the earlier "it's just burst throttling" diagnosis could have been
+    wrong, so treat this as open until the once/day refresh is demonstrably
+    reliable.
+  - **Further hardening avenues if the scrape ever stalls** (not needed unless
+    it does): `launch_persistent_context(user_data_dir=…)` for a returning-user
     cookie jar across runs; incremental tail-fetch (only missing recent days)
     to shrink the footprint; a persisted "next-allowed" timestamp so the tool
     self-throttles across runs; an alternative NIFTY 50 TRI mirror as backup.

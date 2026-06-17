@@ -1,7 +1,7 @@
 # Config overlay used when capturing golden-master data.
 #
-# We intentionally bypass the data-staleness check so the safety net
-# can be built against the CSV snapshots currently in data/. When the
-# data files are refreshed, the goldens must be re-captured.
-skip_age_check = true
-max_riskfree_delay = 99999
+# Golden/replay runs pass --as-of + --replay-from, which are deterministic
+# modes: they neither fetch nor enforce the freshness gate (data pinned
+# through the as-of date is current as of that date). So no staleness knobs
+# are needed here; this overlay only exists to keep capture and replay using
+# an identical config surface.

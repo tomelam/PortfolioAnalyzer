@@ -63,10 +63,9 @@ def test_missing_portfolio_file_exits_nonzero(tmp_path: Path) -> None:
 
 
 @pytest.mark.integration
-def test_help_lists_skip_age_check_flag() -> None:
-    """``--skip-age-check`` must surface in ``--help``; without it, a user
-    facing a stale benchmark CSV has no documented escape from the hard
-    blocker except editing a config file."""
+def test_help_lists_allow_stale_flag() -> None:
+    """``--allow-stale`` must surface in ``--help`` — it is the single
+    documented escape from the block-by-default freshness invariant."""
     result = subprocess.run(
         [PYTHON, "main.py", "--help"],
         cwd=REPO_ROOT,
@@ -75,43 +74,39 @@ def test_help_lists_skip_age_check_flag() -> None:
         timeout=30,
     )
     assert result.returncode == 0
-    assert "--skip-age-check" in result.stdout
+    assert "--allow-stale" in result.stdout
 
 
 @pytest.mark.integration
-def test_stale_benchmark_blocks_when_auto_update_disabled(tmp_path: Path) -> None:
-    """With auto-update off, the strict staleness gate still hard-blocks on a
-    stale benchmark CSV (the legacy safety contract).
-
-    By default a run now *auto-refreshes* stale data instead of blocking
-    (the user-requested behaviour); ``--no-auto-update`` opts back into the
-    strict gate. This run stays network-free: the gate fires on the stale
-    local CSV before any fetch, and ``--no-auto-update`` suppresses the
-    on-run refresh entirely.
-    """
-    strict = subprocess.run(
-        [
-            PYTHON,
-            "main.py",
-            "--no-auto-update",
-            "--quiet",
-            "--disable-plot-display",
-            "port/port-1.toml",
-        ],
+@pytest.mark.parametrize(
+    "removed_flag",
+    ["--skip-age-check", "--no-auto-update", "--max-riskfree-delay"],
+)
+def test_removed_freshness_flags_error_with_pointer(removed_flag: str) -> None:
+    """The retired freshness knobs are hard-removed: passing one fails fast
+    with a one-line error pointing at ``--allow-stale`` (no silent aliasing)."""
+    result = subprocess.run(
+        [PYTHON, "main.py", removed_flag, "port/port-1.toml"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
         timeout=30,
     )
-    assert strict.returncode != 0
-    assert "outdated" in (strict.stdout + strict.stderr).lower()
+    assert result.returncode != 0
+    assert "--allow-stale" in (result.stdout + result.stderr)
 
 
 @pytest.mark.integration
 @pytest.mark.network
 def test_full_run_produces_csv(tmp_path: Path) -> None:
     """End-to-end smoke: a real portfolio run produces the expected CSV file
-    and exits cleanly. Numeric correctness is covered by the goldens."""
+    and exits cleanly. Numeric correctness is covered by the goldens.
+
+    Pinned with ``--as-of`` so the freshness path neither fetches nor blocks
+    on the reference feeds — this keeps the run from rewriting the tracked
+    ``data/`` CSVs as a side effect (which would silently break the goldens)
+    while still exercising the live mfapi.in NAV fetch (hence ``network``).
+    """
     out_dir = tmp_path / "out"
     out_dir.mkdir()
 
@@ -126,6 +121,8 @@ def test_full_run_produces_csv(tmp_path: Path) -> None:
             "--output-dir",
             str(out_dir),
             "--output-csv",
+            "--as-of",
+            "2026-06-13",
             "--metrics-method",
             "monthly",
             "--lookback",

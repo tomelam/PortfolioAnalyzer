@@ -1,14 +1,16 @@
-"""Console entry point to refresh benchmark/risk-free data (cron-able).
+"""Console entry point for a manual one-shot refresh of benchmark/risk-free data.
 
 Installed as ``portfolio-analyzer-update`` (see pyproject [project.scripts]).
 Refreshes every registered source in one shot and prints a short report.
-Intended to run on a schedule (e.g. a daily cron) so the pipeline always
-reads fresh local CSVs:
 
-    0 6 * * *  cd /path/to/PortfolioAnalyzer && ./venv/bin/portfolio-analyzer-update
+This is **optional** — a normal ``portfolio-analyzer`` run already refreshes
+whatever reference feed is behind its cadence (see ``docs/DATA_REFRESH.md``).
+It is handy to warm the local CSVs ahead of time, e.g. before an offline
+session. There is deliberately no scheduled/cron path.
 
 Exit code is 0 when at least one source updated, 1 only when every source
-failed — so a single flaky feed doesn't page you, but a total outage does.
+failed — so a single flaky feed doesn't fail the command, but a total outage
+does.
 """
 
 from __future__ import annotations

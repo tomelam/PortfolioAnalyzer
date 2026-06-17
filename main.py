@@ -27,6 +27,52 @@ from utils import (
 from visualizer import plot_cumulative_returns, print_major_drawdowns
 
 
+def _enforce_reference_freshness(settings):
+    """Refresh stale reference feeds and enforce the block-by-default gate.
+
+    Refreshes the benchmark / risk-free sources that are behind their cadence,
+    prints provenance (``last_date`` / ``fetched_at``) for each, and — for any
+    source that could not be certified current — either blocks the run (naming
+    the degraded metrics) or, under ``--allow-stale``, warns and proceeds.
+    """
+    from loaders.data_update import ensure_reference_data_fresh, read_stamp
+
+    ref_paths = []
+    if settings.get("use_benchmark"):
+        ref_paths.append(settings["benchmark_file"])
+    ref_paths.append(settings["risk_free_rates_file"])
+
+    results = ensure_reference_data_fresh(ref_paths)
+    for r in results:
+        if r["message"]:
+            print(r["message"])
+        st = read_stamp(r["name"])
+        if st:
+            print(
+                f"📊 {r['name']}: last data {st.get('last_date', '?')}, "
+                f"fetched {st.get('fetched_at', '?')}"
+            )
+
+    stale = [r for r in results if r["status"] == "stale"]
+    if not stale:
+        return
+    names = "; ".join(r["name"] for r in stale)
+    degraded = ", ".join(
+        sorted({m.strip() for r in stale for m in r["affects"].split(",") if m.strip()})
+    )
+    if settings["allow_stale"]:
+        print(
+            f"⚠️  --allow-stale: proceeding with stale reference data ({names}). "
+            f"Degraded metrics: {degraded}."
+        )
+    else:
+        raise RuntimeError(
+            f"Reference data is stale and could not be refreshed ({names}); this "
+            f"degrades {degraded}. Re-run when the source is reachable, or pass "
+            f"--allow-stale to proceed with degraded metrics."
+        )
+
+
 def main(settings):
     import os
     from pathlib import Path
@@ -37,33 +83,22 @@ def main(settings):
         f"\nPortfolio metrics for {portfolio_label} (direct, growth) using "
         f" {settings["metrics_method"]} metrics method\n"
     )
-    if settings.get("skip_age_check"):
-        print(
-            "⚠️  --skip-age-check active: benchmark/risk-free staleness "
-            "gate bypassed. Refresh the CSVs in data/ when convenient."
-        )
     if settings["debug"]:
         info(f"Portfolio label: {portfolio_label}.")
         info("Merged settings:")
         for k, v in settings.items():
             info(f"  {k}: {v}")
 
-    # Force-refresh stale benchmark/risk-free data from upstream (default on;
-    # off under --as-of / --replay-from / --skip-age-check). A reachable
-    # source is pulled fresh; an unreachable one warns and we proceed with the
-    # existing data (early-warning, not a hard block). With auto-update on, the
-    # CSV staleness gates below relax to that same warn-don't-block behavior.
-    if settings.get("auto_update"):
-        from loaders.data_update import refresh_path_if_stale
-
-        refresh_targets = []
-        if settings.get("use_benchmark"):
-            refresh_targets.append((settings["benchmark_file"], 7))
-        refresh_targets.append((settings["risk_free_rates_file"], 45))
-        for _path, _max_age in refresh_targets:
-            _res = refresh_path_if_stale(_path, _max_age)
-            if _res["message"]:
-                print(_res["message"])
+    # --- data-freshness invariant ------------------------------------------
+    # Stale reference data (benchmark, risk-free) silently corrupts metrics,
+    # so freshness is enforced rather than advised: a source behind its
+    # publication cadence is refreshed before computing, and one that cannot
+    # be certified current BLOCKS the run — unless --allow-stale. Deterministic
+    # modes (--as-of / --replay-from) opt out cleanly: data pinned through the
+    # as-of date is current as of that date, so they neither fetch nor block.
+    deterministic = settings.get("as_of") is not None or settings.get("replay_from")
+    if not deterministic:
+        _enforce_reference_freshness(settings)
 
     benchmark_returns_series = None
     if settings.get("use_benchmark"):
@@ -71,7 +106,10 @@ def main(settings):
         benchmark_data = load_timeseries_csv(
             settings["benchmark_file"],
             settings["benchmark_date_format"],
-            max_delay_days=None if (settings["skip_age_check"] or settings["auto_update"]) else 3,
+            # Freshness is enforced up front by _enforce_reference_freshness
+            # (or deliberately skipped in deterministic modes), so the loader's
+            # own staleness gate is disabled here to avoid double-gating.
+            max_delay_days=None,
             as_of=settings.get("as_of"),
         )
         benchmark_returns_series = get_benchmark_gain_daily(benchmark_data)
@@ -296,9 +334,9 @@ def main(settings):
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(
         settings["risk_free_rates_file"],
         date_format=settings["riskfree_date_format"],
-        # auto-update already attempted a refresh above; relax the hard gate
-        # to the same warn-don't-block contract.
-        max_allowed_delay_days=None if settings.get("auto_update") else settings["max_riskfree_delay"],
+        # Freshness already enforced by _enforce_reference_freshness (or
+        # skipped in deterministic modes); no second gate here.
+        max_allowed_delay_days=None,
     )
 
     if settings.get("lookback"):
@@ -555,12 +593,6 @@ def parse_arguments():
         help="Choose frequency for return/risk calculations: daily or monthly",
     )
     parser.add_argument(
-        "--max-riskfree-delay",
-        "-mrd",
-        type=int,
-        help="Maximum allowed delay (in days) for the most recent risk-free rate entry.",
-    )
-    parser.add_argument(
         "--lookback",
         "-lb",
         choices=["YTD", "1M", "3M", "6M", "1Y", "3Y", "5Y", "10Y"],
@@ -573,19 +605,19 @@ def parse_arguments():
         "--quiet",
         "-q",
         action="store_true",
-        help=(
-            "Suppresses the 'Continue anyway?' prompt when stale data is detected, and "
-            "automatically proceeds as if you answered yes."
-        ),
+        help="Run non-interactively (assume 'yes' to any prompt).",
     )
     parser.add_argument(
-        "--skip-age-check",
+        "--allow-stale",
+        dest="allow_stale",
         action="store_true",
         help=(
-            "Bypass the stale-data blocker on the benchmark CSV and "
-            "risk-free-rate CSV. Use when the auto-update path is "
-            "unavailable; the run will still warn so silent staleness "
-            "doesn't go unnoticed."
+            "Proceed even when reference data (benchmark / risk-free) cannot "
+            "be certified current. By default such a run is BLOCKED, because "
+            "stale reference data corrupts alpha/beta/Sharpe/Sortino. This is "
+            "the single override; it prints a warning naming the degraded "
+            "metrics. No effect under --as-of / --replay-from (which neither "
+            "fetch nor block)."
         ),
     )
     parser.add_argument(
@@ -628,19 +660,25 @@ def parse_arguments():
         ),
     )
     parser.add_argument(
-        "--no-auto-update",
-        dest="no_auto_update",
-        action="store_true",
-        help=(
-            "Disable the on-run auto-refresh of stale benchmark/risk-free "
-            "data. Auto-update is on by default but always off under "
-            "--as-of / --replay-from / --skip-age-check (deterministic or "
-            "offline modes)."
-        ),
-    )
-    parser.add_argument(
         "--debug", "-d", action="store_true", help="Show full tracebacks for debugging."
     )
+
+    # Retired freshness knobs. The redesign replaced warn/skip/tune-the-age
+    # toggles with a single block-by-default invariant + --allow-stale. These
+    # are hard-removed (not aliased): a tombstone that fails fast with a
+    # pointer beats a silent no-op or a stale generic "unrecognized argument".
+    class _RemovedFlag(argparse.Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            parser.error(
+                f"{option_string} has been removed; freshness is now enforced "
+                "automatically — use --allow-stale to proceed on stale data."
+            )
+
+    for _dead in ("--skip-age-check", "--no-auto-update", "--max-riskfree-delay", "-mrd"):
+        parser.add_argument(
+            _dead, action=_RemovedFlag, nargs="?", default=argparse.SUPPRESS,
+            help=argparse.SUPPRESS,
+        )
 
     args = parser.parse_args()
     # overwrite the module‑level debug flag so utils.dbg() can see it
@@ -675,7 +713,9 @@ def cli():
             "drawdown_threshold": args.max_drawdown_threshold
             or config.get("max_drawdown_threshold", 5.0),
             "metrics_method": args.metrics_method or config.get("metrics_method", "daily"),
-            "skip_age_check": args.skip_age_check or config.get("skip_age_check", False),
+            # Block-by-default freshness invariant; --allow-stale is the single
+            # override (config may set it too for non-interactive setups).
+            "allow_stale": args.allow_stale or config.get("allow_stale", False),
             "quiet": args.quiet or config.get("quiet", False),
             "debug": args.debug or config.get("debug", False),
             "lookback": args.lookback or config.get("lookback"),  # None → full history
@@ -693,7 +733,6 @@ def cli():
             ),
             "benchmark_date_format": config.get("benchmark_date_format", "%m/%d/%Y"),
             "riskfree_date_format": config.get("riskfree_date_format", "%Y-%m-%d"),
-            "max_riskfree_delay": args.max_riskfree_delay or config.get("max_riskfree_delay", 61),
             # --as-of YYYY-MM-DD pins the evaluation date for determinism;
             # parsed once here so downstream code sees a Timestamp, not a str.
             "as_of": (
@@ -706,21 +745,6 @@ def cli():
             "replay_from": args.replay_from,
             "save_replay": args.save_replay,
         }
-        # --skip-age-check loosens the risk-free CSV gate too, otherwise the
-        # user is one step closer but still blocked by a separate check.
-        # An explicit --max-riskfree-delay wins to keep that knob useful.
-        if settings["skip_age_check"] and not args.max_riskfree_delay:
-            settings["max_riskfree_delay"] = 99999
-        # Auto-update stale benchmark/risk-free data on run (default on).
-        # Forced off in deterministic/offline modes so tests, --as-of replays,
-        # and --skip-age-check stay network-free and reproducible.
-        settings["auto_update"] = (
-            config.get("auto_update", True)
-            and not args.no_auto_update
-            and not args.replay_from
-            and args.as_of is None
-            and not settings["skip_age_check"]
-        )
         main(settings)
     except Exception as e:
         print(f"\nError: {e}", file=sys.stderr)

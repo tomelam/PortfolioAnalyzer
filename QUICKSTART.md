@@ -72,13 +72,13 @@ outputs/port-1/port-1.csv    ← the metrics as one CSV row
 | `--metrics-method daily\|monthly` |     | Frequency for return/risk calculations. Default `daily`. |
 | `--lookback YTD\|1M\|3M\|6M\|1Y\|3Y\|5Y\|10Y` | `-lb` | Trim all series to this trailing period before computing metrics. |
 | `--max-drawdown-threshold PCT` | `-dt` | Drawdown threshold in percent. Default 5. |
-| `--max-riskfree-delay DAYS` | `-mrd` | Maximum allowed staleness for the risk-free-rate CSV. |
+| `--allow-stale` |     | Proceed when reference data (benchmark/risk-free) can't be certified current. Blocked by default; this is the single override and warns, naming the degraded metrics. No effect under `--as-of`/`--replay-from`. |
 | `--disable-plot-display` | `-dpd` | Don't open the matplotlib window. (Essential for shell scripts and headless runs.) |
 | `--output-snapshot` | `-os` | Save the plot as a PNG to the output directory. |
 | `--output-csv` | `-co` | Write the metrics as a single-row CSV instead of human-readable stdout. |
 | `--output-dir DIR` | `-od` | Where to put `*.png` / `*.csv` output. Default `outputs/`. |
 | `--save-golden-data` | `-sgd` | Pickle the intermediate data sets for regression tests. |
-| `--quiet` | `-q` | Don't prompt on stale data; proceed as if you said yes. |
+| `--quiet` | `-q` | Run non-interactively (assume "yes" to any prompt). |
 | `--debug` | `-d` | Show full Python tracebacks on error. |
 
 ---
@@ -139,14 +139,15 @@ The `port/` directory has tiny single-asset TOMLs for sanity checks:
 
 Or all six in one go via `scripts/single-asset-type.sh`.
 
-### Quiet, batch-friendly run (no prompts)
+### Batch-friendly run
 
-The staleness gate prompts interactively by default; in scripts use
-`--quiet` so it auto-proceeds when data is older than the freshness
-threshold:
+A normal run auto-refreshes stale reference data and only **blocks** when it
+can't certify the benchmark/risk-free feeds are current (e.g. the upstream is
+unreachable). For an unattended run that must never block on that, add
+`--allow-stale` (it proceeds with a warning naming the degraded metrics):
 
 ```bash
-./venv/bin/portfolio-analyzer --quiet --disable-plot-display \
+./venv/bin/portfolio-analyzer --allow-stale --disable-plot-display \
     --output-snapshot --output-csv \
     --output-dir outputs/port-1 \
     port/port-1.toml

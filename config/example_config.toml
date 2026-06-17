@@ -36,16 +36,13 @@ benchmark_date_format = "%m/%d/%Y"
 # Risk-free-data date format
 riskfree_date_format  = "%m/%d/%Y"
 
-# -------- Freshness checks --------
-# Skip the benchmark age check entirely (true/false)
-# skip_age_check = false
-#
-# You may omit the following key. If you do,
-# PortfolioAnalyzer uses the built‑in defaults defined in main.py:
-#   max_riskfree_delay  → 61
-# Maximum age (days) for the **risk‑free** series.
-# Use a large number (e.g. 36500) to “effectively disable” the check.
-max_riskfree_delay    = 61
+# -------- Data freshness --------
+# Reference data (benchmark + risk-free) is a correctness invariant: a run is
+# auto-refreshed when a source falls behind its publication cadence, and
+# BLOCKED if a source can't be certified current. There are no age-tolerance
+# knobs. The single override is allow_stale (CLI: --allow-stale), which
+# proceeds with a warning naming the degraded metrics. Default false.
+# allow_stale = false
 
 # -------- Output locations --------
 # output_dir = "outputs"
