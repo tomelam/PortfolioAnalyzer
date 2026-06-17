@@ -137,17 +137,16 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
 
 #### I. User-raised 2026-06-17 (post-cycle-7 review)
 
-- [ ] **Preserve generated PNGs/CSVs by default.** Current `make clean`
-  removes `outputs/` wholesale and the user does not want that as a
-  default. Rules: (a) `make` (Makefile) rebuilds outputs only when the
-  PNG/CSV is *missing or older than its TOML* — never deletes existing
-  files as a side-effect; (b) a separate shell script (e.g.
-  `scripts/rerender-all.sh` or a flag on `scripts/render-all.sh`)
-  re-creates every PNG/CSV unconditionally, regardless of whether they
-  already exist. Rationale: outputs are expensive to recompute (mfapi
-  round-trips) and the user often wants to keep historical renders for
-  comparison. Document the policy in `docs/OUTPUTS.md` (new) and
-  cross-link from `README.md` + `QUICKSTART.md`.
+- [x] **Preserve generated PNGs/CSVs by default** (2026-06-17, cycle 13).
+  `make clean` now only removes `portfolio_metrics.csv`; `outputs/` is
+  preserved. Added `make rerender` (force-rebuild every PNG + CSV
+  without deleting other files in `outputs/`) and `make distclean`
+  (the only target that does `rm -rf outputs/`, with a `y`
+  confirmation prompt). `scripts/render-all.sh` already iterated
+  unconditionally — no change needed there. New `docs/OUTPUTS.md`
+  documents the policy plus the per-portfolio sibling-file table
+  (`.png`, `.csv`, `.drawdowns.csv`, `.assets.csv`); README +
+  QUICKSTART cross-link to it.
 
 - [x] **Clip portfolio at earliest component "death"** (2026-06-17,
   cycle 9). `PortfolioTimeseries.combined_civ_series` already trimmed

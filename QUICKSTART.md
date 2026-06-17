@@ -17,15 +17,21 @@ python3.12 -m venv venv
 ./venv/bin/python -m pip install -e ".[dev]"
 ```
 
-All examples below use `./venv/bin/python` so they work without an
-activated virtualenv.
+The editable install puts a `portfolio-analyzer` console entry point
+into `./venv/bin/`. All examples below use `./venv/bin/portfolio-analyzer`
+so they work without an activated virtualenv. If you activate the venv
+(`source venv/bin/activate`), you can shorten that to just
+`portfolio-analyzer`.
+
+> The old `./venv/bin/portfolio-analyzer …` form still works for back-compat,
+> but the entry-point form is preferred — shorter, no interpreter path.
 
 ---
 
 ## Run one portfolio (the most common case)
 
 ```bash
-./venv/bin/python main.py port/port-1.toml
+./venv/bin/portfolio-analyzer port/port-1.toml
 ```
 
 That prints metrics to the terminal **and** opens a matplotlib window
@@ -36,13 +42,13 @@ Common variations:
 
 ```bash
 # Use monthly metrics instead of the default daily.
-./venv/bin/python main.py --metrics-method monthly port/port-1.toml
+./venv/bin/portfolio-analyzer --metrics-method monthly port/port-1.toml
 
 # Last 5 years only.
-./venv/bin/python main.py --lookback 5Y port/port-1.toml
+./venv/bin/portfolio-analyzer --lookback 5Y port/port-1.toml
 
 # Save the plot as PNG (no window pops up) and dump metrics as CSV.
-./venv/bin/python main.py \
+./venv/bin/portfolio-analyzer \
     --disable-plot-display --output-snapshot --output-csv \
     --output-dir outputs/port-1 \
     port/port-1.toml
@@ -82,13 +88,13 @@ outputs/port-1/port-1.csv    ← the metrics as one CSV row
 ### See the familiar plot window + printed metrics
 
 ```bash
-./venv/bin/python main.py port/port-everything.toml
+./venv/bin/portfolio-analyzer port/port-everything.toml
 ```
 
 ### Save plot + CSV without opening any window
 
 ```bash
-./venv/bin/python main.py \
+./venv/bin/portfolio-analyzer \
     --disable-plot-display --output-snapshot --output-csv \
     --output-dir outputs/port-everything \
     port/port-everything.toml
@@ -98,7 +104,7 @@ outputs/port-1/port-1.csv    ← the metrics as one CSV row
 
 ```bash
 for p in port-1 port-mf-ppf-gold; do
-    ./venv/bin/python main.py \
+    ./venv/bin/portfolio-analyzer \
         --disable-plot-display --output-snapshot \
         --output-dir outputs/$p \
         port/$p.toml
@@ -109,24 +115,26 @@ open outputs/port-1/port-1.png outputs/port-mf-ppf-gold/port-mf-ppf-gold.png
 ### Sweep every portfolio in `port/` with one command
 
 ```bash
-make all                 # save PNGs and CSVs for every port/*.toml
-# or:
-scripts/render-all.sh    # same thing as a shell script
+make all                 # incremental: render only stale/missing outputs
+make rerender            # force-rebuild every PNG + CSV (preserves outputs/)
+scripts/render-all.sh    # same as `make rerender`, as pure bash
 ```
 
-Both write to `outputs/<portfolio-name>/` per portfolio. See `Makefile`
-and `scripts/render-all.sh` below for what each does.
+Both write to `outputs/<portfolio-name>/` per portfolio. **`outputs/` is
+preserved by default** — `make clean` does **not** delete it; only
+`make distclean` (with a confirmation prompt) does. See
+[`docs/OUTPUTS.md`](docs/OUTPUTS.md) for the full policy.
 
 ### Single asset class only
 
 The `port/` directory has tiny single-asset TOMLs for sanity checks:
 
 ```bash
-./venv/bin/python main.py port/port-ppf.toml
-./venv/bin/python main.py port/port-scss.toml
-./venv/bin/python main.py port/port-sgb.toml
-./venv/bin/python main.py port/port-gold.toml
-./venv/bin/python main.py port/port-rec-bond.toml
+./venv/bin/portfolio-analyzer port/port-ppf.toml
+./venv/bin/portfolio-analyzer port/port-scss.toml
+./venv/bin/portfolio-analyzer port/port-sgb.toml
+./venv/bin/portfolio-analyzer port/port-gold.toml
+./venv/bin/portfolio-analyzer port/port-rec-bond.toml
 ```
 
 Or all six in one go via `scripts/single-asset-type.sh`.
@@ -138,7 +146,7 @@ The staleness gate prompts interactively by default; in scripts use
 threshold:
 
 ```bash
-./venv/bin/python main.py --quiet --disable-plot-display \
+./venv/bin/portfolio-analyzer --quiet --disable-plot-display \
     --output-snapshot --output-csv \
     --output-dir outputs/port-1 \
     port/port-1.toml
@@ -162,9 +170,11 @@ Run any script with `--help` (or read the first few lines) for usage.
 ## Make targets
 
 ```bash
-make all              # save PNGs and CSVs for every port/*.toml
+make all                  # incremental render of every port/*.toml
+make rerender             # force-rebuild every PNG + CSV
 make outputs/port-1.png   # render just port-1
-make clean            # delete generated outputs/ files
+make clean                # remove only portfolio_metrics.csv (outputs/ preserved)
+make distclean            # rm -rf outputs/ (asks for confirmation)
 ```
 
 The `Makefile` is parallel-safe: `make -j 4 all` runs four portfolios at
