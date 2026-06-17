@@ -28,6 +28,7 @@ def load_timeseries_csv(
     file_path: str,
     date_format: str,
     max_delay_days: int | None = None,
+    today: pd.Timestamp | None = None,
 ) -> TimeseriesReturn:
     """Load a benchmark CSV and return a TimeseriesReturn.
 
@@ -95,7 +96,7 @@ def load_timeseries_csv(
 
     if max_delay_days is not None:
         last_date = df.index[-1]
-        today = pd.Timestamp.today().normalize()
+        today = today if today is not None else pd.Timestamp.today().normalize()
         expected_latest = (today - pd.Timedelta(days=max_delay_days)).replace(day=1)
 
         dbg(f'Latest date in "{os.path.basename(file_path)}": {last_date.date()}')

@@ -59,10 +59,17 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   auto-updated" path is the default; the bypass-flag item above is the
   fallback for when the auto-update source is itself unavailable.
 
-- [ ] **Add `--today YYYY-MM-DD` flag** so the safety-net tests are
-  deterministic without live mfapi drift. Once it exists, tighten golden
-  tolerances to 1e-9 (currently 5% relative). *(Already on Phase C
-  backlog; restated here for visibility.)*
+- [x] **Added `--today YYYY-MM-DD` flag** (2026-06-17, cycle 16).
+  Pins the reference 'today' across the pipeline: every loaded NAV/CIV
+  series (per-fund DataFrames, PPF/SCSS/REC/gold/SGB) is trimmed at
+  `<= today` in `main.py`; the benchmark staleness gate
+  (`loaders.benchmark.load_timeseries_csv`) accepts `today=`; the
+  lookback computation (`utils.to_cutoff_date`) accepts `today=`;
+  `fund_lifecycle.build_assets_meta` receives `settings['today']`
+  for the DEFUNCT-status verdict. 5 new TDD tests
+  (`tests/unit/test_today_flag.py`). Suite 193 → 198 pass. Tightening
+  golden tolerances to 1e-9 is the follow-up step (deferred — current
+  goldens still pass at the existing 5% relative tolerance).
 
 - [ ] **Build a pickle-replay path** (`main.py --replay-from
   tests/golden/port-X/pickles/`). Removes the network dependency from

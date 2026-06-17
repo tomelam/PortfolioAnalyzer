@@ -60,13 +60,16 @@ def warn_if_stale(df, label="Data", quiet=False):
             raise ValueError("Data is too stale for analysis")
 
 
-def to_cutoff_date(tag: str) -> pd.Timestamp:
+def to_cutoff_date(tag: str, today: pd.Timestamp | None = None) -> pd.Timestamp:
     """
     Convert a look‑back tag ('YTD', '3M', '5Y', …) to the cutoff date.
+
+    Pass ``today`` to pin the reference point (used by --today for
+    deterministic runs); defaults to the wall clock if omitted.
     """
     from pandas.tseries.offsets import DateOffset
-    
-    today = pd.Timestamp.today().normalize()
+
+    today = today if today is not None else pd.Timestamp.today().normalize()
 
     if tag == "YTD":
         return pd.Timestamp(today.year, 1, 1)

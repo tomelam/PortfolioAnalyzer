@@ -55,6 +55,7 @@ def main(settings):
             settings["benchmark_file"],
             settings["benchmark_date_format"],
             max_delay_days=None if settings["skip_age_check"] else 3,
+            today=settings.get("today"),
         )
         benchmark_returns_series = get_benchmark_gain_daily(benchmark_data)
 
@@ -117,6 +118,36 @@ def main(settings):
         from loaders.gold import load_gold_prices
 
         gold_series = load_gold_prices()
+
+    # --today YYYY-MM-DD: trim every loaded series to <= today so the
+    # downstream math (CIV, returns, metrics, drawdowns) is bit-stable
+    # regardless of when mfapi/benchmark/risk-free data was fetched.
+    today_cutoff = settings.get("today")
+    if today_cutoff is not None:
+        if aligned_portfolio_civs is not None and not aligned_portfolio_civs.empty:
+            aligned_portfolio_civs = aligned_portfolio_civs[
+                aligned_portfolio_civs.index <= today_cutoff
+            ]
+        if ppf_series is not None:
+            ppf_series = ppf_series[ppf_series.index <= today_cutoff]
+        if scss_series is not None:
+            scss_series = scss_series[scss_series.index <= today_cutoff]
+        if rec_bond_series is not None:
+            rec_bond_series = rec_bond_series[rec_bond_series.index <= today_cutoff]
+        if gold_series is not None:
+            gold_series = gold_series[gold_series.index <= today_cutoff]
+        sgb_series_by_tranche = {
+            name: s[s.index <= today_cutoff]
+            for name, s in sgb_series_by_tranche.items()
+        }
+        unaligned_portfolio_civs = {
+            name: df[df.index <= today_cutoff]
+            for name, df in unaligned_portfolio_civs.items()
+        }
+        if benchmark_returns_series is not None:
+            benchmark_returns_series = benchmark_returns_series[
+                benchmark_returns_series.index <= today_cutoff
+            ]
 
     # === ROBUST PORTFOLIO START DATE LOGIC ===
     asset_series_list = [
@@ -245,7 +276,7 @@ def main(settings):
     )
 
     if settings.get("lookback"):
-        cutoff = to_cutoff_date(settings["lookback"])
+        cutoff = to_cutoff_date(settings["lookback"], today=settings.get("today"))
         if settings["debug"]:
             print(f"📅 Look‑back window {settings['lookback']} → cutting data at {cutoff.date()}")
         gain_daily_portfolio_series = gain_daily_portfolio_series[
@@ -342,7 +373,12 @@ def main(settings):
     # Per-asset metadata: inauguration date + defunct-status check.
     # Reuses the already-fetched per-fund NAV DataFrames; no extra network.
     from fund_lifecycle import build_assets_meta
-    assets_meta = build_assets_meta(portfolio_dict, unaligned_portfolio_civs)
+    today_for_meta = (
+        settings["today"].date() if settings.get("today") is not None else None
+    )
+    assets_meta = build_assets_meta(
+        portfolio_dict, unaligned_portfolio_civs, today=today_for_meta
+    )
     defunct = [r for r in assets_meta if r["status"] == "DEFUNCT"]
     for r in defunct:
         print(
@@ -527,6 +563,18 @@ def parse_arguments():
         ),
     )
     parser.add_argument(
+        "--today",
+        type=str,
+        default=None,
+        metavar="YYYY-MM-DD",
+        help=(
+            "Pin 'today' to a fixed date. NAV/CIV series are trimmed "
+            "to <= this date, the staleness gate uses it as the reference, "
+            "and --lookback computes from it. Makes runs deterministic "
+            "regardless of when the data was captured."
+        ),
+    )
+    parser.add_argument(
         "--debug", "-d", action="store_true", help="Show full tracebacks for debugging."
     )
 
@@ -578,6 +626,13 @@ def cli():
             "benchmark_date_format": config.get("benchmark_date_format", "%m/%d/%Y"),
             "riskfree_date_format": config.get("riskfree_date_format", "%m/%d/%Y"),
             "max_riskfree_delay": args.max_riskfree_delay or config.get("max_riskfree_delay", 61),
+            # --today YYYY-MM-DD pins the reference date for determinism;
+            # parsed once here so downstream code sees a Timestamp, not a str.
+            "today": (
+                pd.Timestamp(args.today).normalize()
+                if args.today is not None
+                else None
+            ),
         }
         # --skip-age-check loosens the risk-free CSV gate too, otherwise the
         # user is one step closer but still blocked by a separate check.
