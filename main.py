@@ -63,7 +63,11 @@ def main(settings):
     portfolio_start_date = None
     unaligned_portfolio_civs: dict = {}
     if "funds" in portfolio_dict:
-        unaligned_portfolio_civs = fetch_portfolio_civs(portfolio_dict)
+        unaligned_portfolio_civs = fetch_portfolio_civs(
+            portfolio_dict,
+            replay_from=settings.get("replay_from"),
+            save_replay=settings.get("save_replay"),
+        )
         aligned_portfolio_civs = align_portfolio_civs(unaligned_portfolio_civs)
         if isinstance(aligned_portfolio_civs.columns, pd.MultiIndex):
             aligned_portfolio_civs.columns = aligned_portfolio_civs.columns.droplevel(1)
@@ -71,7 +75,7 @@ def main(settings):
             portfolio_start_date = aligned_portfolio_civs.index.min()
         fund_start_dates = {
             fund_name: df.index.min()
-            for fund_name, df in fetch_portfolio_civs(portfolio_dict).items()
+            for fund_name, df in unaligned_portfolio_civs.items()
             if not df.empty
         }
 
@@ -90,7 +94,10 @@ def main(settings):
         from bond_calculators import calculate_variable_bond_cumulative_gain
         from data_loader import load_scss_interest_rates
 
-        scss_rates = load_scss_interest_rates()
+        scss_rates = load_scss_interest_rates(
+            replay_from=settings.get("replay_from"),
+            save_replay=settings.get("save_replay"),
+        )
         scss_series = calculate_variable_bond_cumulative_gain(scss_rates, scss_rates.index.min())
 
     if "rec_bond" in portfolio_dict:
@@ -576,6 +583,31 @@ def parse_arguments():
             "Standard finance term for 'rewind the world to this date'."
         ),
     )
+    replay_group = parser.add_mutually_exclusive_group()
+    replay_group.add_argument(
+        "--replay-from",
+        dest="replay_from",
+        type=str,
+        default=None,
+        metavar="DIR",
+        help=(
+            "Read NAV/SCSS data from local fixtures in DIR instead of the "
+            "network (DIR/navs/<fund>.csv and DIR/scss_nsi.html). Combined "
+            "with --as-of, makes a run fully offline and deterministic."
+        ),
+    )
+    replay_group.add_argument(
+        "--save-replay",
+        dest="save_replay",
+        type=str,
+        default=None,
+        metavar="DIR",
+        help=(
+            "During a live run, write the fetched NAV/SCSS data into DIR so "
+            "it can later be used with --replay-from. The capture mechanism "
+            "for replay fixtures."
+        ),
+    )
     parser.add_argument(
         "--debug", "-d", action="store_true", help="Show full tracebacks for debugging."
     )
@@ -635,6 +667,10 @@ def cli():
                 if args.as_of is not None
                 else None
             ),
+            # Offline replay: read fixtures from / write fixtures to DIR.
+            # Mutually exclusive at the argparse layer.
+            "replay_from": args.replay_from,
+            "save_replay": args.save_replay,
         }
         # --skip-age-check loosens the risk-free CSV gate too, otherwise the
         # user is one step closer but still blocked by a separate check.

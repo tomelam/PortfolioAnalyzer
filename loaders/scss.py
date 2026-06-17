@@ -14,6 +14,8 @@ kept there as a thin re-export.
 
 from __future__ import annotations
 
+import os
+
 import pandas as pd
 import requests
 import urllib3
@@ -109,15 +111,27 @@ def parse_scss_html(html: str) -> pd.DataFrame:
     return df
 
 
-def load_scss_interest_rates() -> pd.DataFrame:
+def load_scss_interest_rates(replay_from=None, save_replay=None) -> pd.DataFrame:
     """Fetch and parse the SCSS rate history.
 
-    On any failure (network down, parser breakage), returns an empty
-    DataFrame — matches the prior swallow-and-log behavior so a missing
-    SCSS feed doesn't crash an otherwise-valid portfolio run.
+    Network by default. With ``replay_from`` set, the HTML is read from
+    ``<replay_from>/scss_nsi.html`` instead of nsiindia.gov.in; with
+    ``save_replay`` set, the fetched HTML is written there for later
+    replay. On any failure (network down, parser breakage, missing
+    fixture), returns an empty DataFrame — matches the prior
+    swallow-and-log behavior so a missing SCSS feed doesn't crash an
+    otherwise-valid portfolio run.
     """
     try:
-        html = fetch_scss_html(SCSS_URL)
+        if replay_from is not None:
+            with open(os.path.join(replay_from, "scss_nsi.html"), encoding="utf-8") as f:
+                html = f.read()
+        else:
+            html = fetch_scss_html(SCSS_URL)
+        if save_replay is not None:
+            os.makedirs(save_replay, exist_ok=True)
+            with open(os.path.join(save_replay, "scss_nsi.html"), "w", encoding="utf-8") as f:
+                f.write(html)
         return parse_scss_html(html)
     except Exception as e:
         info(f"Error fetching SCSS rates: {e}")

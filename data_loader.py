@@ -20,6 +20,7 @@
 #    - get_dynamic_risk_free_rate
 
 import os
+import re
 
 import pandas as pd
 import toml
@@ -100,12 +101,35 @@ def get_aligned_portfolio_civs(portfolio):
     return aligned_civs
 
 
+def _fund_slug(name: str) -> str:
+    """Filesystem-safe slug for a fund name; the stem of its replay CSV."""
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    return slug or "fund"
+
+
 # Get portfolio CIVs
-def fetch_portfolio_civs(portfolio):
-    portfolio_civs = {
-        fund["name"]: fetch_navs_of_mutual_fund(fund["url"])
-        for fund in portfolio["funds"]
-    }
+def fetch_portfolio_civs(portfolio, replay_from=None, save_replay=None):
+    """Return ``{fund_name: NAV DataFrame}`` for the portfolio's funds.
+
+    Network by default (mfapi.in). With ``replay_from`` set, each fund's
+    NAV history is read from ``<replay_from>/navs/<slug>.csv`` instead, so
+    a run is fully offline; combined with ``--as-of`` it is deterministic.
+    With ``save_replay`` set, each fetched series is written there so the
+    fixtures can be regenerated.
+    """
+    portfolio_civs = {}
+    for fund in portfolio["funds"]:
+        name = fund["name"]
+        if replay_from is not None:
+            path = os.path.join(replay_from, "navs", f"{_fund_slug(name)}.csv")
+            df = pd.read_csv(path, parse_dates=["date"]).set_index("date").sort_index()
+        else:
+            df = fetch_navs_of_mutual_fund(fund["url"])
+        if save_replay is not None:
+            navs_dir = os.path.join(save_replay, "navs")
+            os.makedirs(navs_dir, exist_ok=True)
+            df.to_csv(os.path.join(navs_dir, f"{_fund_slug(name)}.csv"))
+        portfolio_civs[name] = df
     return portfolio_civs
 
 

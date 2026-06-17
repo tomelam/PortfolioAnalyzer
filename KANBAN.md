@@ -71,9 +71,12 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   golden tolerances to 1e-9 is the follow-up step (deferred — current
   goldens still pass at the existing 5% relative tolerance).
 
-- [ ] **Build a pickle-replay path** (`main.py --replay-from
-  tests/golden/port-X/pickles/`). Removes the network dependency from
-  golden tests entirely. *(Already on Phase C backlog.)*
+- [x] **Built the replay path** (2026-06-17). CSV/HTML, not pickle (pickle
+  was excised in be81873). `main.py --replay-from DIR` reads NAV history
+  (`DIR/navs/<fund>.csv`) and SCSS (`DIR/scss_nsi.html`) from committed
+  fixtures; `--save-replay DIR` captures them. Golden tests now run offline
+  in the default suite (network marker dropped); the only two network
+  sources were mfapi NAVs + SCSS HTML. See Phase C entry for detail.
 
 #### C. Correctness bugs surfaced but not fixed
 
@@ -206,7 +209,9 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   `pytest -m 'not network or network'`. Whether to keep them in the
   default-deselected bucket vs. wire them through the planned
   `--replay-from <pickles>` path is the open question (see Phase C
-  pickle-replay item).
+  pickle-replay item). **Update (2026-06-17):** resolved — the 6 golden
+  tests now use `--replay-from` and run offline in the default suite;
+  only `test_main_e2e::test_full_run_produces_csv` remains `network`.
 
 - [x] **Audited pickle dependency in tests / golden capture**
   (2026-06-17, cycle 12). All three call sites removed:
@@ -285,9 +290,16 @@ are unaware of each other.
   the test with `--as-of 2026-06-13` so series are trimmed to `<= AS_OF`
   and runs reproduce bit-for-bit; re-captured all 6 goldens at that date.
   Every numeric column now compared at 1e-9 (was 5% relative); drawdowns
-  count also asserted. Still `network` (needs mfapi reachable, but its
-  values for dates <= AS_OF are stable).
-- [ ] Build a pickle-replay path (e.g. `main.py --replay-from tests/golden/port-X/pickles/`) so the test no longer needs network
+  count also asserted. (Network dependency later removed by the replay
+  path below.)
+- [x] **Built CSV/HTML replay path** (2026-06-17). `main.py --replay-from DIR`
+  reads NAV history (`DIR/navs/<fund>.csv`) + SCSS (`DIR/scss_nsi.html`)
+  from committed fixtures under `tests/golden/replay/`; `--save-replay DIR`
+  captures them from a live run. Golden tests dropped `@pytest.mark.network`
+  and now run offline in the default suite (204 passed). CSV/HTML, not
+  pickle (be81873). Threaded `replay_from`/`save_replay` through
+  `fetch_portfolio_civs` + `load_scss_interest_rates`; also dropped a
+  redundant second `fetch_portfolio_civs` call in main.py.
 - [ ] Record coverage baseline (after Phase D test additions)
 - [x] **Daily-method Sharpe/Vol inflation on synthetic-CIV portfolios FIXED.** Root cause was *not* zero-return-days as suspected — it was `pd.concat(join="inner")` in `combined_civ_series` collapsing the portfolio CIV to the *intersection* of dates. With monthly-sampled gold or PPF present, that intersection was monthly, so applying `sqrt(252)` annualization yielded 10× inflated Vol. Fix: reindex every asset onto a common business-day calendar with ffill before joining. Result: port-mf-ppf-gold daily Sharpe 4.98 → 0.46 (matches monthly 0.43); port-everything daily Sharpe 7.33 → 0.76 (matches monthly 0.69); daily/monthly Vol now within ~1pp. TDD tests at `tests/unit/test_portfolio_civ_frequency.py`.
 - [x] **`combined_civ_series` scale-mismatch bug FIXED.** Previously summed `asset.civ.value_series() * weight` without normalizing, so PPF (raw NAV ₹2566) dominated MFs (NAV ₹18) — contributing 95% of starting CIV despite 15% allocation. Now normalizes each asset's CIV to 1.0 at the common start before weighting. Two TDD tests pin the scale-invariance contract (`tests/unit/test_portfolio_civ_normalization.py`). All 6 goldens re-captured.

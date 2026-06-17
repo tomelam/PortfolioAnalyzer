@@ -14,18 +14,24 @@ reproduces the captured goldens bit-for-bit regardless of when it
 executes. Every numeric column is therefore compared at 1e-9; the
 anchored drawdown columns (start date, durations) are compared exactly.
 
+Offline: runs pass `--replay-from tests/golden/replay`, so NAV history
+(`replay/navs/<fund>.csv`) and the SCSS rate table (`replay/scss_nsi.html`)
+are read from committed fixtures instead of mfapi.in / nsiindia.gov.in.
+No `network` marker — this runs in the default suite, and the conftest
+network guard would raise if any `requests.get` slipped through.
+
 Notes:
 
-- Still hits mfapi.in for NAV history → marked `network`. The `--as-of`
-  pin removes *drift*, not the network dependency; the test needs mfapi
-  reachable, but the values it returns for dates <= AS_OF are stable.
 - Capture used `tests/fixtures/golden_master_config.toml` to bypass
   the data-staleness gates; tests use the same config until the data
   files are refreshed (see KANBAN "Data freshness").
-- Re-capture: run main.py for each (portfolio, method) with the same
-  `--config`, `--lookback 5Y`, and `--as-of` used here, writing the CSV
-  into tests/golden/<portfolio>/<method>/. Bump AS_OF only when you
-  re-capture, never independently.
+- Re-capture both the goldens and the replay fixtures together: run
+  main.py for each (portfolio, method) with the same `--config`,
+  `--lookback 5Y`, and `--as-of` used here, plus `--save-replay
+  tests/golden/replay` once (any portfolio covering all funds + SCSS,
+  e.g. port-everything), writing each CSV into
+  tests/golden/<portfolio>/<method>/. Bump AS_OF only on re-capture,
+  never independently.
 """
 
 from __future__ import annotations
@@ -39,6 +45,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 VENV_PYTHON = REPO_ROOT / "venv" / "bin" / "python"
 GOLDEN_CONFIG = REPO_ROOT / "tests" / "fixtures" / "golden_master_config.toml"
+REPLAY_DIR = REPO_ROOT / "tests" / "golden" / "replay"
 
 # Positional CSV columns:
 #   0  label                (exact)
@@ -96,6 +103,8 @@ def _run_main(toml: str, method: str, out_dir: Path) -> None:
         "5Y",
         "--as-of",
         AS_OF,
+        "--replay-from",
+        str(REPLAY_DIR),
         f"port/{toml}.toml",
     ]
     result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, timeout=180)
@@ -105,7 +114,6 @@ def _run_main(toml: str, method: str, out_dir: Path) -> None:
 
 
 @pytest.mark.golden
-@pytest.mark.network
 @pytest.mark.parametrize("portfolio", PORTFOLIOS)
 @pytest.mark.parametrize("method", METHODS)
 def test_golden(tmp_path: Path, portfolio: str, method: str) -> None:
