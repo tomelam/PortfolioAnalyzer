@@ -374,7 +374,7 @@ are unaware of each other.
 - [x] `docs/TESTING.md` — three test tiers, marker matrix, golden tolerances, regeneration recipe, why-CSV-not-pickle.
 - [x] `docs/CONTRIBUTING.md` — TDD-first rule, decomposition guidance, pre-commit, KANBAN expectation, anti-patterns (yfinance, hypothetical abstractions, what-comments).
 - [x] **Tagged + pushed `v0.1-salvage`** (annotated tag at `1b53d5c`, "salvage: merge Phase B–F", 2026-06-16; confirmed on origin 2026-06-17). The 38 commits since are post-v0.1 work and intentionally not under this tag.
-- [ ] Decide whether to make GitHub repo private during salvage (user decision)
+- [x] **Decided: keep the repo public** (user, 2026-06-17). No reason to make it private during salvage.
 
 ### Data freshness (separate from salvage; user responsibility)
 - [ ] **Refresh stale data files.** As of 2026-06-14, the canonical data files in `data/` are 13+ months out of date and the code's own staleness checks refuse to run against them:
