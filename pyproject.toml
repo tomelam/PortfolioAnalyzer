@@ -19,6 +19,10 @@ dependencies = [
     "beautifulsoup4>=4.12.3",
     "statsmodels==0.14.4",
     "matplotlib==3.8.2",
+    # matplotlib's font-pattern parser uses pyparsing APIs (parseString/oneOf)
+    # that pyparsing>=3.2 deprecated; the warnings get escalated to errors by
+    # our pytest filterwarnings. Pin to the last 3.1.x (no such warnings).
+    "pyparsing==3.1.4",
     "tabulate",
 ]
 
@@ -71,6 +75,8 @@ py-modules = [
     "drawdowns_csv",
     # Inauguration / defunct-status helpers (per-asset metadata).
     "fund_lifecycle",
+    # Cron entrypoint for the data auto-update (portfolio-analyzer-update).
+    "data_update_cli",
 ]
 # Cycle 14: all *_loader.py files consolidated into the loaders/ package.
 # Cycle 15: timeseries.py + timeseries_civ.py + asset_timeseries.py +

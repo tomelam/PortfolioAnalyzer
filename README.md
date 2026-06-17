@@ -63,21 +63,24 @@ This repository contains the Portfolio Analyzer application. It fetches historic
    asdf install
    asdf reshim python
    ```
-3. **Install dependencies:**
+3. **Install the package (editable) with its dependencies:**
    ```bash
-   pip install -r requirements.txt
+   pip install -e .            # runtime deps + the portfolio-analyzer* console scripts
+   pip install -e ".[dev]"     # + test/lint tooling (pytest, ruff, mypy, …)
    ```
-   
-&nbsp;
-   _Dependencies include, among others:_
-   * pandas
-   * numpy
-   * requests
-   * toml
-   * urllib3
-   * beautifulsoup4
-   * statsmodels
-   * matplotlib
+   This installs the pinned runtime stack (pandas, numpy, requests, toml,
+   urllib3, beautifulsoup4, statsmodels, matplotlib, …) **and** puts the
+   `portfolio-analyzer` / `portfolio-analyzer-update` console scripts on
+   `PATH`. The auto-updater's niftyindices fetch needs a stealth browser —
+   add it (and the Chromium binary) only if you want live benchmark refresh:
+   ```bash
+   pip install -e ".[browser]" && playwright install chromium
+   ```
+
+   You don't need to keep the venv activated to use the tool — the `./pa`
+   wrapper (see [Usage](#usage)) runs the analyzer with the bundled venv
+   directly. For other commands, prefix with the venv interpreter, e.g.
+   `./venv/bin/python -m pytest`.
 
 ---
 
@@ -92,6 +95,18 @@ portfolio-analyzer --help
 portfolio-analyzer <path_to_portfolio_toml_file> [options]
 portfolio-analyzer port/port-1.toml --max-drawdown-threshold 10 --skip-age-check
 ```
+
+### `./pa` — run without activating the venv
+
+The repo ships a tiny `pa` wrapper that runs the analyzer with the bundled
+venv — no `source venv/bin/activate`, no `PATH` changes, nothing touched
+outside the project directory. Run it from the project root:
+```bash
+./pa port/port-1.toml --max-drawdown-threshold 10 --skip-age-check
+./pa --help
+```
+It just `exec`s `venv/bin/python main.py "$@"`, so it's exactly equivalent to
+the longer forms above and editing the code takes effect immediately.
 The `--max-drawdown-threshhold` option (shortcut `-dt`) sets the percentage drawdown that is considered significant to count in the "Drawdowns" statistic. By default, the threshhold is set to `5` (5%).
 
 The benchmark name and benchmark/risk-free CSV paths live in the config TOML
@@ -246,19 +261,19 @@ pip install -e ".[dev]"
 ```
 The default suite excludes `network`-marked tests (live FRED + niftyindices
 fetch + the full subprocess smoke; the golden-master tests are *not* network —
-they replay committed fixtures). Run everything from the **project root** with
-the project venv. See [`docs/TESTING.md`](docs/TESTING.md) for the marker
-matrix and golden-regeneration recipe.
+they replay committed fixtures). See [`docs/TESTING.md`](docs/TESTING.md) for
+the marker matrix and golden-regeneration recipe.
 
+Run from the **project root**, using the venv interpreter (no activation
+needed):
 ```bash
-cd /Users/tom/Projects/PortfolioAnalyzer
 ./venv/bin/python -m pytest                # unit + golden + non-network integration
 ./venv/bin/python -m pytest -m network     # live FRED + niftyindices + e2e smoke
 ```
 
 The niftyindices live test needs the optional `browser` extra
-(`./venv/bin/python -m pip install '.[browser]' && ./venv/bin/python -m
-playwright install chromium`); without it it skips rather than fails.
+(`pip install -e ".[browser]" && playwright install chromium`); without it it
+skips rather than fails.
 
 ---
 

@@ -1,0 +1,10 @@
+#!/bin/sh
+# pa — run PortfolioAnalyzer using its own bundled venv. No activation, no
+# PATH changes, nothing touched outside this directory. Run from the project
+# root so data/*.csv and relative portfolio/config paths resolve:
+#
+#   ./pa port/port-1.toml --max-drawdown-threshold 10 --skip-age-check
+#   ./pa --help
+#
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec "$here/venv/bin/python" "$here/main.py" "$@"

@@ -12,9 +12,8 @@ the unit tier only — fast (<3 s) and network-free.
 | Golden | `golden` | Full pipeline run vs. captured CSV outputs for 3 portfolios × 2 methods | No (replay fixtures) |
 
 Run all test commands from the **project root**
-(`/Users/tom/Projects/PortfolioAnalyzer`) using the project venv, so the
-package imports resolve and the broken-shebang `venv/bin/pytest` wrapper is
-bypassed:
+(`/Users/tom/Projects/PortfolioAnalyzer`), using the venv interpreter (no
+activation needed):
 
 ```bash
 cd /Users/tom/Projects/PortfolioAnalyzer
