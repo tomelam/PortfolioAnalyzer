@@ -90,8 +90,24 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
       request footprint instead of pulling full history each refresh.
     - alternative niftyindices endpoint (the `ind_close_all_<DDMMYYYY>.csv`
       CDN file) or an alternative NIFTY 50 **TRI** source/mirror.
-    - browser automation (Playwright/Selenium) as a last-resort fallback that
-      fully emulates a browser + any JS challenge.
+    - **Playwright + `playwright-stealth` (the proven failsafe).** Studied a
+      working sibling project, `~/Projects/mysore-spa-intelligence-engine/`
+      (`scripts/full_harvester.py`), which reliably scrapes Google Maps — a
+      far harder anti-bot target than niftyindices. Transferable recipe:
+      - real headless Chromium via `launch_persistent_context(user_data_dir=…)`
+        so cookies/session persist across runs (returning-user fingerprint);
+        `Stealth().apply_stealth_async(context)` masks `navigator.webdriver`
+        etc. (it has a test asserting the flag is hidden).
+      - consistent fingerprint: real UA + viewport 1920×1080 + `locale=en-IN`
+        + `timezone_id=Asia/Kolkata`.
+      - **pace, don't retry** (the key lesson — opposite of our burst-retry):
+        random 3–7s jitter between actions, a ~60s "coffee break" every N
+        items, recycle the context every ~10 items, and a hard curfew to
+        avoid infinite hangs.
+      - idempotent resume: skip already-fetched, append output, so a stop/
+        restart never re-hammers the host.
+      For our one-CSV/day need a full browser is heavy, but it's the reliable
+      escape hatch if the requests-based client keeps getting blocked.
   - User (2026-06-17) believes a more failsafe method is achievable — treat
     this as open until the scrape is demonstrably reliable unattended.
 
