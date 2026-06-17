@@ -150,8 +150,8 @@ def fetch_niftyindices_tri(
     start: str = "01-Jan-2007",
     end: str | None = None,
     session=None,
-    retries: int = 4,
-    timeout: int = 30,
+    retries: int = 3,
+    timeout: int = 20,
     backoff: float = 1.5,
 ) -> pd.DataFrame:
     """Fetch the NIFTY 50 Total-Returns-Index history from niftyindices.com.

@@ -48,13 +48,30 @@ def main(settings):
         for k, v in settings.items():
             info(f"  {k}: {v}")
 
+    # Force-refresh stale benchmark/risk-free data from upstream (default on;
+    # off under --as-of / --replay-from / --skip-age-check). A reachable
+    # source is pulled fresh; an unreachable one warns and we proceed with the
+    # existing data (early-warning, not a hard block). With auto-update on, the
+    # CSV staleness gates below relax to that same warn-don't-block behavior.
+    if settings.get("auto_update"):
+        from loaders.data_update import refresh_path_if_stale
+
+        refresh_targets = []
+        if settings.get("use_benchmark"):
+            refresh_targets.append((settings["benchmark_file"], 7))
+        refresh_targets.append((settings["risk_free_rates_file"], 45))
+        for _path, _max_age in refresh_targets:
+            _res = refresh_path_if_stale(_path, _max_age)
+            if _res["message"]:
+                print(_res["message"])
+
     benchmark_returns_series = None
     if settings.get("use_benchmark"):
         dbg(f"\n📂 Loading benchmark timeseries from \"{settings['benchmark_file']}\"")
         benchmark_data = load_timeseries_csv(
             settings["benchmark_file"],
             settings["benchmark_date_format"],
-            max_delay_days=None if settings["skip_age_check"] else 3,
+            max_delay_days=None if (settings["skip_age_check"] or settings["auto_update"]) else 3,
             as_of=settings.get("as_of"),
         )
         benchmark_returns_series = get_benchmark_gain_daily(benchmark_data)
@@ -279,7 +296,9 @@ def main(settings):
     risk_free_rate_series = fetch_and_standardize_risk_free_rates(
         settings["risk_free_rates_file"],
         date_format=settings["riskfree_date_format"],
-        max_allowed_delay_days=settings["max_riskfree_delay"],
+        # auto-update already attempted a refresh above; relax the hard gate
+        # to the same warn-don't-block contract.
+        max_allowed_delay_days=None if settings.get("auto_update") else settings["max_riskfree_delay"],
     )
 
     if settings.get("lookback"):
@@ -609,6 +628,17 @@ def parse_arguments():
         ),
     )
     parser.add_argument(
+        "--no-auto-update",
+        dest="no_auto_update",
+        action="store_true",
+        help=(
+            "Disable the on-run auto-refresh of stale benchmark/risk-free "
+            "data. Auto-update is on by default but always off under "
+            "--as-of / --replay-from / --skip-age-check (deterministic or "
+            "offline modes)."
+        ),
+    )
+    parser.add_argument(
         "--debug", "-d", action="store_true", help="Show full tracebacks for debugging."
     )
 
@@ -649,8 +679,12 @@ def cli():
             "quiet": args.quiet or config.get("quiet", False),
             "debug": args.debug or config.get("debug", False),
             "lookback": args.lookback or config.get("lookback"),  # None → full history
+            # Default risk-free source is FRED INDIRLTLT01STM (India 10Y govt
+            # bond rate) — the auto-updatable, no-auth feed (see
+            # loaders.data_update). The legacy manual investing.com 10Y CSV
+            # can still be selected via config if preferred.
             "risk_free_rates_file": config.get(
-                "risk_free_rates_file", "data/India 10-Year Bond Yield Historical Data.csv"
+                "risk_free_rates_file", "data/INDIRLTLT01STM.csv"
             ),
             "use_benchmark": config.get("use_benchmark", True),
             "benchmark_name": config.get("benchmark_name", "NIFTY Total Returns Index"),
@@ -658,7 +692,7 @@ def cli():
                 "benchmark_returns_file", "data/NIFTY Total Returns Historical Data.csv"
             ),
             "benchmark_date_format": config.get("benchmark_date_format", "%m/%d/%Y"),
-            "riskfree_date_format": config.get("riskfree_date_format", "%m/%d/%Y"),
+            "riskfree_date_format": config.get("riskfree_date_format", "%Y-%m-%d"),
             "max_riskfree_delay": args.max_riskfree_delay or config.get("max_riskfree_delay", 61),
             # --as-of YYYY-MM-DD pins the evaluation date for determinism;
             # parsed once here so downstream code sees a Timestamp, not a str.
@@ -677,6 +711,16 @@ def cli():
         # An explicit --max-riskfree-delay wins to keep that knob useful.
         if settings["skip_age_check"] and not args.max_riskfree_delay:
             settings["max_riskfree_delay"] = 99999
+        # Auto-update stale benchmark/risk-free data on run (default on).
+        # Forced off in deterministic/offline modes so tests, --as-of replays,
+        # and --skip-age-check stay network-free and reproducible.
+        settings["auto_update"] = (
+            config.get("auto_update", True)
+            and not args.no_auto_update
+            and not args.replay_from
+            and args.as_of is None
+            and not settings["skip_age_check"]
+        )
         main(settings)
     except Exception as e:
         print(f"\nError: {e}", file=sys.stderr)

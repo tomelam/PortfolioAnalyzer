@@ -79,15 +79,25 @@ def test_help_lists_skip_age_check_flag() -> None:
 
 
 @pytest.mark.integration
-def test_stale_benchmark_blocks_by_default_passes_with_flag(tmp_path: Path) -> None:
-    """Strict-by-default staleness check should block; ``--skip-age-check``
-    is the documented bypass. Test triggers the error path via the
-    benchmark loader without making a network call (missing TOML stops
-    the run early, but argparse exits 0 only when --help-style flags are
-    accepted)."""
-    # Strict run with a real TOML against the stale CSV: exit non-zero.
+def test_stale_benchmark_blocks_when_auto_update_disabled(tmp_path: Path) -> None:
+    """With auto-update off, the strict staleness gate still hard-blocks on a
+    stale benchmark CSV (the legacy safety contract).
+
+    By default a run now *auto-refreshes* stale data instead of blocking
+    (the user-requested behaviour); ``--no-auto-update`` opts back into the
+    strict gate. This run stays network-free: the gate fires on the stale
+    local CSV before any fetch, and ``--no-auto-update`` suppresses the
+    on-run refresh entirely.
+    """
     strict = subprocess.run(
-        [PYTHON, "main.py", "--quiet", "--disable-plot-display", "port/port-1.toml"],
+        [
+            PYTHON,
+            "main.py",
+            "--no-auto-update",
+            "--quiet",
+            "--disable-plot-display",
+            "port/port-1.toml",
+        ],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,

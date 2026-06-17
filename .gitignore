@@ -109,6 +109,9 @@ tests/_tmp/
 # Render destination for scripts/plot_all.sh
 /plots/
 
+# Auto-update bookkeeping (per-run timestamps; not source)
+data/.last_fetched.json
+
 # Defense-in-depth against attic-style cruft
 /CSV/
 /JUNK/
