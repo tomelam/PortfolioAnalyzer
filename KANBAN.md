@@ -189,22 +189,19 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   `--replay-from <pickles>` path is the open question (see Phase C
   pickle-replay item).
 
-- [ ] **Audit pickle dependency in tests / golden capture.** Status as
-  of 2026-06-17: yes, pickle is still in active use. Three places:
-  (a) `main.py --save-golden-data` writes 5 pickles into `tests/data/`;
-  (b) `tests/test_utils.py:26` `pickle.load()` helper used by
-  `tests/test_alignment.py` and `tests/test_get_alignment.py`;
-  (c) `tests/golden/port-*/pickles/*.pkl` co-exist with the CSV
-  goldens that the Phase C/F integration test
-  (`tests/integration/test_golden_master.py`) actually compares
-  against. The CSVs are the canonical golden mechanism (per
-  `docs/TESTING.md`'s "why CSV not pickle" section); the pickles are
-  legacy and only `portfolio_civs.pkl` + `aligned_civs.pkl` have
-  readers. Decide: (1) delete the unused pickles, (2) port
-  `test_alignment.py` / `test_get_alignment.py` off pickle onto
-  CSV/synthetic fixtures, (3) remove the `--save-golden-data` flag
-  and pickle writers from `main.py`. After all three: drop the
-  pickle import entirely and document in `docs/TESTING.md`.
+- [x] **Audited pickle dependency in tests / golden capture**
+  (2026-06-17, cycle 12). All three call sites removed:
+  (a) `main.py --save-golden-data` flag + `dump_pickle` writer
+  deleted; (b) `tests/test_utils.py` `load_pickle` + `pickle` import
+  deleted; (c) `tests/test_alignment.py` rewritten as a synthetic-
+  fixture behavioral test (2 tests pinning intersection-index +
+  MultiIndex columns + ffill no-NaN contract). All 7 pickles under
+  `tests/data/` deleted along with the three
+  `tests/golden/port-*/pickles/` directories. Suite 192 → 193 with
+  zero pickle imports remaining. CSV goldens
+  (`tests/golden/port-*/expected_*.csv`) are now the sole golden
+  mechanism — the "why CSV not pickle" section in `docs/TESTING.md`
+  is now factual rather than aspirational.
 
 - [x] **Audited README.md and docs/ARCHITECTURE.md for staleness**
   (2026-06-17, cycle 11). README: replaced the "metrics_calculator.py

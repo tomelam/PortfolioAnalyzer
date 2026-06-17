@@ -1,4 +1,3 @@
-import pickle
 import unittest
 
 import numpy as np
@@ -19,11 +18,6 @@ def assert_identical(actual, expected, tolerance=1e-6):
         assert actual.equals(expected), f"Data mismatch in {actual.name if hasattr(actual, 'name') else 'DataFrame'}"
     else:
         assert actual == expected, f"Objects differ: {actual} != {expected}"
-
-def load_pickle(filepath):
-    """Load data from a Pickle file."""
-    with open(filepath, "rb") as f:
-        return pickle.load(f)
 
 def compare_with_golden(actual, expected, tolerance=1e-6):
     """Compare an actual result with the golden dataset within a tolerance."""

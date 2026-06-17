@@ -64,9 +64,6 @@ def main(settings):
     if "funds" in portfolio_dict:
         unaligned_portfolio_civs = fetch_portfolio_civs(portfolio_dict)
         aligned_portfolio_civs = align_portfolio_civs(unaligned_portfolio_civs)
-        multiindex_aligned_civs = (
-            aligned_portfolio_civs.copy()
-        )  # Save in case it's needed for the "golden" data
         if isinstance(aligned_portfolio_civs.columns, pd.MultiIndex):
             aligned_portfolio_civs.columns = aligned_portfolio_civs.columns.droplevel(1)
         if not aligned_portfolio_civs.empty:
@@ -403,15 +400,6 @@ def main(settings):
         gain_daily_portfolio_series, benchmark_returns_series
     )
 
-    # Optionally, if the flag is set, dump portfolio data to a pickle file.
-    if settings["save_golden"]:
-        dump_pickle("tests/data/aligned_civs.pkl", multiindex_aligned_civs)
-        dump_pickle("tests/data/aligned_portfolio_civs.pkl", aligned_portfolio_civs)
-        dump_pickle("tests/data/benchmark_data.pkl", benchmark_data)
-        dump_pickle("tests/data/benchmark_returns_series.pkl", benchmark_returns_series)
-        dump_pickle("tests/data/portfolio_civs.pkl", unaligned_portfolio_civs)
-        info("Golden portfolio data generated.")
-
     # For more automated operation, the plotting can be skipped.
     if settings["output_snapshot"]:
         import os
@@ -453,14 +441,6 @@ def main(settings):
 
     if settings["output_csv"] or settings["output_snapshot"]:
         os.makedirs(settings["output_dir"], exist_ok=True)
-
-
-def dump_pickle(filepath, obj):
-    """Dump data to a Pickle file."""
-    import pickle
-
-    with open(filepath, "wb") as f:
-        return pickle.dump(obj, f)
 
 
 def parse_arguments():
@@ -528,12 +508,6 @@ def parse_arguments():
         ),
     )
     parser.add_argument(
-        "--save-golden-data",
-        "-sgd",
-        action="store_true",
-        help="Save golden data as a Pickle file for testing.",
-    )
-    parser.add_argument(
         "--quiet",
         "-q",
         action="store_true",
@@ -591,7 +565,6 @@ def cli():
             "metrics_method": args.metrics_method or config.get("metrics_method", "daily"),
             "skip_age_check": args.skip_age_check or config.get("skip_age_check", False),
             "quiet": args.quiet or config.get("quiet", False),
-            "save_golden": args.save_golden_data or config.get("save_golden_data", False),
             "debug": args.debug or config.get("debug", False),
             "lookback": args.lookback or config.get("lookback"),  # None → full history
             "risk_free_rates_file": config.get(
