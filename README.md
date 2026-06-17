@@ -100,13 +100,16 @@ portfolio-analyzer port/port-1.toml --max-drawdown-threshold 10 --skip-age-check
 
 The repo ships a tiny `pa` wrapper that runs the analyzer with the bundled
 venv — no `source venv/bin/activate`, no `PATH` changes, nothing touched
-outside the project directory. Run it from the project root:
+outside the project directory. It `cd`s into the project root itself, so it
+works from anywhere and in-repo paths resolve:
 ```bash
 ./pa port/port-1.toml --max-drawdown-threshold 10 --skip-age-check
 ./pa --help
 ```
 It just `exec`s `venv/bin/python main.py "$@"`, so it's exactly equivalent to
-the longer forms above and editing the code takes effect immediately.
+the longer forms above and editing the code takes effect immediately. Paths
+you pass are resolved from the project root; use an absolute path for a
+portfolio/config file that lives elsewhere.
 The `--max-drawdown-threshhold` option (shortcut `-dt`) sets the percentage drawdown that is considered significant to count in the "Drawdowns" statistic. By default, the threshhold is set to `5` (5%).
 
 The benchmark name and benchmark/risk-free CSV paths live in the config TOML

@@ -1,10 +1,14 @@
 #!/bin/sh
 # pa — run PortfolioAnalyzer using its own bundled venv. No activation, no
-# PATH changes, nothing touched outside this directory. Run from the project
-# root so data/*.csv and relative portfolio/config paths resolve:
+# PATH changes, nothing touched outside this directory. Works from anywhere:
+# it cd's into the project root itself, so data/*.csv and the in-repo
+# port/ * config paths resolve regardless of where you invoke it.
 #
 #   ./pa port/port-1.toml --max-drawdown-threshold 10 --skip-age-check
 #   ./pa --help
 #
+# (Paths you pass are resolved from the project root; use an absolute path for
+# a portfolio/config file that lives elsewhere.)
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$here" || exit 1
 exec "$here/venv/bin/python" "$here/main.py" "$@"
