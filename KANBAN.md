@@ -59,15 +59,15 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   auto-updated" path is the default; the bypass-flag item above is the
   fallback for when the auto-update source is itself unavailable.
 
-- [x] **Added `--today YYYY-MM-DD` flag** (2026-06-17, cycle 16).
-  Pins the reference 'today' across the pipeline: every loaded NAV/CIV
-  series (per-fund DataFrames, PPF/SCSS/REC/gold/SGB) is trimmed at
-  `<= today` in `main.py`; the benchmark staleness gate
-  (`loaders.benchmark.load_timeseries_csv`) accepts `today=`; the
-  lookback computation (`utils.to_cutoff_date`) accepts `today=`;
-  `fund_lifecycle.build_assets_meta` receives `settings['today']`
+- [x] **Added `--as-of YYYY-MM-DD` flag** (2026-06-17, cycle 16).
+  Pins the reference (as-of) date across the pipeline: every loaded
+  NAV/CIV series (per-fund DataFrames, PPF/SCSS/REC/gold/SGB) is trimmed
+  at `<= as_of` in `main.py`; the benchmark staleness gate
+  (`loaders.benchmark.load_timeseries_csv`) accepts `as_of=`; the
+  lookback computation (`utils.to_cutoff_date`) accepts `as_of=`;
+  `fund_lifecycle.build_assets_meta` receives `settings['as_of']`
   for the DEFUNCT-status verdict. 5 new TDD tests
-  (`tests/unit/test_today_flag.py`). Suite 193 → 198 pass. Tightening
+  (`tests/unit/test_as_of_flag.py`). Suite 193 → 198 pass. Tightening
   golden tolerances to 1e-9 is the follow-up step (deferred — current
   goldens still pass at the existing 5% relative tolerance).
 
@@ -281,7 +281,7 @@ are unaware of each other.
   branches.
 
 ### Phase C — Golden-master safety net (all 3 portfolios DONE)
-- [ ] Add `--today YYYY-MM-DD` flag to `main.py` so the safety net is deterministic without live mfapi drift; once it exists, tighten test tolerances to 1e-9
+- [ ] Now that `--as-of` exists (cycle 16), tighten golden-master test tolerances 5% → 1e-9 for deterministic runs
 - [ ] Build a pickle-replay path (e.g. `main.py --replay-from tests/golden/port-X/pickles/`) so the test no longer needs network
 - [ ] Record coverage baseline (after Phase D test additions)
 - [x] **Daily-method Sharpe/Vol inflation on synthetic-CIV portfolios FIXED.** Root cause was *not* zero-return-days as suspected — it was `pd.concat(join="inner")` in `combined_civ_series` collapsing the portfolio CIV to the *intersection* of dates. With monthly-sampled gold or PPF present, that intersection was monthly, so applying `sqrt(252)` annualization yielded 10× inflated Vol. Fix: reindex every asset onto a common business-day calendar with ffill before joining. Result: port-mf-ppf-gold daily Sharpe 4.98 → 0.46 (matches monthly 0.43); port-everything daily Sharpe 7.33 → 0.76 (matches monthly 0.69); daily/monthly Vol now within ~1pp. TDD tests at `tests/unit/test_portfolio_civ_frequency.py`.

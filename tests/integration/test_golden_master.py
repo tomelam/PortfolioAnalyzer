@@ -19,7 +19,7 @@ Limitations to lift in Phase D:
   files are refreshed (see KANBAN "Data freshness").
 - As of 2026-06-15, daily/monthly Sharpe and Vol agree to within ~1pp
   across all 3 portfolios after the CIV scale + frequency fixes.
-- True determinism requires either a `--today YYYY-MM-DD` flag in
+- True determinism requires either a `--as-of YYYY-MM-DD` flag in
   main.py or a pickle-replay path. Both are KANBAN items.
 """
 

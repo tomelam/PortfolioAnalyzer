@@ -26,14 +26,14 @@ _DEFUNCT_DEFAULT_DAYS = 30
 
 def fund_dates(
     nav_df: pd.DataFrame,
-    today: dt.date | None = None,
+    as_of: dt.date | None = None,
     defunct_threshold_days: int = _DEFUNCT_DEFAULT_DAYS,
 ) -> dict:
     """Return inauguration / last-NAV / status for one fund's NAV history.
 
     Args:
         nav_df: DataFrame indexed by date with at least one NAV column.
-        today: Reference date for the staleness check. Defaults to
+        as_of: Evaluation date for the staleness check. Defaults to
             ``dt.date.today()`` if not provided.
         defunct_threshold_days: A fund whose latest NAV is older than this
             is flagged DEFUNCT.
@@ -42,7 +42,7 @@ def fund_dates(
         ``{"inauguration": date|None, "last_nav": date|None,
            "days_since_last_nav": int|None, "status": "LIVE"|"DEFUNCT"|"N/A"}``
     """
-    today = today or dt.date.today()
+    as_of = as_of or dt.date.today()
     if nav_df.empty:
         return {
             "inauguration": None,
@@ -52,7 +52,7 @@ def fund_dates(
         }
     inaug = nav_df.index.min().date()
     last = nav_df.index.max().date()
-    days_since = (today - last).days
+    days_since = (as_of - last).days
     status = "DEFUNCT" if days_since > defunct_threshold_days else "LIVE"
     return {
         "inauguration": inaug,
@@ -65,7 +65,7 @@ def fund_dates(
 def build_assets_meta(
     portfolio_dict: dict,
     nav_by_name: dict[str, pd.DataFrame],
-    today: dt.date | None = None,
+    as_of: dt.date | None = None,
     defunct_threshold_days: int = _DEFUNCT_DEFAULT_DAYS,
 ) -> list[dict]:
     """Build a uniform list of asset-metadata rows for the portfolio.
@@ -80,7 +80,7 @@ def build_assets_meta(
     for fund in portfolio_dict.get("funds", []):
         name = fund.get("name", "Unknown Fund")
         df = nav_by_name.get(name, pd.DataFrame())
-        lifecycle = fund_dates(df, today=today, defunct_threshold_days=defunct_threshold_days)
+        lifecycle = fund_dates(df, as_of=as_of, defunct_threshold_days=defunct_threshold_days)
         rows.append({
             "name": name,
             "type": "Fund",
