@@ -287,8 +287,9 @@ are unaware of each other.
   backlog.)*
 - [x] **`.env.example` not needed** (reconciled 2026-06-17). Repo-wide grep finds no `os.environ` / `getenv` / API-token / `.env` usage; all data sources are local CSVs or unauthenticated HTTP (mfapi.in, nsiindia.gov.in). Revisit if a token-gated source (e.g. FRED) is ever added.
 - [ ] Relocate `docs/*.pdf` originals once `.md` sidecars exist.
-- [ ] Decide fate of `defunct_feature_var_rate_bonds` and `defunct_main`
-  branches.
+- [x] **Deleted `defunct_feature_var_rate_bonds` and `defunct_main`**
+  (local + origin, 2026-06-17). See the Hygiene-section entry for the
+  recorded tip SHAs.
 
 ### Phase C — Golden-master safety net (all 3 portfolios DONE)
 - [x] **Tightened golden-master tolerances 5% → 1e-9** (2026-06-17). Pin
@@ -372,7 +373,7 @@ are unaware of each other.
 - [x] `docs/ARCHITECTURE.md` — module map + pipeline diagram + design decisions (pure-function math layer; unit-free daily-calendar CIV; synthetic CIVs; risk-free rate convention).
 - [x] `docs/TESTING.md` — three test tiers, marker matrix, golden tolerances, regeneration recipe, why-CSV-not-pickle.
 - [x] `docs/CONTRIBUTING.md` — TDD-first rule, decomposition guidance, pre-commit, KANBAN expectation, anti-patterns (yfinance, hypothetical abstractions, what-comments).
-- [ ] Push, tag `v0.1-salvage` (user-driven; awaiting go-ahead)
+- [x] **Tagged + pushed `v0.1-salvage`** (annotated tag at `1b53d5c`, "salvage: merge Phase B–F", 2026-06-16; confirmed on origin 2026-06-17). The 38 commits since are post-v0.1 work and intentionally not under this tag.
 - [ ] Decide whether to make GitHub repo private during salvage (user decision)
 
 ### Data freshness (separate from salvage; user responsibility)
@@ -404,7 +405,7 @@ are unaware of each other.
 - [x] **No deprecated `.fillna(method='ffill')` remain** (reconciled 2026-06-17). Repo-wide grep is clean; the `synthetic_civ.py` cases were fixed earlier (see Phase-C bug-fix log).
 - [ ] Add type hints incrementally; switch `ignore_missing_imports` off per-module
 - [ ] Raise CI coverage gate 70% → 85% (set to `--cov-fail-under=70` on 2026-06-17; baseline TOTAL is 82% after data_loader.py reached 99%. The remaining levers are real tests for `main.py` — currently 1% as a subprocess-measurement artifact — and the unused `visualizer.py` / `ppf_calculator.py`.)
-- [ ] Decide fate of `defunct_feature_var_rate_bonds` and `defunct_main` branches. **Recommendation (2026-06-17): delete both (local + origin) once `v0.1-salvage` is tagged.** Deferred until then per the original "after v0.1" gate; not deleting now since they still exist on `origin` and the tag isn't cut. Both are superseded (defunct_main = pre-salvage main; defunct_feature_var_rate_bonds = the variable-rate-bond work now live in `bond_calculators.calculate_variable_bond_cumulative_gain`).
+- [x] **Deleted `defunct_feature_var_rate_bonds` and `defunct_main`** (local + origin, 2026-06-17), now that `v0.1-salvage` is confirmed tagged + pushed. Both superseded (defunct_main = pre-salvage main, fully reachable from current main; defunct_feature_var_rate_bonds = old Yahoo-Finance-replacement WIP, functionality reimplemented live in `bond_calculators.calculate_variable_bond_cumulative_gain`). Tip SHAs recorded for recovery (defunct branch had 8 commits not on main): `defunct_main` = `cea0300`, `defunct_feature_var_rate_bonds` = `2fe272d`. Recoverable from local reflog short-term; re-create with `git branch <name> <sha>` if ever needed.
 - [ ] Decide fate of `port/` directory naming — rename to `portfolios/` for clarity?
 - [ ] Investigate `outputs/port-*/` cached runs — keep as canonical examples or move to attic?
 - [x] **`Makefile~` editor backup** — already absent (reconciled 2026-06-17); not tracked, not on disk.
