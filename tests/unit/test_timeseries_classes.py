@@ -13,8 +13,8 @@ import pandas as pd
 import pytest
 
 from timeseries.asset import from_civ
-from timeseries.portfolio import PortfolioTimeseries
 from timeseries.civ import TimeseriesCIV
+from timeseries.portfolio import PortfolioTimeseries
 
 
 def _values_series(values: list[float], start: str = "2024-01-01") -> pd.Series:

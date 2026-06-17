@@ -73,6 +73,9 @@ packages = ["loaders", "timeseries"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# attic/ holds parked, unwired code preserved for provenance (see
+# attic/__init__.py); it is intentionally not held to live lint standards.
+extend-exclude = ["attic"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
@@ -82,6 +85,11 @@ ignore = ["E501"]
 python_version = "3.12"
 ignore_missing_imports = true
 warn_unused_ignores = true
+
+[tool.coverage.run]
+# attic/ is parked, unwired code preserved for provenance (see
+# attic/__init__.py); exclude it so it doesn't dilute the coverage number.
+omit = ["attic/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

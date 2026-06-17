@@ -151,12 +151,17 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
 
 #### F. Optional features from the tmp4 attic
 
-- [ ] **Port tmp4's reporting helpers** to current `TimeseriesReturn`:
+- [ ] **Port the parked reporting helpers** to current `TimeseriesReturn`:
   `info_summary`, `describe_as_report`, `to_csv_report`, `to_latex_table`,
-  `compare_to`, `as_rolling`. *(Already on Phase E backlog.)*
-- [ ] **Port tmp4's alignment helpers** if cross-asset analysis grows
+  `compare_to`, `as_rolling`. As of 2026-06-17 these are parked in
+  `attic/timeseries_return_helpers.py` (relocated from the live class to
+  lift its coverage); reviving means re-wiring to today's API — several
+  reference `self.columns`/`self.shape`/`self.interpolate`/`self.annualized`
+  which the current class doesn't expose. *(Also on Phase E backlog.)*
+- [ ] **Port the parked alignment helpers** if cross-asset analysis grows
   beyond `combined_civ_series`: `align_with`, `clip_to_overlap`,
-  `aligned_to`, `interpolated`. *(Already on Phase E backlog.)*
+  `aligned_to`, `interpolated` (also parked in
+  `attic/timeseries_return_helpers.py`). *(Also on Phase E backlog.)*
 
 #### I. User-raised 2026-06-17 (post-cycle-7 review)
 
@@ -357,8 +362,8 @@ are unaware of each other.
 - [x] **Audit of `attic/tmp4-apr2025/bonus/` complete.** 4 shell helpers (`plot_all.sh`, `run_all_configs.sh`, `run_all_metrics_to_csv.sh`, `single-asset-type.sh`) and one diagnostic script (`ppf_annualized_interest_rate.py`). Useful as references but non-blocking; backlogged for post-v0.1.
 
 ### Phase E — backlog (post-v0.1 only)
-- [ ] Port tmp4's reporting helpers to current `TimeseriesReturn` if CSV/LaTeX export is wanted: `info_summary`, `describe_as_report`, `to_csv_report`, `to_latex_table`, `compare_to`, `as_rolling`.
-- [ ] Port tmp4's series-alignment helpers if cross-asset analysis grows beyond `combined_civ_series`: `align_with`, `clip_to_overlap`, `aligned_to`, `interpolated`.
+- [ ] Port the reporting helpers to current `TimeseriesReturn` if CSV/LaTeX export is wanted: `info_summary`, `describe_as_report`, `to_csv_report`, `to_latex_table`, `compare_to`, `as_rolling`. Now parked in `attic/timeseries_return_helpers.py` (2026-06-17).
+- [ ] Port the series-alignment helpers if cross-asset analysis grows beyond `combined_civ_series`: `align_with`, `clip_to_overlap`, `aligned_to`, `interpolated`. Now parked in `attic/timeseries_return_helpers.py` (2026-06-17).
 - [ ] Port tmp4 `bonus/` shell helpers (plot_all / run_all_configs / run_all_metrics_to_csv / single-asset-type) into a `scripts/` directory if the user wants CLI orchestration.
 - [ ] Port tmp4 `bonus/ppf_annualized_interest_rate.py` as an analysis tool under `scripts/`.
 
