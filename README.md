@@ -30,8 +30,18 @@ This repository contains the Portfolio Analyzer application. It fetches historic
   - Plots historical cumulative returns for the portfolio.
   - Overlays benchmark data and highlights significant drawdown periods.
 
-- **Modular Design:**  
-  - Organized into separate modules: `bond_calculators.py`, `data_loader.py`, `gold_loader.py`, `metrics_calculator.py`, `portfolio_calculator.py`, `ppf_calculator.py`, `sgb_loader.py`, and `visualizer.py`.
+- **Modular Design:**
+  - Loaders (one per asset class): `mutual_fund_loader.py`, `ppf_loader.py`,
+    `scss_loader.py`, `rec_bond_loader.py`, `sgb_holdings.py` + `sgb_tranches.py`,
+    `gold_loader.py`, `benchmark_loader.py`, `risk_free_loader.py`.
+  - Math layer: `metrics.py` (pure-function CAGR / vol / Sharpe / Sortino /
+    drawdowns) plus `timeseries.py` / `timeseries_civ.py` /
+    `asset_timeseries.py` / `portfolio_timeseries.py` for the class surface.
+  - Bookkeeping: `synthetic_civ.py`, `civ_to_returns.py`, `drawdowns_csv.py`,
+    `fund_lifecycle.py`, `portfolio_calculator.py`, `bond_calculators.py`,
+    `visualizer.py`, `data_loader.py` (legacy aggregator / re-exports).
+  - See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full module
+    map and pipeline diagram.
 
 ---
 
@@ -75,16 +85,17 @@ This repository contains the Portfolio Analyzer application. It fetches historic
 If the portfolio described by the TOML file includes PPF as a component, ensure that the file detailing historical PPF interest rates, `ppf_interest_rates.csv`, is up to date before running the program.
 
 If the portfolio described by the TOML file includes gold as a component, download the CSV file of the gold prices from https://www.investing.com/commodities/gold-historical-data before running the program. Currently, both offshore vaulted gold and gold held in India are priced using the same CSV data.
+After `pip install -e .`, the console entry point `portfolio-analyzer` is on `PATH` inside the venv. `python main.py …` continues to work for back-compat.
 ```bash
-python main.py --help
-python main.py <path_to_portfolio_toml_file> [options]
-python main.py portfolio.toml --benchmark-name "NIFTRI" --risk-free-rates-file "INDIRLTLT01STM.csv" --max-drawdown-threshold 10
+portfolio-analyzer --help
+portfolio-analyzer <path_to_portfolio_toml_file> [options]
+portfolio-analyzer port/port-1.toml --max-drawdown-threshold 10 --skip-age-check
 ```
 The `--max-drawdown-threshhold` option (shortcut `-dt`) sets the percentage drawdown that is considered significant to count in the "Drawdowns" statistic. By default, the threshhold is set to `5` (5%).
 
-Other option shortcuts and defaults:
-* `-bn`, short for `--benchmark-name`, default `NIFTY Total Returns Index`
-* `-rf`, short for `--risk-free-rates-file`, default `INDIRLTLT01STM.csv`
+The benchmark name and benchmark/risk-free CSV paths live in the config TOML
+(see `config/example_config.toml`); no CLI shortcuts exist for those. Run
+`portfolio-analyzer --help` for the authoritative flag list.
 
 ⚠️ NOTE: Files downloaded from Investing.com sometimes use different date formats (e.g., %d-%m-%Y vs %m/%d/%Y). Always check the format of the first few rows and pass --benchmark-date-format accordingly.
 
@@ -140,12 +151,13 @@ Each of the options (except for `--config`) can also be set in the config TOML, 
   * If a series is staler than its limit, the `utils.warn_if_stale` prompt is
     triggered.
 
-- `--do-not-plot` (`-np`) → `do_not_plot = true`:  
+- `--disable-plot-display` (`-dpd`) → `show_plot = false`:
   Disables on-screen display of plots. Use this when running from scripts or environments without a graphical display.
 
-- `--skip-age-check` (`-sa`) → `skip_age_check = true`:  
-  Suppresses the warning and prompt when benchmark or risk-free data appears stale  
-  (i.e., not updated for more than 24 hours on a market day). Useful for automation.
+- `--skip-age-check` → `skip_age_check = true`:
+  Bypasses the hard blocker on a stale benchmark CSV and risk-free-rate CSV.
+  When active, the run prints a one-line warning so the bypass is never silent.
+  Default behavior is strict: a stale CSV exits non-zero with "data is outdated".
   
   `--quiet` (`-q`) → `quiet = true`:
   Suppresses the “Continue anyway?” prompt when stale data is detected, and automatically proceeds as if you answered yes.  
@@ -201,33 +213,44 @@ _[5 ratios to measure risk and return](https://www.morningstar.in/posts/28205/5-
 
 ```
 .
-├── main.py                  # Entry point for the application
-├── data_loader.py           # Handles data fetching, standardization, and alignment
-├── portfolio_calculator.py  # Calculates whole-portfolio data
-├── sgb_loader.py            # Handles fetching of SGB tranche data
-├── gold_loader.py           # Handles gold price loading from a CSV file
-├── bond_calculators.py      # Calculates cumulative gains and series for various bonds
-├── ppf_calculator.py        # Calculates the cumulative gains of a PPF account
-├── metrics_calculator.py    # Computes portfolio metrics and cumulative gains
-├── visualizer.py            # Generates plots for historical portfolio and benchmark performance
-├── utils.py                 # Functions used by more than one module
-├── requirements.txt         # List of required Python packages
+├── main.py                  # CLI entry point + pipeline driver
+├── *_loader.py              # Per-asset loaders (mutual_fund, ppf, scss, rec_bond,
+│                            #   benchmark, risk_free, gold)
+├── sgb_holdings.py          # Per-tranche SGB valuation engine (gold spot + coupons)
+├── sgb_tranches.py          # SGB tranche reference + lookup API
+├── data_loader.py           # Legacy aggregator; re-exports loaders for back-compat
+├── synthetic_civ.py         # Interest-rate series → daily-equivalent CIV
+├── civ_to_returns.py        # CIV → returns
+├── timeseries.py            # TimeseriesReturn (alpha/beta + thin metrics delegates)
+├── timeseries_civ.py        # TimeseriesCIV (validated-NAV class)
+├── asset_timeseries.py      # AssetTimeseries dataclass (civ/ret/cumret views)
+├── portfolio_timeseries.py  # PortfolioTimeseries (weighted aggregation, effective window)
+├── metrics.py               # Pure-function math: CAGR / Vol / Sharpe / Sortino / drawdowns
+├── portfolio_calculator.py  # Allocations + cumulative gains
+├── bond_calculators.py      # Variable-rate bond cumulative gain (used by rec_bond_loader)
+├── fund_lifecycle.py        # Inauguration + DEFUNCT status + assets-CSV writer
+├── drawdowns_csv.py         # Per-drawdown sibling CSV writer
+├── visualizer.py            # Matplotlib plotting + drawdown printout
+├── utils.py                 # info / dbg / warn_if_stale / to_cutoff_date
+├── pyproject.toml           # Package + dev-tool config (ruff, pytest, etc.)
 └── README.md                # This file
 ```
 ---
 
 ## Running Tests
 
-To prepare to run the tests:
+Test dependencies are declared as the `dev` extra of the package:
 ```bash
-pip install pytest
-pip install pytest-mock
-pip install pytest-order
+pip install -e ".[dev]"
 ```
-To run the test suite:
+The default suite excludes `network`-marked tests (golden-master + the
+full subprocess smoke). Run them explicitly with `pytest -m network` or
+`pytest -m 'not network or network'`. See [`docs/TESTING.md`](docs/TESTING.md)
+for the marker matrix and golden-regeneration recipe.
 
 ```bash
-PYTHONPATH=. pytest tests/
+pytest                       # unit + non-network integration
+pytest -m network            # adds golden-master + e2e smoke
 ```
 
 ---

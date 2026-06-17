@@ -20,7 +20,7 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 │  - ppf_loader                │  static rate CSV → synthetic CIV
 │  - scss_loader               │  NSI HTML scrape → synthetic CIV
 │  - rec_bond_loader           │  TOML coupon → synthetic CIV
-│  - sgb_loader                │  Wikipedia / static CSV
+│  - sgb_holdings + sgb_tranches│ per-tranche CIV from IBJA gold spot
 │  - gold_loader               │  monthly INR CSV
 │  - benchmark_loader          │  NIFTY Total Return CSV
 │  - risk_free_loader          │  India 10Y bond CSV → daily series
@@ -34,7 +34,7 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 ┌──────────────────────────────┐
 │  PortfolioTimeseries         │
 │  - combined_civ_series       │  normalized weighted CIV on common bday cal
-│  - combined_daily_returns    │  weighted sum of asset daily returns
+│  - effective_window          │  start/end + which asset set each bound
 └──────────────┬───────────────┘
                ▼
 ┌──────────────────────────────┐
@@ -64,6 +64,11 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 | `metrics.py` | **Pure-function math layer.** All Sharpe/Sortino/Vol/CAGR/drawdown logic |
 | `portfolio_calculator.py` | `calculate_portfolio_allocations` + `calculate_gains_cumulative` |
 | `bond_calculators.py` | `calculate_variable_bond_cumulative_gain` (used by `rec_bond_loader`) |
+| `fund_lifecycle.py` | Inauguration + DEFUNCT-status detection; writes the per-asset sibling CSV |
+| `drawdowns_csv.py` | Per-drawdown sibling CSV writer |
+| `sgb_holdings.py` | Per-tranche SGB valuation: `sgb_holding_civ(tranche, grams, gold)` |
+| `sgb_tranches.py` | SGB tranche reference data + lookup API |
+| `gold_loader.py` | Monthly INR/troy-ounce CSV → per-gram price series |
 | `visualizer.py` | Matplotlib plotting + drawdown printout |
 | `utils.py` | `info` / `dbg` / `warn_if_stale` / `to_cutoff_date` |
 | `data_loader.py` | Legacy aggregator; re-exports loaders for back-compat |
@@ -101,6 +106,18 @@ PPF / SCSS / REC bonds don't have NAV histories. `synthetic_civ.py` rebuilds
 an equivalent CIV from declared/historical interest rates. PPF specifically:
 monthly accrual on the year's opening principal, with yearly credit in March
 that compounds for the following year.
+
+### Portfolio effective window
+
+`combined_civ_series` only spans `[max(asset.start), min(asset.end)]` because
+every asset has to have data for every point in the joined series. The
+companion `effective_window()` method exposes those bounds plus the *names*
+of the assets that set each cutoff, so `main.py` can print a banner like
+"End set by 'ICICI Prudential Bluechip Fund'" — useful when a portfolio
+carries one defunct fund and the user would otherwise wonder why metrics
+end months in the past. `main.py` also trims `benchmark_returns_series` at
+`<= end` so alpha/beta are computed over the same window the headline
+metrics use.
 
 ### Risk-free rate
 

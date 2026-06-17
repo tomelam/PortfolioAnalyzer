@@ -206,17 +206,22 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   and pickle writers from `main.py`. After all three: drop the
   pickle import entirely and document in `docs/TESTING.md`.
 
-- [ ] **Audit README.md and docs/ARCHITECTURE.md for staleness.**
-  Spot-check on 2026-06-17 found at least: README's *Modular Design*
-  bullet still lists `metrics_calculator.py` (the actual module is
-  `metrics.py`) and `sgb_loader.py` (deleted in the SGB Phase-2
-  integration, replaced by `sgb_holdings.py` + `sgb_tranches.py`).
-  Full pass needed: every file/module name referenced in README and
-  ARCHITECTURE must exist; the pipeline diagram in ARCHITECTURE must
-  match the current `main.py` flow (post-SGB-refactor, post-loaders
-  extraction, post-CIV-frequency fix); the data-source list in README
-  must match the live loaders; the CLI examples in both should use
-  the new `portfolio-analyzer` entry point once that lands.
+- [x] **Audited README.md and docs/ARCHITECTURE.md for staleness**
+  (2026-06-17, cycle 11). README: replaced the "metrics_calculator.py
+  + sgb_loader.py" Modular Design bullet with the live module list
+  (loaders + math + bookkeeping), regenerated the Project Structure
+  tree to match (added sgb_holdings/sgb_tranches/fund_lifecycle/
+  drawdowns_csv/synthetic_civ/timeseries/etc., dropped ppf_calculator/
+  metrics_calculator/sgb_loader). CLI examples now show
+  `portfolio-analyzer port/port-1.toml …`; `--do-not-plot -np`
+  corrected to `--disable-plot-display -dpd`; documented
+  `--skip-age-check`; replaced the stale `-bn`/`-rf` shortcut claim
+  with a pointer to `config/example_config.toml`. ARCHITECTURE:
+  swapped `sgb_loader` for `sgb_holdings + sgb_tranches`; swapped
+  the deleted `combined_daily_returns` row for `effective_window`;
+  added module-map rows for `fund_lifecycle`, `drawdowns_csv`,
+  `sgb_holdings`, `sgb_tranches`, `gold_loader`; added a "Portfolio
+  effective window" subsection explaining the banner.
 
 #### H. Integration with money-vault (do NOT work without explicit go-ahead)
 
