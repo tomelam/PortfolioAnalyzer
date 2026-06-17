@@ -60,56 +60,40 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   per-source failures.
   - Risk-free: FRED `INDIRLTLT01STM` (no-auth CSV) — live-verified; now the
     default risk-free source (`data/INDIRLTLT01STM.csv`).
-  - Benchmark: NIFTY 50 TRI from niftyindices.com via a robust client
-    (session cookie-prime + JSON POST API) — defeats the anti-scrape wall;
-    fetched real data live (4817 rows once), but **steady-state reliability is
-    unconfirmed** — see the open hardening/verification item below.
+  - Benchmark: NIFTY 50 TRI from niftyindices.com via a **stealth Chromium
+    browser** (the only fetch path — no raw `requests`, which risks flagging
+    the IP). Defeats the anti-scrape wall; live-verified (single stealth hit
+    returns real TRI data). Steady-state-unattended reliability still to be
+    confirmed via cron — see the open item below.
   - On-run: stale data is **force-refreshed by default** (off under
     `--as-of`/`--replay-from`/`--skip-age-check`/`--no-auto-update`); on
     upstream failure it warns and proceeds (early-warning, not a hard block).
   - Cron-able `portfolio-analyzer-update` console script. See
     `docs/DATA_REFRESH.md`. Goldens re-captured against the FRED risk-free.
 
-- [ ] **Confirm niftyindices TRI scrape works in steady state + harden it.**
-  The scrape returned real data once this session (200 + a TRI value), but
-  every later attempt failed (RemoteDisconnected / read-timeout) and a fresh
-  green was never reproduced — even after a 10-min cooldown. The working
-  diagnosis is *burst rate-limiting from this session's heavy probing*, but
-  **that is unconfirmed and could be wrong** (endpoint change, a JS/Incapsula
-  challenge, or a longer/escalating IP block are all possible). Don't trust
-  "it's just throttling" until proven.
-  - **Verify in steady state:** let the daily cron run for a few days and
-    confirm `data/NIFTY Total Returns Historical Data.csv` + `.last_fetched.json`
-    actually advance. If it never succeeds unattended, the diagnosis is wrong.
-  - **Harden toward a failsafe scraper** (current client is single-attempt;
-    rapid retries were counterproductive). Avenues not yet tried:
-    - long, jittered backoff measured in **minutes** (honor the block's real
-      clear time / any `Retry-After`); persist a "next-allowed" timestamp so
-      the tool self-throttles across runs.
-    - incremental tail-fetch (only the missing recent days) to shrink the
-      request footprint instead of pulling full history each refresh.
-    - alternative niftyindices endpoint (the `ind_close_all_<DDMMYYYY>.csv`
-      CDN file) or an alternative NIFTY 50 **TRI** source/mirror.
-    - **Playwright + `playwright-stealth` (the proven failsafe).** Studied a
-      working sibling project, `~/Projects/mysore-spa-intelligence-engine/`
-      (`scripts/full_harvester.py`), which reliably scrapes Google Maps — a
-      far harder anti-bot target than niftyindices. Transferable recipe:
-      - real headless Chromium via `launch_persistent_context(user_data_dir=…)`
-        so cookies/session persist across runs (returning-user fingerprint);
-        `Stealth().apply_stealth_async(context)` masks `navigator.webdriver`
-        etc. (it has a test asserting the flag is hidden).
-      - consistent fingerprint: real UA + viewport 1920×1080 + `locale=en-IN`
-        + `timezone_id=Asia/Kolkata`.
-      - **pace, don't retry** (the key lesson — opposite of our burst-retry):
-        random 3–7s jitter between actions, a ~60s "coffee break" every N
-        items, recycle the context every ~10 items, and a hard curfew to
-        avoid infinite hangs.
-      - idempotent resume: skip already-fetched, append output, so a stop/
-        restart never re-hammers the host.
-      For our one-CSV/day need a full browser is heavy, but it's the reliable
-      escape hatch if the requests-based client keeps getting blocked.
-  - User (2026-06-17) believes a more failsafe method is achievable — treat
-    this as open until the scrape is demonstrably reliable unattended.
+- [ ] **Confirm niftyindices TRI scrape works in steady state (unattended).**
+  The fetch is now **stealth-browser-only** (Playwright + `playwright-stealth`),
+  ported from the proven `~/Projects/mysore-spa-intelligence-engine` scraper:
+  authentic fingerprint (real UA, `en-IN` / `Asia/Kolkata`, 1920×1080, hides
+  `navigator.webdriver`), navigate the historical-data page to mint cookies /
+  clear any JS challenge, brief human pause, then POST the TRI request from
+  inside the page. The raw-`requests` path is **gone** — a `requests` hit
+  risks flagging the IP, and the user wants zero trouble with niftyindices.
+  Live-verified 2026-06-17: a single stealth hit returned real April-2026 TRI
+  data (20 rows, last 36174.80). Needs the optional `browser` extra
+  (`pip install '.[browser]' && playwright install chromium`); without it the
+  fetch raises a clear install-guiding error.
+  - **Still open — verify in steady state:** let the daily cron run for a few
+    days and confirm `data/NIFTY Total Returns Historical Data.csv` +
+    `.last_fetched.json` actually advance unattended. One verified hit is not
+    proof of unattended reliability; the user (2026-06-17) is right that the
+    earlier "it's just burst throttling" diagnosis could have been wrong, so
+    treat this as open until the cron is demonstrably reliable.
+  - **Further hardening avenues if the cron ever stalls** (not needed unless it
+    does): `launch_persistent_context(user_data_dir=…)` for a returning-user
+    cookie jar across runs; incremental tail-fetch (only missing recent days)
+    to shrink the footprint; a persisted "next-allowed" timestamp so the tool
+    self-throttles across runs; an alternative NIFTY 50 TRI mirror as backup.
 
 - [x] **Added `--as-of YYYY-MM-DD` flag** (2026-06-17, cycle 16).
   Pins the reference (as-of) date across the pipeline: every loaded

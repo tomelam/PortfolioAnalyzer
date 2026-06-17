@@ -1,15 +1,15 @@
 """Live network checks for the data auto-update fetchers.
 
 `network`-marked (deselected by default). FRED is reachable and verified;
-niftyindices is anti-scraping / commonly unreachable from non-browser
-contexts, so its live fetch is asserted leniently (reachable-or-skip).
+niftyindices is anti-scraping and fetched via a stealth browser (optional
+``browser`` extra), so its live fetch is skipped when the extra is missing and
+asserted leniently when the host throttles this IP.
 """
 
 from __future__ import annotations
 
 import pandas as pd
 import pytest
-import requests
 
 from loaders import data_update as du
 
@@ -30,19 +30,21 @@ def test_fetch_fred_indirltlt01stm_live():
 @pytest.mark.network
 @pytest.mark.integration
 def test_fetch_niftyindices_tri_live():
-    """Real fetch through the cookie-primed JSON API (proven working).
+    """Real fetch through the stealth-browser path.
 
-    niftyindices aggressively rate-limits an IP after repeated hits, so a
-    timeout/connection failure *after the client's own retries* is upstream
-    throttling, not a code defect — we skip with a clear reason in that case.
-    Any *other* failure (bad envelope, parse error, empty/garbage data)
-    propagates as a real test failure, so regressions in the scraper are
-    still caught.
+    Skips when the optional ``browser`` extra (playwright + stealth) isn't
+    installed. niftyindices aggressively rate-limits an IP after repeated
+    hits, so a timeout/connection failure is upstream throttling, not a code
+    defect — we skip with a clear reason in that case. Any *other* failure
+    (bad envelope, parse error, empty/garbage data) propagates as a real test
+    failure, so regressions in the scraper are still caught.
     """
+    if not du._playwright_available():
+        pytest.skip("browser extra not installed (pip install '.[browser]')")
     try:
         df = du.fetch_niftyindices_tri(start="01-Apr-2026", end="30-Apr-2026")
-    except (RuntimeError, requests.exceptions.RequestException) as e:
-        pytest.skip(f"niftyindices throttled this IP after retries (upstream, not a bug): {e}")
+    except RuntimeError as e:
+        pytest.skip(f"niftyindices throttled this IP (upstream, not a bug): {e}")
     # Reached only when the scrape succeeded — assert the data is real & sane.
     assert not df.empty
     assert list(df.columns) == ["value"]

@@ -42,6 +42,12 @@ dev = [
 live-gold = [
     "yfinance",
 ]
+# Stealth-browser fetch for niftyindices (the only NIFTY-TRI fetch path).
+# After installing, run: playwright install chromium
+browser = [
+    "playwright",
+    "playwright-stealth",
+]
 
 [tool.setuptools]
 py-modules = [

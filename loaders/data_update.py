@@ -20,19 +20,21 @@ Sources
 -------
 - ``risk_free_fred`` → FRED ``INDIRLTLT01STM`` (India 10Y government bond
   rate, monthly). Stable, no-auth, machine-readable CSV — fully verifiable.
-- ``benchmark_nifty_tri`` → NIFTY 50 TRI from niftyindices.com. The parser
-  is unit-tested, but niftyindices is anti-scraping and often unreachable
-  from non-browser / CI contexts; **the live fetch must be verified in an
-  environment that can reach the host** before relying on it.
+- ``benchmark_nifty_tri`` → NIFTY 50 TRI from niftyindices.com. Fetched via a
+  stealth Chromium browser (optional ``browser`` extra), since niftyindices
+  aggressively blocks non-browser clients and holds blocks against the source
+  IP. The parser is unit-tested; **the live browser fetch must be verified in
+  an environment that can reach the host** before relying on it.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import importlib.util
 import io
 import json
 import os
-import time
+import random
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -47,30 +49,20 @@ STAMP_FILE = os.path.join(DATA_DIR, ".last_fetched.json")
 FRED_CSV_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
 
 # niftyindices serves its Total-Returns-Index history from a JSON POST API
-# behind an ASP.NET session + ARR-affinity cookie wall. A naive GET returns
-# an anti-scrape HTML page; the working recipe is: (1) GET the historical-data
-# page with a browser User-Agent to mint the session cookies, then (2) POST
-# the date range to getTotalReturnIndexString on the *same* session. The
+# behind an ASP.NET session + ARR-affinity cookie wall, and aggressively
+# blocks non-browser clients (a naive GET returns an anti-scrape HTML page).
+# Because a block is held against the source IP, we never hit it with raw
+# ``requests``; the sole path is a stealth browser that navigates the
+# historical-data page (minting cookies / clearing any JS challenge) and then
+# POSTs the date range to getTotalReturnIndexString from inside the page. The
 # response is a ``{"d": "<json-array-string>"}`` envelope.
 NIFTY_HIST_PAGE = "https://www.niftyindices.com/reports/historical-data"
 NIFTY_TRI_ENDPOINT = "https://www.niftyindices.com/Backpage.aspx/getTotalReturnIndexString"
-# FRED and most feeds are happy with the default ``requests`` User-Agent
-# (matching loaders.mutual_fund); we only override it where a host demands a
-# browser-like agent. Some hosts/proxies actively reject *custom* UAs, so we
-# don't invent one — we present a real browser string only to niftyindices.
+# Real browser User-Agent presented by the stealth Chromium context.
 _NIFTY_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 )
-_NIFTY_POST_HEADERS = {
-    "User-Agent": _NIFTY_UA,
-    "Accept": "application/json, text/javascript, */*; q=0.01",
-    "Accept-Language": "en-US,en;q=0.9",
-    "X-Requested-With": "XMLHttpRequest",
-    "Content-Type": "application/json; charset=UTF-8",
-    "Referer": NIFTY_HIST_PAGE,
-    "Origin": "https://www.niftyindices.com",
-}
 
 
 # --- pure parsers ----------------------------------------------------------
@@ -144,64 +136,119 @@ def fetch_fred_series(series_id: str, *, session=None) -> pd.DataFrame:
     return parse_fred_csv(_get(FRED_CSV_URL.format(series_id=series_id), session=session))
 
 
+def _niftyindices_body(index_name: str, start: str, end: str) -> str:
+    """Build the JSON POST body for the niftyindices TRI endpoint.
+
+    ``cinfo`` is a (single-quoted) JSON string embedded inside the JSON body;
+    built by concatenation to avoid brace-escaping noise.
+    """
+    cinfo = (
+        "{'name':'" + index_name + "','startDate':'" + start
+        + "','endDate':'" + end + "','indexName':'" + index_name + "'}"
+    )
+    return json.dumps({"cinfo": cinfo})
+
+
+def _playwright_available() -> bool:
+    """True if the optional ``browser`` extra (playwright + stealth) is installed."""
+    return (
+        importlib.util.find_spec("playwright") is not None
+        and importlib.util.find_spec("playwright_stealth") is not None
+    )
+
+
+def _fetch_niftyindices_browser(
+    index_name: str, start: str, end: str, *, timeout: int = 30, headless: bool = True
+) -> pd.DataFrame:  # pragma: no cover - requires a real browser + network
+    """Drive a stealth Chromium to fetch the TRI, mirroring the proven
+    ``mysore-spa-intelligence-engine`` scraper.
+
+    Presents an authentic fingerprint (stealth hides ``navigator.webdriver``;
+    real UA, ``en-IN`` locale, ``Asia/Kolkata`` timezone, 1920×1080 viewport)
+    and makes a *single* human-paced hit: navigate the historical-data page to
+    mint session cookies / clear any JS challenge, pause briefly, then issue
+    the TRI POST from inside the page so the same-origin request carries the
+    cookies automatically.
+    """
+    from playwright.sync_api import sync_playwright
+    from playwright_stealth import Stealth
+
+    body = _niftyindices_body(index_name, start, end)
+    with Stealth().use_sync(sync_playwright()) as p:
+        browser = p.chromium.launch(headless=headless)
+        try:
+            context = browser.new_context(
+                user_agent=_NIFTY_UA,
+                viewport={"width": 1920, "height": 1080},
+                locale="en-IN",
+                timezone_id="Asia/Kolkata",
+            )
+            page = context.new_page()
+            page.goto(
+                NIFTY_HIST_PAGE, wait_until="domcontentloaded", timeout=timeout * 1000
+            )
+            page.wait_for_timeout(random.randint(1500, 3500))  # human-ish pause
+            text = page.evaluate(
+                """async ([url, body]) => {
+                    const r = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json; charset=UTF-8',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json, text/javascript, */*; q=0.01',
+                        },
+                        body,
+                    });
+                    if (!r.ok) throw new Error('TRI POST HTTP ' + r.status);
+                    return await r.text();
+                }""",
+                [NIFTY_TRI_ENDPOINT, body],
+            )
+        finally:
+            browser.close()
+    return parse_niftyindices_tri_json(text)
+
+
 def fetch_niftyindices_tri(
     *,
     index_name: str = "NIFTY 50",
     start: str = "01-Jan-2007",
     end: str | None = None,
-    session=None,
-    retries: int = 1,
-    timeout: int = 20,
-    backoff: float = 1.5,
+    timeout: int = 30,
+    headless: bool = True,
 ) -> pd.DataFrame:
     """Fetch the NIFTY 50 Total-Returns-Index history from niftyindices.com.
 
-    Defeats the anti-scrape wall by priming an ASP.NET session on the
-    historical-data page, then POSTing the date range to the TRI endpoint on
-    the same session (a single request returns the full range — no chunking).
+    niftyindices is aggressively anti-scrape and holds blocks against the
+    source IP, so the **only** fetch path is a real stealth browser (see
+    :func:`_fetch_niftyindices_browser`) — no raw ``requests`` path, which
+    would risk flagging the IP. A single browser hit returns the full date
+    range (no chunking, no retries: bursts are what trip the block, so the
+    real "retry" is the next scheduled run via ``portfolio-analyzer-update``).
+
+    Requires the optional ``browser`` extra::
+
+        pip install '.[browser]' && playwright install chromium
 
     Args:
         index_name: niftyindices index name (default "NIFTY 50").
         start: inclusive start, ``DD-Mon-YYYY`` (default covers full history).
         end: inclusive end, ``DD-Mon-YYYY``; defaults to today.
-        session: optional pre-built requests Session (for tests / reuse).
-        retries: number of whole-flow attempts. **Defaults to 1 on purpose.**
-            niftyindices throttles *bursts* of requests very aggressively (a
-            block takes minutes to clear), so rapid in-process retries can't
-            beat it and only deepen the block. A single clean attempt succeeds
-            when the IP hasn't been hit recently; the real "retry" is the next
-            scheduled run (the daily ``portfolio-analyzer-update`` cron). Raise
-            this only for a deliberately patient, long-``backoff`` batch.
+        timeout: per-navigation timeout, seconds.
+        headless: run Chromium headless (set False to watch / debug).
+
+    Raises:
+        RuntimeError: if the optional ``browser`` extra is not installed.
     """
+    if not _playwright_available():
+        raise RuntimeError(
+            "niftyindices TRI fetch requires the optional 'browser' extra — install "
+            "with: pip install '.[browser]' && playwright install chromium"
+        )
     end = end or dt.date.today().strftime("%d-%b-%Y")
-    # cinfo is a (single-quoted) JSON string embedded inside the JSON body;
-    # built by concatenation to avoid brace-escaping noise.
-    cinfo = (
-        "{'name':'" + index_name + "','startDate':'" + start
-        + "','endDate':'" + end + "','indexName':'" + index_name + "'}"
+    return _fetch_niftyindices_browser(
+        index_name, start, end, timeout=timeout, headless=headless
     )
-    body = json.dumps({"cinfo": cinfo})
-    last_error: Exception | None = None
-    for attempt in range(retries):
-        try:
-            # One whole flow (cookie-prime + POST) on a fresh session. Extra
-            # attempts (if retries>1) wait backoff*n — but see the docstring:
-            # for niftyindices, fewer/no rapid retries is the robust choice.
-            sess = session or requests.Session()
-            sess.headers.setdefault("User-Agent", _NIFTY_UA)
-            sess.get(NIFTY_HIST_PAGE, timeout=timeout)  # mint session cookies
-            resp = sess.post(
-                NIFTY_TRI_ENDPOINT, data=body, headers=_NIFTY_POST_HEADERS, timeout=timeout
-            )
-            resp.raise_for_status()
-            return parse_niftyindices_tri_json(resp.text)
-        except Exception as e:  # noqa: BLE001 — retry transient/anti-scrape failures
-            last_error = e
-            if attempt < retries - 1:
-                time.sleep(backoff * (attempt + 1))
-    raise RuntimeError(
-        f"niftyindices TRI fetch failed after {retries} attempts: {last_error}"
-    ) from last_error
 
 
 # --- sources + writer ------------------------------------------------------
@@ -246,11 +293,12 @@ REGISTRY: dict[str, DataSource] = {
     "benchmark_nifty_tri": DataSource(
         name="benchmark_nifty_tri",
         target_path=os.path.join(DATA_DIR, "NIFTY Total Returns Historical Data.csv"),
-        fetch=lambda session=None: fetch_niftyindices_tri(session=session),
+        fetch=lambda session=None: fetch_niftyindices_tri(),
         out_date_col="Date",
         out_value_col="Price",
         out_date_format="%m/%d/%Y",
-        description="NIFTY 50 TRI from niftyindices.com (live fetch unverified in CI).",
+        description="NIFTY 50 TRI from niftyindices.com via stealth browser "
+        "(needs 'browser' extra; live fetch unverified in CI).",
     ),
 }
 

@@ -97,40 +97,42 @@ def test_parse_niftyindices_unexpected_columns_raises():
         du.parse_niftyindices_tri_json(json.dumps({"d": inner}))
 
 
-def test_fetch_niftyindices_tri_mocked(monkeypatch):
-    """Drive the fetch with a fake session: prime GET + POST returning the
-    captured envelope. Verifies the request flow without network."""
+def test_niftyindices_body_shape():
+    """The POST body wraps a single-quoted cinfo JSON string with the dates."""
+    body = du._niftyindices_body("NIFTY 50", "10-Jun-2026", "12-Jun-2026")
+    envelope = json.loads(body)
+    assert set(envelope) == {"cinfo"}
+    cinfo = envelope["cinfo"]
+    assert "'name':'NIFTY 50'" in cinfo
+    assert "'startDate':'10-Jun-2026'" in cinfo
+    assert "'endDate':'12-Jun-2026'" in cinfo
 
-    class _Resp:
-        def __init__(self, text):
-            self.text = text
 
-        def raise_for_status(self):
-            pass
+def test_fetch_niftyindices_tri_requires_browser_extra(monkeypatch):
+    """Without the optional 'browser' extra the fetch raises a clear,
+    install-guiding error rather than touching the network."""
+    monkeypatch.setattr(du, "_playwright_available", lambda: False)
+    with pytest.raises(RuntimeError, match="browser.*extra"):
+        du.fetch_niftyindices_tri()
 
-    class _Session:
-        def __init__(self):
-            self.headers = {}
-            self.got = []
-            self.posted = []
 
-        def setdefault_header(self, *a):  # pragma: no cover - unused
-            pass
+def test_fetch_niftyindices_tri_delegates_to_browser(monkeypatch):
+    """When the extra is present, the fetch delegates to the stealth-browser
+    path and defaults the end date to today (parsing covered separately)."""
+    parsed = du.parse_niftyindices_tri_json(NIFTY_TRI_FIXTURE)
+    seen = {}
 
-        def get(self, url, timeout=None):
-            self.got.append(url)
-            return _Resp("<html>page</html>")
+    def _fake_browser(index_name, start, end, *, timeout=30, headless=True):
+        seen.update(index_name=index_name, start=start, end=end)
+        return parsed
 
-        def post(self, url, data=None, headers=None, timeout=None):
-            self.posted.append((url, data))
-            return _Resp(NIFTY_TRI_FIXTURE)
-
-    sess = _Session()
-    # dict.setdefault is used on sess.headers by the fetcher
-    df = du.fetch_niftyindices_tri(session=sess, start="10-Jun-2026", end="12-Jun-2026")
+    monkeypatch.setattr(du, "_playwright_available", lambda: True)
+    monkeypatch.setattr(du, "_fetch_niftyindices_browser", _fake_browser)
+    df = du.fetch_niftyindices_tri(start="10-Jun-2026")
     assert len(df) == 3
-    assert sess.got and "historical-data" in sess.got[0]
-    assert sess.posted and "getTotalReturnIndexString" in sess.posted[0][0]
+    assert seen["index_name"] == "NIFTY 50"
+    assert seen["start"] == "10-Jun-2026"
+    assert seen["end"]  # end defaulted to today's DD-Mon-YYYY
 
 
 # --- network fetchers (mocked) --------------------------------------------

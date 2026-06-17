@@ -11,9 +11,14 @@ investing.com downloads.
 | Risk-free rate | `data/INDIRLTLT01STM.csv` | FRED `INDIRLTLT01STM` (India 10Y govt bond rate) | monthly |
 | Benchmark (NIFTY 50 TRI) | `data/NIFTY Total Returns Historical Data.csv` | niftyindices.com Total-Returns API | daily |
 
-Both are stable, no-auth feeds. FRED serves a clean CSV. niftyindices is
-fetched through its session-cookie + JSON-POST API (`loaders/data_update.py`),
-which is the robust way past its anti-scrape wall.
+Both are no-auth feeds. FRED serves a clean CSV. niftyindices is aggressively
+anti-scrape and holds blocks against the source IP, so it is fetched **only**
+through a stealth Chromium browser (`loaders/data_update.py`), never raw
+`requests`. This needs the optional `browser` extra:
+
+```bash
+pip install '.[browser]' && playwright install chromium
+```
 
 The risk-free default switched from the manual investing.com 10Y CSV to the
 FRED series so it can be auto-refreshed. The economic series is the same
@@ -47,17 +52,25 @@ failed (so one flaky feed doesn't page you).
 
 ## niftyindices rate-limiting
 
-niftyindices throttles **bursts** very aggressively: a single isolated request
-succeeds (verified — it returns full TRI history in one call), but a handful in
-a short window trips an IP block that takes minutes to clear. Because of that,
-`fetch_niftyindices_tri` makes a **single attempt by default** (`retries=1`) —
-rapid in-process retries can't beat the block and only deepen it. The real
-"retry" is the next scheduled run.
+niftyindices throttles **bursts** very aggressively and a block is held
+against the source IP, so we never poke it with raw `requests`. The sole fetch
+path is a **stealth Chromium browser** (mirroring the proven
+`mysore-spa-intelligence-engine` scraper): it presents an authentic
+fingerprint (real UA, `en-IN` / `Asia/Kolkata`, 1920×1080, hides
+`navigator.webdriver`), navigates the historical-data page to mint cookies /
+clear any JS challenge, pauses briefly, then issues the TRI POST from inside
+the page so the request carries the session cookies. A single hit returns the
+full date range — `fetch_niftyindices_tri` makes **one attempt, no retries**
+(rapid retries only deepen a burst block). The real "retry" is the next
+scheduled run. Verified live (single stealth hit returns real TRI data).
 
 Practical guidance:
+- Install the `browser` extra (`pip install '.[browser]' && playwright install
+  chromium`); without it the niftyindices fetch raises a clear, install-guiding
+  error and the rest of the update proceeds.
 - Prefer the **daily cron** (`portfolio-analyzer-update`) — one hit/day never
   trips the limit.
-- A fresh local file triggers **zero** requests (refresh only fires when stale).
+- A fresh local file triggers **zero** fetches (refresh only fires when stale).
 - Don't run the live network test in a loop; if throttled it skips (clearly
   labelled upstream throttling, not a code defect), and an on-run refresh just
   warns and uses existing data.
