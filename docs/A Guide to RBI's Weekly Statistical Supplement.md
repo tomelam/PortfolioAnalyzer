@@ -1,6 +1,6 @@
 # A Guide to RBI's Weekly Statistical Supplement
 
-_Sidecar: mechanically extracted text from `A Guide to RBI's Weekly Statistical Supplement.pdf`. Original PDF preserved._
+_Sidecar: mechanically extracted text from `sources/A Guide to RBI's Weekly Statistical Supplement.pdf`. Original PDF preserved in `docs/sources/`._
 
                                                                                                                STCI
 27 Jan 2012                                                                                                    Primary Dealer Ltd

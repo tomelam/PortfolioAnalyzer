@@ -33,6 +33,17 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
 
 #### B. Determinism / trustworthiness
 
+- [ ] **Replicate Value Research Online mutual-fund metrics to high accuracy.**
+  It would be reassuring to reproduce VRO's published per-fund numbers
+  (returns / CAGR / risk ratios) within a tight tolerance — a strong
+  external validation of our metrics. VRO may not use daily NAVs; a likely
+  hypothesis is **month-end NAVs**. Plan: pick 2–3 funds we already load,
+  pull VRO's stated figures + methodology window, then compare our
+  `--metrics-method monthly` (month-end resampled) output against them and
+  reconcile any gap (NAV sampling, trailing-window definition, annualization
+  convention, dividend/TRI treatment). Document the matched methodology so
+  the agreement is repeatable.
+
 - [x] **Stale NIFTY benchmark is a hard blocker — add a bypass flag**
   (2026-06-17, cycle 10). Added `--skip-age-check` CLI flag. When
   active it bypasses both the benchmark and risk-free CSV staleness
@@ -281,12 +292,16 @@ are unaware of each other.
 
 #### G. Housekeeping / decisions
 
-- [ ] Rename `port/` → `portfolios/` for clarity. *(Already on Hygiene
-  backlog.)*
-- [ ] Decide fate of `outputs/port-*/` cached runs. *(Already on Hygiene
-  backlog.)*
+- [x] **Decided: keep `port/`** (2026-06-17). Renaming to `portfolios/` is
+  purely cosmetic and would churn the Makefile, tests, README/QUICKSTART, and
+  4 docs right after the v0.1 tag for marginal clarity. `port/` is
+  unambiguous in context. (Will rename on request.)
+- [x] **Decided: keep `outputs/` as a local cache** (2026-06-17). It is
+  gitignored (0 tracked files) and the Makefile preserves it by default
+  (commit 17eb010). Nothing to move to attic — these are reproducible
+  renders, not source.
 - [x] **`.env.example` not needed** (reconciled 2026-06-17). Repo-wide grep finds no `os.environ` / `getenv` / API-token / `.env` usage; all data sources are local CSVs or unauthenticated HTTP (mfapi.in, nsiindia.gov.in). Revisit if a token-gated source (e.g. FRED) is ever added.
-- [ ] Relocate `docs/*.pdf` originals once `.md` sidecars exist.
+- [x] **Relocated `docs/*.pdf` originals to `docs/sources/`** (2026-06-17). All 4 PDFs (5-ratios, RBI WSS guide, CRISIL ranking, OpenAI_Models) moved via `git mv`; their `.md` sidecars stay in `docs/` and now point at `sources/`.
 - [x] **Deleted `defunct_feature_var_rate_bonds` and `defunct_main`**
   (local + origin, 2026-06-17). See the Hygiene-section entry for the
   recorded tip SHAs.
@@ -406,8 +421,8 @@ are unaware of each other.
 - [ ] Add type hints incrementally; switch `ignore_missing_imports` off per-module
 - [ ] Raise CI coverage gate 70% → 85% (set to `--cov-fail-under=70` on 2026-06-17; baseline TOTAL is 82% after data_loader.py reached 99%. The remaining levers are real tests for `main.py` — currently 1% as a subprocess-measurement artifact — and the unused `visualizer.py` / `ppf_calculator.py`.)
 - [x] **Deleted `defunct_feature_var_rate_bonds` and `defunct_main`** (local + origin, 2026-06-17), now that `v0.1-salvage` is confirmed tagged + pushed. Both superseded (defunct_main = pre-salvage main, fully reachable from current main; defunct_feature_var_rate_bonds = old Yahoo-Finance-replacement WIP, functionality reimplemented live in `bond_calculators.calculate_variable_bond_cumulative_gain`). Tip SHAs recorded for recovery (defunct branch had 8 commits not on main): `defunct_main` = `cea0300`, `defunct_feature_var_rate_bonds` = `2fe272d`. Recoverable from local reflog short-term; re-create with `git branch <name> <sha>` if ever needed.
-- [ ] Decide fate of `port/` directory naming — rename to `portfolios/` for clarity?
-- [ ] Investigate `outputs/port-*/` cached runs — keep as canonical examples or move to attic?
+- [x] **Decided: keep `port/`** (2026-06-17) — cosmetic rename not worth the cross-repo churn post-tag; see Housekeeping section.
+- [x] **Decided: keep `outputs/` as a gitignored local cache** (2026-06-17) — see Housekeeping section.
 - [x] **`Makefile~` editor backup** — already absent (reconciled 2026-06-17); not tracked, not on disk.
 - [x] **`.env.example` not needed** (2026-06-17) — no env-var/token usage anywhere; revisit if a token-gated data source is added.
 - [ ] Consider relocating `docs/*.pdf` originals to a `docs/sources/` subdirectory once `.md` sidecars exist

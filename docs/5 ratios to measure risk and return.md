@@ -1,6 +1,6 @@
 # 5 ratios to measure risk and return
 
-_Sidecar: mechanically extracted text from `5 ratios to measure risk and return.pdf`. Original PDF preserved._
+_Sidecar: mechanically extracted text from `sources/5 ratios to measure risk and return.pdf`. Original PDF preserved in `docs/sources/`._
 
 27/04/2025, 19:43                                        5 ratios to measure risk and return
 

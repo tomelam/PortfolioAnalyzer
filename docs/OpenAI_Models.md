@@ -1,6 +1,6 @@
 # OpenAI_Models
 
-_Sidecar: mechanically extracted text from `OpenAI_Models.pdf`. Original PDF preserved._
+_Sidecar: mechanically extracted text from `sources/OpenAI_Models.pdf`. Original PDF preserved in `docs/sources/`._
 
 OpenAI Model Cheatsheet
 Only Plus subscribers get access to the GPT-4, GPT-4o and GPT-4.5 slots (and DALL·E 3).

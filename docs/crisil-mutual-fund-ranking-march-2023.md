@@ -1,6 +1,6 @@
 # crisil-mutual-fund-ranking-march-2023
 
-_Sidecar: mechanically extracted text from `crisil-mutual-fund-ranking-march-2023.pdf`. Original PDF preserved._
+_Sidecar: mechanically extracted text from `sources/crisil-mutual-fund-ranking-march-2023.pdf`. Original PDF preserved in `docs/sources/`._
 
 CRISIL Mutual Fund Ranking
 For the quarter ended March 2023
