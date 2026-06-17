@@ -62,13 +62,38 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
     default risk-free source (`data/INDIRLTLT01STM.csv`).
   - Benchmark: NIFTY 50 TRI from niftyindices.com via a robust client
     (session cookie-prime + JSON POST API) — defeats the anti-scrape wall;
-    proven live (4817 rows). niftyindices rate-limits repeated hits, so the
-    live test skips only on confirmed throttling.
+    fetched real data live (4817 rows once), but **steady-state reliability is
+    unconfirmed** — see the open hardening/verification item below.
   - On-run: stale data is **force-refreshed by default** (off under
     `--as-of`/`--replay-from`/`--skip-age-check`/`--no-auto-update`); on
     upstream failure it warns and proceeds (early-warning, not a hard block).
   - Cron-able `portfolio-analyzer-update` console script. See
     `docs/DATA_REFRESH.md`. Goldens re-captured against the FRED risk-free.
+
+- [ ] **Confirm niftyindices TRI scrape works in steady state + harden it.**
+  The scrape returned real data once this session (200 + a TRI value), but
+  every later attempt failed (RemoteDisconnected / read-timeout) and a fresh
+  green was never reproduced — even after a 10-min cooldown. The working
+  diagnosis is *burst rate-limiting from this session's heavy probing*, but
+  **that is unconfirmed and could be wrong** (endpoint change, a JS/Incapsula
+  challenge, or a longer/escalating IP block are all possible). Don't trust
+  "it's just throttling" until proven.
+  - **Verify in steady state:** let the daily cron run for a few days and
+    confirm `data/NIFTY Total Returns Historical Data.csv` + `.last_fetched.json`
+    actually advance. If it never succeeds unattended, the diagnosis is wrong.
+  - **Harden toward a failsafe scraper** (current client is single-attempt;
+    rapid retries were counterproductive). Avenues not yet tried:
+    - long, jittered backoff measured in **minutes** (honor the block's real
+      clear time / any `Retry-After`); persist a "next-allowed" timestamp so
+      the tool self-throttles across runs.
+    - incremental tail-fetch (only the missing recent days) to shrink the
+      request footprint instead of pulling full history each refresh.
+    - alternative niftyindices endpoint (the `ind_close_all_<DDMMYYYY>.csv`
+      CDN file) or an alternative NIFTY 50 **TRI** source/mirror.
+    - browser automation (Playwright/Selenium) as a last-resort fallback that
+      fully emulates a browser + any JS challenge.
+  - User (2026-06-17) believes a more failsafe method is achievable — treat
+    this as open until the scrape is demonstrably reliable unattended.
 
 - [x] **Added `--as-of YYYY-MM-DD` flag** (2026-06-17, cycle 16).
   Pins the reference (as-of) date across the pipeline: every loaded
