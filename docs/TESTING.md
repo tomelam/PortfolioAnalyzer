@@ -130,8 +130,8 @@ hits in routine runs.
 
 ## Coverage
 
-CI gates at `--cov-fail-under=65` (`.github/workflows/ci.yml`, `pytest
---cov=. --cov-report=term-missing`). The ratchet path (65 → 70 → 85%) is
+CI gates at `--cov-fail-under=70` (`.github/workflows/ci.yml`, `pytest
+--cov=. --cov-report=term-missing`). The ratchet path (70 → 85%) is
 in `KANBAN.md` → Hygiene.
 
 ### Baseline (2026-06-17, 225 passed)

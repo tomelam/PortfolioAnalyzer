@@ -326,7 +326,7 @@ are unaware of each other.
 - [x] **`synthetic_civ.py:43` deprecated `freq="M"`** — replaced with `"ME"`
 
 ### Phase D — Decomposition + TDD cycles
-- [ ] Create `portfolio_analyzer/loaders/` package; move all `*_loader.py` files into it as a single big-bang rename commit
+- [x] **Created the `loaders/` package** (commit 83849c0) — moved all `*_loader.py` files in; `data_loader.py` re-exports for compat. (Used top-level `loaders/`, not `portfolio_analyzer/loaders/`.)
 - [x] Extract `fetch_navs_of_mutual_fund` → `mutual_fund_loader.fetch_navs` with 7 unit tests (DataFrame contract, nav float, sorted DatetimeIndex, dayfirst parsing, retry-on-transient, exhausted-retries error, missing-data error). `data_loader` re-exports for compat.
 - [x] Extract `load_ppf_interest_rates` + `load_ppf_civ` → `ppf_loader.py` with 3 added rate-CSV contract tests. Total PPF tests: 8.
 - [x] Extract `load_timeseries_csv` → `benchmark_loader.py` with 6 tests. Deleted dead `load_index_data` and its unused main.py import.
@@ -334,8 +334,8 @@ are unaware of each other.
 - [x] Extract NSI SCSS scraper → `scss_loader.py`, decomposed into pure `parse_scss_html` + network `fetch_scss_html` + composed `load_scss_interest_rates`. 8 tests using static HTML fixture, all in 0.5s.
 - [x] Extract REC bond from `main.py` → `rec_bond_loader.py` honoring the TOML `coupon` field (was silently hardcoded 5.25%). 5 tests.
 - [x] Unit tests for `sgb_loader.py` (added in commit 791d955; KANBAN was stale).
-- [ ] Consolidate all `*_loader.py` files into a `loaders/` package as one big-bang rename commit.
-- [ ] Consolidate the four `*timeseries*.py` files (timeseries.py 22.9 KB, timeseries_civ.py, asset_timeseries.py, portfolio_timeseries.py) into a `portfolio_analyzer/timeseries/` package
+- [x] **Consolidated all `*_loader.py` files into the `loaders/` package** (commit 83849c0; same work as the item above). No top-level `*_loader.py` remain.
+- [x] **Consolidated the four `*timeseries*.py` files into the `timeseries/` package** (commit 0f440fc): `timeseries/{civ,asset,portfolio,returns}.py`. No top-level `*timeseries*.py` remain.
 - [x] Test `TimeseriesCIV`, `TimeseriesReturn`, `AssetTimeseries`, `PortfolioTimeseries` independently — 11 tests in `tests/unit/test_timeseries_classes.py` covering class-level surface (constructors, validation, `combined_daily_returns`, hand-rolled `TimeseriesCIV.max_drawdowns`, `summary`). Coverage of the four files now 71–98% (was 23–81%).
 - [x] Unit tests for `synthetic_civ.py` — 6 tests pin PPF monthly accrual, March yearly credit, mid-year rate changes, and Series/DataFrame input flexibility.
 - [x] Unit tests for `civ_to_returns.py` — 6 tests including the round-trip identity (CIV → returns → cumprod ≈ normalized CIV).
@@ -403,7 +403,7 @@ are unaware of each other.
 - [ ] Re-enable `SIM` (flake8-simplify) lint family disabled during the v0.1 push; ~15 style hints to triage (mostly ternaries vs if/else, nested-with, dict.keys()).
 - [ ] Replace deprecated `.fillna(method='ffill')` (if still present) with `.ffill()`
 - [ ] Add type hints incrementally; switch `ignore_missing_imports` off per-module
-- [ ] Raise CI coverage gate 65% → 70% → 85% (currently `--cov-fail-under=65`; baseline TOTAL is 74%, so 70% is already safe to set)
+- [ ] Raise CI coverage gate 70% → 85% (set to `--cov-fail-under=70` on 2026-06-17; baseline TOTAL is 78%. Next step 85% needs real test additions — data_loader.py at 59% is the main lever.)
 - [ ] Decide fate of `defunct_feature_var_rate_bonds` and `defunct_main` branches (likely delete after v0.1)
 - [ ] Decide fate of `port/` directory naming — rename to `portfolios/` for clarity?
 - [ ] Investigate `outputs/port-*/` cached runs — keep as canonical examples or move to attic?
