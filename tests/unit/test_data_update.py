@@ -406,6 +406,38 @@ def test_ensure_reference_data_fresh_skips_unregistered(tmp_path, monkeypatch):
     assert results[0]["status"] == "current"
 
 
+def test_reference_provenance_maps_paths_to_stamp(tmp_path, monkeypatch):
+    monkeypatch.setattr(du, "STAMP_FILE", str(tmp_path / ".s.json"))
+    (tmp_path / ".s.json").write_text(
+        json.dumps(
+            {
+                "rf": {
+                    "last_date": "2026-05-01",
+                    "fetched_at": "2026-06-17T14:00:00+00:00",
+                    "attempted_at": "2026-06-17T14:00:00+00:00",
+                }
+            }
+        )
+    )
+    monkeypatch.setattr(du, "REGISTRY", {"rf": _rf_source(tmp_path, lambda session=None: None)})
+    prov = du.reference_provenance(
+        ["data/unregistered.csv", str(tmp_path / "INDIRLTLT01STM.csv")]
+    )
+    assert len(prov) == 1  # unregistered path skipped
+    e = prov[0]
+    assert e["name"] == "rf" and e["label"] == "FRED India 10Y (risk-free)"
+    assert e["last_date"] == "2026-05-01"
+    assert e["fetched_at"].startswith("2026-06-17")
+    assert e["attempted_at"].startswith("2026-06-17")
+
+
+def test_reference_provenance_missing_stamp_yields_none_fields(tmp_path, monkeypatch):
+    monkeypatch.setattr(du, "STAMP_FILE", str(tmp_path / ".s.json"))
+    monkeypatch.setattr(du, "REGISTRY", {"rf": _rf_source(tmp_path, lambda session=None: None)})
+    prov = du.reference_provenance([str(tmp_path / "INDIRLTLT01STM.csv")])
+    assert prov[0]["last_date"] is None and prov[0]["fetched_at"] is None
+
+
 def test_read_stamp_exposes_provenance(tmp_path, monkeypatch):
     monkeypatch.setattr(du, "STAMP_FILE", str(tmp_path / ".s.json"))
     (tmp_path / ".s.json").write_text(

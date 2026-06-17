@@ -25,26 +25,33 @@ def _settings(**over):
     return s
 
 
-def _patch_results(monkeypatch, results, stamps=None):
+def _patch_results(monkeypatch, results):
     monkeypatch.setattr(du, "ensure_reference_data_fresh", lambda paths: results)
-    monkeypatch.setattr(du, "read_stamp", lambda name: (stamps or {}).get(name, {}))
 
 
-def test_gate_passes_and_prints_provenance(monkeypatch, capsys):
+def test_gate_passes_when_all_current(monkeypatch, capsys):
     results = [
         {"name": "benchmark_nifty_tri", "status": "refreshed", "message": "🔄 fresh", "affects": "alpha, beta"},
         {"name": "risk_free_fred", "status": "current", "message": "", "affects": "Sharpe, Sortino, alpha"},
     ]
-    stamps = {
-        "benchmark_nifty_tri": {"last_date": "2026-06-12", "fetched_at": "2026-06-15T03:00:00+00:00"},
-        "risk_free_fred": {"last_date": "2026-05-01", "fetched_at": "2026-06-17T14:00:00+00:00"},
-    }
-    _patch_results(monkeypatch, results, stamps)
-    main._enforce_reference_freshness(_settings())
-    out = capsys.readouterr().out
-    # provenance: both last_date and fetched_at per source
-    assert "last data 2026-06-12" in out and "fetched 2026-06-15" in out
-    assert "last data 2026-05-01" in out
+    _patch_results(monkeypatch, results)
+    main._enforce_reference_freshness(_settings())  # must not raise
+    # status messages ride on stderr, keeping stdout clean for the report
+    assert "🔄 fresh" in capsys.readouterr().err
+
+
+def test_report_provenance_echoes_to_stderr_and_returns(monkeypatch, capsys):
+    prov = [
+        {"name": "risk_free_fred", "label": "FRED India 10Y (risk-free)",
+         "last_date": "2026-05-01", "fetched_at": "2026-06-17T14:00:00+00:00",
+         "attempted_at": "2026-06-17T14:00:00+00:00"},
+    ]
+    monkeypatch.setattr(du, "reference_provenance", lambda paths: prov)
+    out = main._report_reference_provenance(_settings())
+    assert out == prov
+    captured = capsys.readouterr()
+    assert "FRED India 10Y (risk-free)" in captured.err and "last 2026-05-01" in captured.err
+    assert "2026-06-17" not in captured.out  # stderr only, not stdout
 
 
 def test_gate_blocks_on_stale_by_default(monkeypatch):
@@ -77,9 +84,9 @@ def test_allow_stale_proceeds_with_warning(monkeypatch, capsys):
     ]
     _patch_results(monkeypatch, results)
     main._enforce_reference_freshness(_settings(allow_stale=True))  # must not raise
-    out = capsys.readouterr().out
-    assert "--allow-stale" in out and "Degraded metrics" in out
-    assert "Sharpe" in out
+    err = capsys.readouterr().err
+    assert "--allow-stale" in err and "Degraded metrics" in err
+    assert "Sharpe" in err
 
 
 def test_benchmark_path_omitted_when_use_benchmark_false(monkeypatch):
@@ -90,6 +97,5 @@ def test_benchmark_path_omitted_when_use_benchmark_false(monkeypatch):
         return []
 
     monkeypatch.setattr(du, "ensure_reference_data_fresh", _capture)
-    monkeypatch.setattr(du, "read_stamp", lambda name: {})
     main._enforce_reference_freshness(_settings(use_benchmark=False))
     assert seen["paths"] == ["data/INDIRLTLT01STM.csv"]  # no benchmark path

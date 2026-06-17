@@ -48,6 +48,26 @@ the same warning on stdout. See `docs/ARCHITECTURE.md` for the
 "effective window" mechanism that clips the portfolio CIV at the
 earliest-dying asset's last NAV.
 
+## Self-documenting PNG (embedded metadata)
+
+Each `<name>.png` carries its run context **inside the file**, as PNG `tEXt`
+chunks (written by `visualizer.plot_cumulative_returns` via
+`output_metadata.build_png_metadata`). So an old snapshot is recoverable on its
+own — no re-run, no matching CSV needed:
+
+```bash
+exiftool outputs/port-1.png            # shows the custom tags
+python -c "from PIL import Image; print(Image.open('outputs/port-1.png').text['metrics'])"
+```
+
+Embedded keys: `portfolio`, `run` (`live` / `as-of YYYY-MM-DD` / `replay`),
+`generated` (UTC), `metrics` (a labeled, human-readable block — far more usable
+than the positional `<name>.csv` row), and `reference_data` (per-source
+`last_date` / `fetched_at` / `attempted_at` for the benchmark + risk-free
+feeds). The same reference-data provenance is also drawn as a small footnote on
+the plot and echoed to stderr on every run. The metrics CSV schema is
+unchanged — this is purely additive.
+
 ## Why this matters
 
 Two failure modes the policy prevents:

@@ -164,6 +164,8 @@ def plot_cumulative_returns(
         rebase_date=datetime(2008, 1, 1),
         save_path=None,
         assets_meta=None,
+        png_metadata=None,
+        footnote=None,
 ):
     # -- PREREQUISITE CHECKS --
     # Must have a portfolio return series, and it must be a Series
@@ -298,10 +300,20 @@ def plot_cumulative_returns(
     ax_table = fig.add_subplot(gs[1])
     display_toml_below_figure(ax_table, toml_file, assets_meta=assets_meta)
 
+    # Reference-data provenance footnote — the *visible* copy of the freshness
+    # stamp (the machine-readable copy rides in the PNG tEXt metadata below).
+    if footnote:
+        fig.text(
+            0.5, 0.002, footnote, ha="center", va="bottom",
+            fontsize=5, color="dimgray", wrap=True,
+        )
+
     # Show plot
     fig.canvas.mpl_connect('key_press_event', toggle_zoom)
     if save_path:
-        plt.savefig(save_path, bbox_inches="tight")
+        # png_metadata → PNG tEXt chunks (recoverable via exiftool / PIL),
+        # so an old snapshot self-documents its metrics + data provenance.
+        plt.savefig(save_path, bbox_inches="tight", metadata=png_metadata)
     else:
         plt.show()
     plt.close()

@@ -526,6 +526,30 @@ def ensure_source_current(name: str, *, session=None, today=None) -> dict:
         }
 
 
+def reference_provenance(paths) -> list[dict]:
+    """Per-source provenance for the reference feeds behind ``paths``, read from
+    the stamp file: ``name`` / ``label`` / ``last_date`` / ``fetched_at`` /
+    ``attempted_at`` (missing values are ``None``). Unregistered paths are
+    skipped. This is what rides into the run's stderr log and the PNG metadata.
+    """
+    out = []
+    for path in paths:
+        src = source_for_path(path)
+        if src is None:
+            continue
+        st = read_stamp(src.name)
+        out.append(
+            {
+                "name": src.name,
+                "label": src.label,
+                "last_date": st.get("last_date"),
+                "fetched_at": st.get("fetched_at"),
+                "attempted_at": st.get("attempted_at"),
+            }
+        )
+    return out
+
+
 def ensure_reference_data_fresh(paths, *, session=None, today=None) -> list[dict]:
     """Run :func:`ensure_source_current` for every ``path`` that maps to a
     registered reference source. Unregistered paths (e.g. a legacy manual CSV)

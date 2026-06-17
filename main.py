@@ -27,31 +27,31 @@ from utils import (
 from visualizer import plot_cumulative_returns, print_major_drawdowns
 
 
+def _reference_paths(settings):
+    """The reference CSVs in use this run (benchmark — if enabled — + risk-free)."""
+    paths = []
+    if settings.get("use_benchmark"):
+        paths.append(settings["benchmark_file"])
+    paths.append(settings["risk_free_rates_file"])
+    return paths
+
+
 def _enforce_reference_freshness(settings):
     """Refresh stale reference feeds and enforce the block-by-default gate.
 
-    Refreshes the benchmark / risk-free sources that are behind their cadence,
-    prints provenance (``last_date`` / ``fetched_at``) for each, and — for any
-    source that could not be certified current — either blocks the run (naming
-    the degraded metrics) or, under ``--allow-stale``, warns and proceeds.
+    Refreshes the benchmark / risk-free sources that are behind their cadence
+    (status messages go to stderr) and — for any source that could not be
+    certified current — either blocks the run (naming the degraded metrics) or,
+    under ``--allow-stale``, warns and proceeds. Provenance is reported
+    separately by :func:`_report_reference_provenance` so it also rides every
+    deterministic run and the PNG output.
     """
-    from loaders.data_update import ensure_reference_data_fresh, read_stamp
+    from loaders.data_update import ensure_reference_data_fresh
 
-    ref_paths = []
-    if settings.get("use_benchmark"):
-        ref_paths.append(settings["benchmark_file"])
-    ref_paths.append(settings["risk_free_rates_file"])
-
-    results = ensure_reference_data_fresh(ref_paths)
+    results = ensure_reference_data_fresh(_reference_paths(settings))
     for r in results:
         if r["message"]:
-            print(r["message"])
-        st = read_stamp(r["name"])
-        if st:
-            print(
-                f"📊 {r['name']}: last data {st.get('last_date', '?')}, "
-                f"fetched {st.get('fetched_at', '?')}"
-            )
+            info(r["message"])
 
     stale = [r for r in results if r["status"] == "stale"]
     if not stale:
@@ -61,7 +61,7 @@ def _enforce_reference_freshness(settings):
         sorted({m.strip() for r in stale for m in r["affects"].split(",") if m.strip()})
     )
     if settings["allow_stale"]:
-        print(
+        info(
             f"⚠️  --allow-stale: proceeding with stale reference data ({names}). "
             f"Degraded metrics: {degraded}."
         )
@@ -71,6 +71,21 @@ def _enforce_reference_freshness(settings):
             f"degrades {degraded}. Re-run when the source is reachable, or pass "
             f"--allow-stale to proceed with degraded metrics."
         )
+
+
+def _report_reference_provenance(settings):
+    """Read the reference-feed provenance (all run modes), echo it to stderr for
+    the run log, and return it for embedding in the PNG snapshot."""
+    from loaders.data_update import reference_provenance
+
+    provenance = reference_provenance(_reference_paths(settings))
+    if provenance:
+        import output_metadata as om
+
+        info("📊 Reference-data provenance:")
+        for line in om.format_provenance(provenance).splitlines():
+            info(f"   {line}")
+    return provenance
 
 
 def main(settings):
@@ -99,6 +114,8 @@ def main(settings):
     deterministic = settings.get("as_of") is not None or settings.get("replay_from")
     if not deterministic:
         _enforce_reference_freshness(settings)
+    # Provenance is echoed to stderr in every mode and embedded in the PNG.
+    reference_provenance = _report_reference_provenance(settings)
 
     benchmark_returns_series = None
     if settings.get("use_benchmark"):
@@ -500,6 +517,45 @@ def main(settings):
         gain_daily_portfolio_series, benchmark_returns_series
     )
 
+    # Build the self-documenting payload that rides with the PNG: a
+    # human-readable metrics block + reference-data provenance embedded in the
+    # PNG tEXt metadata (machine-recoverable, far more usable than the
+    # positional CSV row), plus a visible provenance footnote on the plot.
+    import output_metadata as om
+
+    if settings.get("as_of") is not None:
+        run_label = f"as-of {settings['as_of'].date()}"
+    elif settings.get("replay_from"):
+        run_label = "replay"
+    else:
+        run_label = "live"
+    metric_pairs = [
+        ("Mean Risk-Free", f"{risk_free_rate_annual * 100:.4f}%"),
+        ("CAGR", f"{cagr:.2f}%"),
+        ("Volatility", f"{vol:.2f}%"),
+        ("Sharpe", f"{metrics['Sharpe Ratio']:.4f}"),
+        ("Sortino", f"{metrics['Sortino Ratio']:.4f}"),
+        ("Alpha", f"{alpha:.2f}%" if alpha is not None else "N/A"),
+        ("Beta", f"{beta:.4f}" if beta is not None else "N/A"),
+        ("Drawdowns", str(len(max_drawdowns))),
+        ("Max Drawdown", f"{max_dd:.2f}%"),
+        ("Max DD Start", str(max_dd_start)),
+        ("Drawdown Days", str(drawdown_days)),
+        ("Recovery Days", str(recovery_days)),
+    ]
+    png_metadata = om.build_png_metadata(
+        portfolio_label=portfolio_label,
+        run_label=run_label,
+        generated=pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        metric_pairs=metric_pairs,
+        provenance=reference_provenance,
+    )
+    plot_footnote = (
+        om.format_provenance_footnote(reference_provenance, run_label=run_label)
+        if reference_provenance
+        else None
+    )
+
     # For more automated operation, the plotting can be skipped.
     if settings["output_snapshot"]:
         import os
@@ -522,6 +578,8 @@ def main(settings):
             portfolio_start_date,
             save_path=image_path,
             assets_meta=assets_meta,
+            png_metadata=png_metadata,
+            footnote=plot_footnote,
         )
 
     if settings.get("show_plot", True):
@@ -537,6 +595,7 @@ def main(settings):
             max_drawdowns,
             portfolio_start_date,
             assets_meta=assets_meta,
+            footnote=plot_footnote,
         )
 
     if settings["output_csv"] or settings["output_snapshot"]:

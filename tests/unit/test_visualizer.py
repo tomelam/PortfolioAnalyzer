@@ -69,6 +69,34 @@ def test_plot_cumulative_returns_writes_png(tmp_path):
     assert out.exists() and out.stat().st_size > 0
 
 
+def test_plot_embeds_png_metadata_and_footnote(tmp_path):
+    """PNG tEXt metadata round-trips via PIL, and a footnote renders without
+    raising — the visible + invisible provenance copies main.py relies on."""
+    from PIL import Image
+
+    out = tmp_path / "meta.png"
+    md = {
+        "metrics": "CAGR: 12.34%\nSharpe: 1.2345",
+        "reference_data": "NIFTY 50 TRI: last 2026-06-13 | fetched 2026-06-17",
+    }
+    visualizer.plot_cumulative_returns(
+        portfolio_label="Test Portfolio",
+        cumulative_historical=_cumulative(),
+        title="Test Plot",
+        toml_file=TOML,
+        benchmark_cumulative=_cumulative(seed_offset=2.0),
+        benchmark_name="NIFTY TRI",
+        metrics={"Sharpe Ratio": 0.5, "Sortino Ratio": 0.7},
+        save_path=str(out),
+        png_metadata=md,
+        footnote="Reference data (live) — NIFTY 50 TRI: last 2026-06-13",
+    )
+    assert out.exists() and out.stat().st_size > 0
+    text = Image.open(out).text
+    assert text["metrics"] == "CAGR: 12.34%\nSharpe: 1.2345"
+    assert "NIFTY 50 TRI" in text["reference_data"]
+
+
 def test_plot_cumulative_returns_without_benchmark(tmp_path):
     out = tmp_path / "plot_nobench.png"
     visualizer.plot_cumulative_returns(

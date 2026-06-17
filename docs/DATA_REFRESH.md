@@ -48,9 +48,12 @@ old source, set `risk_free_rates_file` / `riskfree_date_format` in your config.
    today), the run **stops** rather than print degraded metrics. The single
    override is `--allow-stale`, which proceeds after printing a warning that
    names the affected metrics.
-4. **Provenance is printed.** For each reference source the run reports both
-   `last_date` (the latest data point — what bears on correctness) and
-   `fetched_at` (when our copy was pulled), read from `data/.last_fetched.json`.
+4. **Provenance travels with the output.** For each reference source the run
+   reports `last_date` (latest data point), `fetched_at` (when our copy was
+   pulled), and `attempted_at` (last refresh attempt), from
+   `data/.last_fetched.json`. It is echoed to **stderr**, drawn as a footnote
+   on the PNG, and embedded in the PNG `tEXt` metadata (with a human-readable
+   metrics block — see `docs/OUTPUTS.md`).
 5. **Deterministic modes opt out cleanly.** `--as-of DATE` and `--replay-from`
    neither fetch nor block: data pinned through the as-of date is current as of
    that date.

@@ -69,7 +69,8 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 | `sgb_holdings.py` | Per-tranche SGB valuation: `sgb_holding_civ(tranche, grams, gold)` |
 | `sgb_tranches.py` | SGB tranche reference data + lookup API |
 | `gold_loader.py` | Monthly INR/troy-ounce CSV → per-gram price series |
-| `visualizer.py` | Matplotlib plotting + drawdown printout |
+| `visualizer.py` | Matplotlib plotting + drawdown printout; embeds PNG `tEXt` metadata + provenance footnote |
+| `output_metadata.py` | Pure formatters for the metrics block / provenance / PNG `tEXt` payload |
 | `utils.py` | `info` / `dbg` / `warn_if_stale` / `to_cutoff_date` |
 | `data_loader.py` | Legacy aggregator; re-exports loaders for back-compat |
 
@@ -158,10 +159,14 @@ a user-tunable policy; it is an invariant the program defends. The model:
   every *attempt* (success or failure) is stamped in `data/.last_fetched.json`,
   and a second attempt the same day is suppressed. FRED is a clean public CSV
   with no such risk, so it refreshes whenever it is behind.
-- **Provenance in the output.** For each reference source the report prints
-  both `last_date` (the latest data point — what bears on correctness) and
-  `fetched_at` (when our copy was pulled), read from the stamp file. This is
-  documentation of result quality, not decoration.
+- **Provenance in the output.** For each reference source the run reports
+  `last_date` (the latest data point — what bears on correctness), `fetched_at`
+  (when our copy was pulled), and `attempted_at` (the last refresh attempt),
+  read from the stamp file. It rides three channels: echoed to **stderr** every
+  run, drawn as a small **footnote** on the PNG, and embedded in the PNG's
+  `tEXt` **metadata** (alongside a human-readable metrics block — see
+  `output_metadata.py` and `docs/OUTPUTS.md`). This is documentation of result
+  quality, not decoration.
 - **Deterministic modes opt out cleanly.** `--as-of DATE` and `--replay-from`
   neither fetch nor block: data pinned through the as-of date is current *as of
   that date*.
