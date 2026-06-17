@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from benchmark_loader import load_timeseries_csv
+from loaders.benchmark import load_timeseries_csv
 from utils import dbg, info
 
 try:

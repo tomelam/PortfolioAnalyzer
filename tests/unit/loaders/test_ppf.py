@@ -14,8 +14,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-import ppf_loader
-from ppf_loader import load_ppf_civ
+import loaders.ppf as ppf_loader
+from loaders.ppf import load_ppf_civ
 
 FIXTURES = Path(__file__).resolve().parent.parent.parent / "fixtures" / "data"
 
@@ -69,7 +69,7 @@ def test_starts_near_unity(patch_ppf_rates_path) -> None:
 
 
 def test_rates_loader_returns_dataframe() -> None:
-    from ppf_loader import load_ppf_interest_rates
+    from loaders.ppf import load_ppf_interest_rates
 
     df = load_ppf_interest_rates(str(FIXTURES / "ppf_rates_tiny.csv"))
     assert isinstance(df, pd.DataFrame)
@@ -77,7 +77,7 @@ def test_rates_loader_returns_dataframe() -> None:
 
 
 def test_rates_loader_indexed_by_datetime() -> None:
-    from ppf_loader import load_ppf_interest_rates
+    from loaders.ppf import load_ppf_interest_rates
 
     df = load_ppf_interest_rates(str(FIXTURES / "ppf_rates_tiny.csv"))
     assert isinstance(df.index, pd.DatetimeIndex)
@@ -85,7 +85,7 @@ def test_rates_loader_indexed_by_datetime() -> None:
 
 
 def test_rates_loader_missing_file_raises() -> None:
-    from ppf_loader import load_ppf_interest_rates
+    from loaders.ppf import load_ppf_interest_rates
 
     with pytest.raises(FileNotFoundError):
         load_ppf_interest_rates("/nonexistent/ppf.csv")

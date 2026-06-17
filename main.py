@@ -93,7 +93,7 @@ def main(settings):
         scss_series = calculate_variable_bond_cumulative_gain(scss_rates, scss_rates.index.min())
 
     if "rec_bond" in portfolio_dict:
-        from rec_bond_loader import load_rec_bond_series
+        from loaders.rec_bond import load_rec_bond_series
 
         rec_bond_series = load_rec_bond_series(portfolio_dict["rec_bond"])
 
@@ -101,7 +101,7 @@ def main(settings):
         # Phase 2: each [[sgb]] entry is a distinct holding. Per-tranche
         # CIV is built from per-gram gold spot plus accrued coupons by
         # the sgb_holdings engine (Phase 1 work).
-        from gold_loader import load_gold_prices_per_gram
+        from loaders.gold import load_gold_prices_per_gram
         from sgb_holdings import sgb_holding_civ
 
         gold_per_gram = load_gold_prices_per_gram()
@@ -114,7 +114,7 @@ def main(settings):
             )
 
     if "gold" in portfolio_dict:
-        from gold_loader import load_gold_prices
+        from loaders.gold import load_gold_prices
 
         gold_series = load_gold_prices()
 

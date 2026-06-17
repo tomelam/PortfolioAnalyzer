@@ -14,7 +14,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from rec_bond_loader import load_rec_bond_series
+from loaders.rec_bond import load_rec_bond_series
 
 
 def test_returns_series_or_dataframe() -> None:

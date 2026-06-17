@@ -13,10 +13,10 @@ set -u
 
 cd "$(dirname "$0")/.."
 
-PYTHON="${PYTHON:-./venv/bin/python}"
+PA="${PA:-./venv/bin/portfolio-analyzer}"
 CONFIG="${CONFIG:-tests/fixtures/golden_master_config.toml}"  # bypass staleness gate by default; override when data is fresh
-if [[ ! -x "$PYTHON" ]]; then
-    echo "❌ $PYTHON not found. Run:  python3.12 -m venv venv && ./venv/bin/python -m pip install -e \".[dev]\"" >&2
+if [[ ! -x "$PA" ]]; then
+    echo "❌ $PA not found. Run:  python3.12 -m venv venv && ./venv/bin/python -m pip install -e \".[dev]\"" >&2
     exit 1
 fi
 
@@ -33,7 +33,7 @@ for toml in "${portfolios[@]}"; do
     mkdir -p "$out"
 
     echo "── $name ──"
-    if "$PYTHON" main.py \
+    if "$PA" \
         --config "$CONFIG" \
         --quiet \
         --disable-plot-display \

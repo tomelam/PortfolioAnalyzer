@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 
 PORT_DIR="port"
 OUT_DIR="plots"
-PYTHON="${PYTHON:-./venv/bin/python}"
+PA="${PA:-./venv/bin/portfolio-analyzer}"
 CONFIG="${CONFIG:-tests/fixtures/golden_master_config.toml}"  # bypass staleness gate by default
 
 mkdir -p "$OUT_DIR"
@@ -19,7 +19,7 @@ mkdir -p "$OUT_DIR"
 for file in "$PORT_DIR"/*.toml; do
     name=$(basename "$file" .toml)
     echo "Plotting $name..."
-    "$PYTHON" main.py \
+    "$PA" \
         --config "$CONFIG" \
         --quiet \
         --disable-plot-display \

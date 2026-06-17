@@ -13,7 +13,7 @@ cd "$(dirname "$0")/.."
 
 PORT_DIR="port"
 OUTPUT="portfolio_metrics.csv"
-PYTHON="${PYTHON:-./venv/bin/python}"
+PA="${PA:-./venv/bin/portfolio-analyzer}"
 CONFIG="${CONFIG:-tests/fixtures/golden_master_config.toml}"  # bypass staleness gate by default
 
 while [[ $# -gt 0 ]]; do
@@ -34,7 +34,7 @@ echo "Portfolio,CAGR,Volatility,Sharpe,Sortino,Alpha,Beta,Drawdowns,Max Drawdown
 for f in "$PORT_DIR"/*.toml; do
     name=$(basename "$f" .toml)
     tmp_dir=$(mktemp -d)
-    if "$PYTHON" main.py \
+    if "$PA" \
         --config "$CONFIG" \
         --quiet --disable-plot-display --output-csv \
         --output-dir "$tmp_dir" \

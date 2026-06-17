@@ -18,10 +18,10 @@ OUTPUT_DIR="outputs/$PORTFOLIO_NAME"
 
 mkdir -p "$OUTPUT_DIR"
 
-PYTHON="${PYTHON:-./venv/bin/python}"
+PA="${PA:-./venv/bin/portfolio-analyzer}"
 CONFIG="${CONFIG:-tests/fixtures/golden_master_config.toml}"
 
-"$PYTHON" main.py \
+"$PA" \
     --config "$CONFIG" \
     --quiet \
     --disable-plot-display \

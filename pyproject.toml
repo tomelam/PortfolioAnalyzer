@@ -22,6 +22,9 @@ dependencies = [
     "tabulate",
 ]
 
+[project.scripts]
+portfolio-analyzer = "main:cli"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
@@ -52,18 +55,11 @@ py-modules = [
     "civ_to_returns",
     "bond_calculators",
     "ppf_calculator",
-    "gold_loader",
     "extract_gold_inr_from_excel",
     "utils",
     "visualizer",
-    # Phase D extractions:
+    # Pure-function math layer.
     "metrics",
-    "mutual_fund_loader",
-    "ppf_loader",
-    "benchmark_loader",
-    "risk_free_loader",
-    "scss_loader",
-    "rec_bond_loader",
     # Post-v0.1: SGB tranche reference + lookup API.
     "sgb_tranches",
     # Phase 1 of the SGB modeling refactor: per-tranche valuation engine.
@@ -73,6 +69,8 @@ py-modules = [
     # Inauguration / defunct-status helpers (per-asset metadata).
     "fund_lifecycle",
 ]
+# Cycle 14: all *_loader.py files consolidated into the loaders/ package.
+packages = ["loaders"]
 
 [tool.ruff]
 line-length = 100

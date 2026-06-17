@@ -98,9 +98,14 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
 
 #### D. Structural improvements
 
-- [ ] **Consolidate `*_loader.py` into `loaders/` package** — 8 modules
-  at repo root. Cosmetic, improves discoverability. *(Already on Phase D
-  backlog.)*
+- [x] **Consolidated `*_loader.py` into `loaders/` package** (2026-06-17,
+  cycle 14). 7 files renamed: `benchmark_loader.py` →
+  `loaders/benchmark.py` (and the same for `gold`, `mutual_fund`,
+  `ppf`, `rec_bond`, `risk_free`, `scss`). All importers updated
+  (data_loader, main, 7 loader unit-tests). `data_loader.py`
+  re-export shim still lives at the top level. `pyproject.toml`
+  switched to `packages = ["loaders"]`. Suite 193 pass + 7 network
+  pass after the move.
 - [ ] **Consolidate `*timeseries*.py` into `timeseries/` package** — four
   files doing related work. *(Already on Phase D backlog.)*
 - [ ] **Walk `tests/TODO.md` checklist** — 25+ CLI-flag/TOML-override/

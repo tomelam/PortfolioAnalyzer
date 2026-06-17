@@ -78,7 +78,7 @@ def check_time_index_cleanliness(df, name="DataFrame"):
 
 
 # Backward-compatibility re-export. Implementation lives in benchmark_loader.
-from benchmark_loader import load_timeseries_csv  # noqa: E402, F401
+from loaders.benchmark import load_timeseries_csv  # noqa: E402, F401
 
 
 def get_aligned_portfolio_civs(portfolio):
@@ -157,7 +157,7 @@ def get_benchmark_gain_daily(benchmark_data):
 
 
 # Backward-compatibility re-export. Implementation lives in scss_loader.
-from scss_loader import load_scss_interest_rates  # noqa: E402, F401
+from loaders.scss import load_scss_interest_rates  # noqa: E402, F401
 
 
 # Load the TOML file
@@ -383,13 +383,13 @@ def fetch_navs_of_mutual_fund(url, retries=10, timeout=20):
 
     The implementation lives in ``mutual_fund_loader.fetch_navs``.
     """
-    from mutual_fund_loader import fetch_navs
+    from loaders.mutual_fund import fetch_navs
 
     return fetch_navs(url, retries=retries, timeout=timeout)
 
 
 # Backward-compatibility re-exports. Implementation lives in ppf_loader.
-from ppf_loader import load_ppf_civ, load_ppf_interest_rates  # noqa: E402, F401
+from loaders.ppf import load_ppf_civ, load_ppf_interest_rates  # noqa: E402, F401
 
 
 def calculate_gold_cumulative_gain(gold_data, portfolio_start_date):
@@ -430,7 +430,7 @@ def extract_fom_values(nav_data):
 
 # Load risk-free rate data
 # Backward-compatibility re-exports. Implementations live in risk_free_loader.
-from risk_free_loader import (  # noqa: E402, F401
+from loaders.risk_free import (  # noqa: E402, F401
     align_dynamic_risk_free_rates,
     fetch_and_standardize_risk_free_rates,
 )
