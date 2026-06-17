@@ -28,38 +28,48 @@ Sources
 
 from __future__ import annotations
 
+import datetime as dt
 import io
 import json
 import os
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
 import pandas as pd
 import requests
 
+from loaders.benchmark import load_timeseries_csv
+
 DATA_DIR = "data"
 STAMP_FILE = os.path.join(DATA_DIR, ".last_fetched.json")
 
 FRED_CSV_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
-# niftyindices historical-data CSV export (NIFTY 50 TRI). Subject to change
-# and anti-scraping; kept here as the documented upstream.
-NIFTY_TRI_URL = (
-    "https://www.niftyindices.com/IndexConstituent/"
-    "ind_close_all_TRI.csv"
-)
 
+# niftyindices serves its Total-Returns-Index history from a JSON POST API
+# behind an ASP.NET session + ARR-affinity cookie wall. A naive GET returns
+# an anti-scrape HTML page; the working recipe is: (1) GET the historical-data
+# page with a browser User-Agent to mint the session cookies, then (2) POST
+# the date range to getTotalReturnIndexString on the *same* session. The
+# response is a ``{"d": "<json-array-string>"}`` envelope.
+NIFTY_HIST_PAGE = "https://www.niftyindices.com/reports/historical-data"
+NIFTY_TRI_ENDPOINT = "https://www.niftyindices.com/Backpage.aspx/getTotalReturnIndexString"
 # FRED and most feeds are happy with the default ``requests`` User-Agent
-# (matching loaders.mutual_fund); we only override it where a host demands
-# a browser-like agent (niftyindices). Some hosts/proxies actively reject
-# *custom* UAs, so we don't invent one.
-# niftyindices rejects non-browser agents; a browser-like UA is required and
-# still may not be enough from a datacenter IP.
-_BROWSER_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    ),
-    "Referer": "https://www.niftyindices.com/",
+# (matching loaders.mutual_fund); we only override it where a host demands a
+# browser-like agent. Some hosts/proxies actively reject *custom* UAs, so we
+# don't invent one — we present a real browser string only to niftyindices.
+_NIFTY_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+)
+_NIFTY_POST_HEADERS = {
+    "User-Agent": _NIFTY_UA,
+    "Accept": "application/json, text/javascript, */*; q=0.01",
+    "Accept-Language": "en-US,en;q=0.9",
+    "X-Requested-With": "XMLHttpRequest",
+    "Content-Type": "application/json; charset=UTF-8",
+    "Referer": NIFTY_HIST_PAGE,
+    "Origin": "https://www.niftyindices.com",
 }
 
 
@@ -87,42 +97,35 @@ def parse_fred_csv(text: str) -> pd.DataFrame:
     return out
 
 
-def parse_niftyindices_tri_csv(text: str) -> pd.DataFrame:
-    """Parse a niftyindices TRI history CSV into a date-indexed ``value`` frame.
+def parse_niftyindices_tri_json(text: str) -> pd.DataFrame:
+    """Parse the niftyindices TRI JSON response into a date-indexed frame.
 
-    niftyindices column names vary across endpoints; we auto-detect a date
-    column and the total-returns/closing value column, strip comma
-    thousands separators, and parse day-first dates.
+    The endpoint returns ``{"d": "<json-array-string>"}`` where each record
+    has ``Date`` ("12 Jun 2026") and ``TotalReturnsIndex`` (string number).
+    Returns a DataFrame indexed by a ``date`` DatetimeIndex with a single
+    float ``value`` column.
     """
-    df = pd.read_csv(io.StringIO(text))
-    date_cols = [c for c in df.columns if "date" in c.lower()]
-    if not date_cols:
-        raise ValueError(f"no date column in niftyindices CSV: {list(df.columns)}")
-    val_priority = [
-        "total returns index",
-        "closing index value",
-        "closing",
-        "close",
-        "index value",
-        "price",
-    ]
-    val_col = next(
-        (c for key in val_priority for c in df.columns if key in c.lower()),
-        None,
-    )
-    if val_col is None:
-        raise ValueError(f"no value column in niftyindices CSV: {list(df.columns)}")
+    envelope = json.loads(text)
+    if "d" not in envelope:
+        raise ValueError("niftyindices response missing 'd' envelope key")
+    records = json.loads(envelope["d"])
+    if not records:
+        raise ValueError("niftyindices response contained zero records")
+    df = pd.DataFrame(records)
+    if "Date" not in df.columns or "TotalReturnsIndex" not in df.columns:
+        raise ValueError(f"unexpected niftyindices columns: {list(df.columns)}")
     out = pd.DataFrame(
         {
-            "date": pd.to_datetime(df[date_cols[0]], dayfirst=True, errors="coerce"),
+            "date": pd.to_datetime(df["Date"], format="%d %b %Y", errors="coerce"),
             "value": pd.to_numeric(
-                df[val_col].astype(str).str.replace(",", "", regex=False), errors="coerce"
+                df["TotalReturnsIndex"].astype(str).str.replace(",", "", regex=False),
+                errors="coerce",
             ),
         }
     ).dropna()
     out = out.set_index("date").sort_index()
     if out.empty:
-        raise ValueError("niftyindices CSV parsed to zero rows")
+        raise ValueError("niftyindices TRI parsed to zero rows")
     return out
 
 
@@ -141,12 +144,57 @@ def fetch_fred_series(series_id: str, *, session=None) -> pd.DataFrame:
     return parse_fred_csv(_get(FRED_CSV_URL.format(series_id=series_id), session=session))
 
 
-def fetch_niftyindices_tri(url: str = NIFTY_TRI_URL, *, session=None) -> pd.DataFrame:
-    """Fetch the NIFTY 50 TRI history from niftyindices.com.
+def fetch_niftyindices_tri(
+    *,
+    index_name: str = "NIFTY 50",
+    start: str = "01-Jan-2007",
+    end: str | None = None,
+    session=None,
+    retries: int = 4,
+    timeout: int = 30,
+    backoff: float = 1.5,
+) -> pd.DataFrame:
+    """Fetch the NIFTY 50 Total-Returns-Index history from niftyindices.com.
 
-    Sends browser-like headers; may still be blocked from non-browser IPs.
+    Defeats the anti-scrape wall by priming an ASP.NET session on the
+    historical-data page, then POSTing the date range to the TRI endpoint on
+    the same session (a single request returns the full range — no chunking).
+
+    Args:
+        index_name: niftyindices index name (default "NIFTY 50").
+        start: inclusive start, ``DD-Mon-YYYY`` (default covers full history).
+        end: inclusive end, ``DD-Mon-YYYY``; defaults to today.
+        session: optional pre-built requests Session (for tests / reuse).
+        retries: attempts for the POST before giving up.
     """
-    return parse_niftyindices_tri_csv(_get(url, session=session, headers=_BROWSER_HEADERS))
+    end = end or dt.date.today().strftime("%d-%b-%Y")
+    # cinfo is a (single-quoted) JSON string embedded inside the JSON body;
+    # built by concatenation to avoid brace-escaping noise.
+    cinfo = (
+        "{'name':'" + index_name + "','startDate':'" + start
+        + "','endDate':'" + end + "','indexName':'" + index_name + "'}"
+    )
+    body = json.dumps({"cinfo": cinfo})
+    last_error: Exception | None = None
+    for attempt in range(retries):
+        try:
+            # niftyindices is flaky; retry the WHOLE flow (cookie-prime + POST)
+            # on a fresh session so a hung prime can't strand the attempt.
+            sess = session or requests.Session()
+            sess.headers.setdefault("User-Agent", _NIFTY_UA)
+            sess.get(NIFTY_HIST_PAGE, timeout=timeout)  # mint session cookies
+            resp = sess.post(
+                NIFTY_TRI_ENDPOINT, data=body, headers=_NIFTY_POST_HEADERS, timeout=timeout
+            )
+            resp.raise_for_status()
+            return parse_niftyindices_tri_json(resp.text)
+        except Exception as e:  # noqa: BLE001 — retry transient/anti-scrape failures
+            last_error = e
+            if attempt < retries - 1:
+                time.sleep(backoff * (attempt + 1))
+    raise RuntimeError(
+        f"niftyindices TRI fetch failed after {retries} attempts: {last_error}"
+    ) from last_error
 
 
 # --- sources + writer ------------------------------------------------------
@@ -246,3 +294,67 @@ def update_all(*, session=None) -> list[dict]:
         except Exception as e:  # noqa: BLE001 — one dead feed must not kill the rest
             results.append({"name": name, "ok": False, "error": str(e)})
     return results
+
+
+# --- staleness-driven refresh (the on-run "force refresh when stale" path) -
+
+def source_for_path(path: str) -> DataSource | None:
+    """Return the registered source that writes ``path`` (basename match)."""
+    base = os.path.basename(path)
+    return next(
+        (s for s in REGISTRY.values() if os.path.basename(s.target_path) == base), None
+    )
+
+
+def local_last_date(source: DataSource) -> pd.Timestamp | None:
+    """Latest date currently on disk for ``source``'s file, or None if the
+    file is missing/unreadable."""
+    try:
+        ts = load_timeseries_csv(source.target_path, source.out_date_format, max_delay_days=None)
+        return ts.index.max()
+    except Exception:  # noqa: BLE001 — missing/garbled file ⇒ treat as "no data"
+        return None
+
+
+def refresh_path_if_stale(
+    path: str, max_age_days: int, *, session=None, today=None
+) -> dict:
+    """Force-refresh the source feeding ``path`` if its local data is older
+    than ``max_age_days``. Returns a status dict with a user-facing
+    ``message`` (empty when nothing to say).
+
+    Statuses: ``fresh`` (already current), ``refreshed`` (pulled new data),
+    ``failed`` (upstream unavailable — warn and keep existing data, an
+    early-warning rather than a hard block), ``no_source`` (``path`` has no
+    registered upstream, so it can't be auto-updated).
+    """
+    today = (
+        pd.Timestamp(today).normalize() if today is not None else pd.Timestamp.today().normalize()
+    )
+    src = source_for_path(path)
+    if src is None:
+        return {"status": "no_source", "message": ""}
+    last = local_last_date(src)
+    cutoff = today - pd.Timedelta(days=max_age_days)
+    if last is not None and last >= cutoff:
+        return {"status": "fresh", "last_date": last.date().isoformat(), "message": ""}
+    try:
+        res = update_source(src.name, session=session)
+        return {
+            "status": "refreshed",
+            "last_date": res["last_date"],
+            "message": (
+                f"🔄 Auto-updated {src.name}: {res['rows']} rows "
+                f"through {res['last_date']}."
+            ),
+        }
+    except Exception as e:  # noqa: BLE001 — upstream down ⇒ early-warning, not a crash
+        loc = f"last {last.date()}" if last is not None else "no local copy"
+        return {
+            "status": "failed",
+            "last_date": last.date().isoformat() if last is not None else None,
+            "message": (
+                f"⚠️  Could not auto-update {src.name} ({type(e).__name__}); "
+                f"proceeding with existing data ({loc})."
+            ),
+        }
