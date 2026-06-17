@@ -130,6 +130,29 @@ hits in routine runs.
 
 ## Coverage
 
-Tracked but not gated. The Timeseries family was 23–81% covered at Phase D
-start; it's now 71–98%. The CI gate is set conservatively at 20% during
-salvage; the ratchet path (40 → 70 → 85%) is in `KANBAN.md`.
+CI gates at `--cov-fail-under=65` (`.github/workflows/ci.yml`, `pytest
+--cov=. --cov-report=term-missing`). The ratchet path (65 → 70 → 85%) is
+in `KANBAN.md` → Hygiene.
+
+### Baseline (2026-06-17, 204 passed)
+
+**TOTAL: 74%** (3121 statements, 805 missed). Reproduce with:
+
+```bash
+pytest --cov=. --cov-report=term-missing
+```
+
+Notable modules:
+
+| Module | Cover | Note |
+|---|---|---|
+| `metrics.py` | 94% | core formulas, well covered |
+| `timeseries/` (civ, asset, classes) | 84–98% | |
+| `loaders/*` | 79–100% | parser layers unit-tested |
+| `data_loader.py` | 59% | orchestration; some paths only via subprocess |
+| `timeseries/returns.py` | 44% | largest gap (133/239 missed) — report/format methods |
+| `main.py` | 1% | **measurement artifact**: exercised end-to-end by the golden + e2e tests, but those run main.py in a *subprocess*, so coverage isn't attributed here |
+| `visualizer.py`, `ppf_calculator.py`, `extract_gold_inr_from_excel.py` | 0% | plotting / unused scripts, no unit tests |
+
+The biggest genuine opportunity to raise the number is `timeseries/returns.py`;
+`main.py`'s 1% is misleading (subprocess execution), not untested behavior.

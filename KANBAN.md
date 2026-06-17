@@ -300,7 +300,11 @@ are unaware of each other.
   pickle (be81873). Threaded `replay_from`/`save_replay` through
   `fetch_portfolio_civs` + `load_scss_interest_rates`; also dropped a
   redundant second `fetch_portfolio_civs` call in main.py.
-- [ ] Record coverage baseline (after Phase D test additions)
+- [x] **Recorded coverage baseline** (2026-06-17). TOTAL 74% (3121 stmts,
+  805 missed) at 204 passed; CI gate is `--cov-fail-under=65` (passing).
+  Documented per-module in `docs/TESTING.md` → Coverage, including the
+  `main.py` 1% subprocess-measurement caveat. Biggest genuine gap:
+  `timeseries/returns.py` at 44%.
 - [x] **Daily-method Sharpe/Vol inflation on synthetic-CIV portfolios FIXED.** Root cause was *not* zero-return-days as suspected — it was `pd.concat(join="inner")` in `combined_civ_series` collapsing the portfolio CIV to the *intersection* of dates. With monthly-sampled gold or PPF present, that intersection was monthly, so applying `sqrt(252)` annualization yielded 10× inflated Vol. Fix: reindex every asset onto a common business-day calendar with ffill before joining. Result: port-mf-ppf-gold daily Sharpe 4.98 → 0.46 (matches monthly 0.43); port-everything daily Sharpe 7.33 → 0.76 (matches monthly 0.69); daily/monthly Vol now within ~1pp. TDD tests at `tests/unit/test_portfolio_civ_frequency.py`.
 - [x] **`combined_civ_series` scale-mismatch bug FIXED.** Previously summed `asset.civ.value_series() * weight` without normalizing, so PPF (raw NAV ₹2566) dominated MFs (NAV ₹18) — contributing 95% of starting CIV despite 15% allocation. Now normalizes each asset's CIV to 1.0 at the common start before weighting. Two TDD tests pin the scale-invariance contract (`tests/unit/test_portfolio_civ_normalization.py`). All 6 goldens re-captured.
 - [x] **12 skip-marked metric tests** unblocked by rewriting each to call `metrics.sharpe/sortino/volatility` directly (option b). Suite now 115 passed / 3 skipped (where the 3 are unrelated legacy items below).
@@ -394,7 +398,7 @@ are unaware of each other.
 - [ ] Re-enable `SIM` (flake8-simplify) lint family disabled during the v0.1 push; ~15 style hints to triage (mostly ternaries vs if/else, nested-with, dict.keys()).
 - [ ] Replace deprecated `.fillna(method='ffill')` (if still present) with `.ffill()`
 - [ ] Add type hints incrementally; switch `ignore_missing_imports` off per-module
-- [ ] Raise CI coverage gate from 20% → 40% → 70%
+- [ ] Raise CI coverage gate 65% → 70% → 85% (currently `--cov-fail-under=65`; baseline TOTAL is 74%, so 70% is already safe to set)
 - [ ] Decide fate of `defunct_feature_var_rate_bonds` and `defunct_main` branches (likely delete after v0.1)
 - [ ] Decide fate of `port/` directory naming — rename to `portfolios/` for clarity?
 - [ ] Investigate `outputs/port-*/` cached runs — keep as canonical examples or move to attic?
