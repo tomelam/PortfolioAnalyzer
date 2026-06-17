@@ -54,21 +54,21 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   still blocks with "outdated" on the stale CSV. Default remains
   strict so silent drift can't creep in.
 
-- [ ] **Auto-update the benchmark CSV.** `data/NIFTY Total Returns Historical
-  Data.csv` is currently a manual investing.com download (last refreshed
-  2025-05-02; 13+ months stale as of today). Build a fetcher that pulls
-  fresh NIFTY 50 TRI data from a stable source — niftyindices.com publishes
-  daily total-return CSVs at
-  `https://www.niftyindices.com/IndexConstituent/ind_close_all_<DDMMYYYY>.csv`
-  or via their historical-data endpoint. Where a stable, no-auth source
-  exists for other benchmarks (e.g. India 10Y bond yield via FRED's
-  `INDIRLTLT01STM`), auto-refresh those too. Per-source rule: scheduled
-  background refresh (cron-able), with last-modified-date stamps so the
-  staleness gate can become "early warning, not a hard blocker." See
-  also the existing "Refresh stale data files" item under *Data freshness*.
-  User intent (2026-06-17): the "up to date benchmark data should be
-  auto-updated" path is the default; the bypass-flag item above is the
-  fallback for when the auto-update source is itself unavailable.
+- [x] **Auto-update benchmark + risk-free data** (2026-06-17). Built
+  `loaders/data_update.py`: a DataSource registry + fetchers that normalize
+  upstream feeds to the loader schema, write last-fetched stamps, and isolate
+  per-source failures.
+  - Risk-free: FRED `INDIRLTLT01STM` (no-auth CSV) — live-verified; now the
+    default risk-free source (`data/INDIRLTLT01STM.csv`).
+  - Benchmark: NIFTY 50 TRI from niftyindices.com via a robust client
+    (session cookie-prime + JSON POST API) — defeats the anti-scrape wall;
+    proven live (4817 rows). niftyindices rate-limits repeated hits, so the
+    live test skips only on confirmed throttling.
+  - On-run: stale data is **force-refreshed by default** (off under
+    `--as-of`/`--replay-from`/`--skip-age-check`/`--no-auto-update`); on
+    upstream failure it warns and proceeds (early-warning, not a hard block).
+  - Cron-able `portfolio-analyzer-update` console script. See
+    `docs/DATA_REFRESH.md`. Goldens re-captured against the FRED risk-free.
 
 - [x] **Added `--as-of YYYY-MM-DD` flag** (2026-06-17, cycle 16).
   Pins the reference (as-of) date across the pipeline: every loaded
@@ -392,13 +392,11 @@ are unaware of each other.
 - [x] **Decided: keep the repo public** (user, 2026-06-17). No reason to make it private during salvage.
 
 ### Data freshness (separate from salvage; user responsibility)
-- [ ] **Refresh stale data files.** As of 2026-06-14, the canonical data files in `data/` are 13+ months out of date and the code's own staleness checks refuse to run against them:
-  - `data/NIFTY Total Returns Historical Data.csv` — last date 2025-05-02 (NIFTY Total Returns Index)
-  - `data/India 10-Year Bond Yield Historical Data.csv` — last date 2025-03-28 (risk-free rate)
-- [ ] These are manual downloads (investing.com / similar). Document the refresh procedure in `docs/DATA_CLEANING.txt` or a new `docs/DATA_REFRESH.md`.
-- [ ] Golden-master tests captured before refresh (Phase C of this salvage) are pinned to the stale data via `tests/fixtures/golden_master_config.toml` (`skip_age_check = true`, `max_riskfree_delay = 99999`). **After refreshing the CSVs, re-capture the goldens** — the existing ones will no longer match.
-- [ ] Consider automating the NIFTY + bond-yield refresh (scraper or scheduled fetch) so the staleness gate becomes early-warning, not a hard blocker, for routine runs.
-- [ ] Also refresh any other under-watched data sources used by `data_loader.py`: `ppf_interest_rates.csv`, REC bond coupon table, SCSS rate table (if file-backed) — audit `data/` for last-modified dates.
+- [x] **Benchmark + risk-free refresh is now automated** (2026-06-17) — superseded the manual-download burden. See the "Auto-update benchmark + risk-free data" item under *Determinism / trustworthiness* and `docs/DATA_REFRESH.md`:
+  - Risk-free now FRED `INDIRLTLT01STM` (auto-fetched); benchmark NIFTY 50 TRI auto-scraped from niftyindices.
+  - Procedure documented in `docs/DATA_REFRESH.md`; on-run force-refresh + cron-able `portfolio-analyzer-update`; staleness gate is now early-warning, not a hard blocker.
+  - Goldens re-captured against the FRED risk-free (pinned via `--as-of`/`--replay-from`, so they stay deterministic regardless of live data).
+- [ ] **Audit the remaining under-watched data sources** not yet auto-updated: `ppf_interest_rates.csv`, REC bond coupon table, gold (`data/gold_monthly_inr.csv`). SCSS is already fetched live. These change rarely; add registry entries if/when stable feeds are identified.
 
 ### Hygiene / tech debt
 - [x] **Plot ↔ metrics consistency** (Phase F follow-up). `main.py` fed the plot with `cumprod(1 + combined_daily_returns)` while the metrics box used `combined_civ_series`. For mixed-frequency portfolios (daily MFs + monthly gold), the two diverged because weighted-sum-of-asset-returns ≠ return-of-weighted-sum, and the legacy `combined_daily_returns` inner-joined to the monthly intersection. Fixed `main.py` to feed `portfolio_civ_series.series` directly to the plotter. Three TDD tests pin the contract (`tests/unit/test_plot_metric_consistency.py`); the third test documents the *reason* the old path was wrong and will fail loudly if `combined_daily_returns` is ever independently re-aligned.
@@ -419,7 +417,7 @@ are unaware of each other.
 - [x] **`SIM` (flake8-simplify) lint family re-enabled** (reconciled 2026-06-17). `SIM` is in `[tool.ruff.lint] select` and `ruff check .` is clean — no outstanding hints.
 - [x] **No deprecated `.fillna(method='ffill')` remain** (reconciled 2026-06-17). Repo-wide grep is clean; the `synthetic_civ.py` cases were fixed earlier (see Phase-C bug-fix log).
 - [ ] Add type hints incrementally; switch `ignore_missing_imports` off per-module
-- [ ] Raise CI coverage gate 70% → 85% (set to `--cov-fail-under=70` on 2026-06-17; baseline TOTAL is 82% after data_loader.py reached 99%. The remaining levers are real tests for `main.py` — currently 1% as a subprocess-measurement artifact — and the unused `visualizer.py` / `ppf_calculator.py`.)
+- [x] **CI coverage gate raised to 85%** (2026-06-17; `--cov-fail-under=85`). Baseline TOTAL is 87% (287 passed) after adding `data_loader`, `data_update`, and `visualizer` (smoke) tests, and parking the dead `ppf_calculator.py` / `extract_gold_inr_from_excel.py` to `attic/`. The only large remaining "gap" is `main.py` at 1%, which is a subprocess-measurement artifact (it's covered end-to-end by the golden + e2e tests), not untested behavior.
 - [x] **Deleted `defunct_feature_var_rate_bonds` and `defunct_main`** (local + origin, 2026-06-17), now that `v0.1-salvage` is confirmed tagged + pushed. Both superseded (defunct_main = pre-salvage main, fully reachable from current main; defunct_feature_var_rate_bonds = old Yahoo-Finance-replacement WIP, functionality reimplemented live in `bond_calculators.calculate_variable_bond_cumulative_gain`). Tip SHAs recorded for recovery (defunct branch had 8 commits not on main): `defunct_main` = `cea0300`, `defunct_feature_var_rate_bonds` = `2fe272d`. Recoverable from local reflog short-term; re-create with `git branch <name> <sha>` if ever needed.
 - [x] **Decided: keep `port/`** (2026-06-17) — cosmetic rename not worth the cross-repo churn post-tag; see Housekeeping section.
 - [x] **Decided: keep `outputs/` as a gitignored local cache** (2026-06-17) — see Housekeeping section.

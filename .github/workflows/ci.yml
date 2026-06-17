@@ -32,4 +32,4 @@ jobs:
         run: ruff check .
 
       - name: Run tests (no network)
-        run: pytest --cov=. --cov-report=term-missing --cov-fail-under=70
+        run: pytest --cov=. --cov-report=term-missing --cov-fail-under=85
