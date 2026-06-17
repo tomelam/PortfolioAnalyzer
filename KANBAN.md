@@ -33,6 +33,16 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
 
 #### B. Determinism / trustworthiness
 
+- [x] **Stale NIFTY benchmark is a hard blocker — add a bypass flag**
+  (2026-06-17, cycle 10). Added `--skip-age-check` CLI flag. When
+  active it bypasses both the benchmark and risk-free CSV staleness
+  gates (the latter via auto-bumping `max_riskfree_delay` to 99999
+  unless the user explicitly set it). main.py prints a one-line
+  warning ("⚠️ --skip-age-check active …") so the bypass is never
+  silent. 2 integration tests: --help lists the flag; strict-by-default
+  still blocks with "outdated" on the stale CSV. Default remains
+  strict so silent drift can't creep in.
+
 - [ ] **Auto-update the benchmark CSV.** `data/NIFTY Total Returns Historical
   Data.csv` is currently a manual investing.com download (last refreshed
   2025-05-02; 13+ months stale as of today). Build a fetcher that pulls
@@ -45,6 +55,9 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   background refresh (cron-able), with last-modified-date stamps so the
   staleness gate can become "early warning, not a hard blocker." See
   also the existing "Refresh stale data files" item under *Data freshness*.
+  User intent (2026-06-17): the "up to date benchmark data should be
+  auto-updated" path is the default; the bypass-flag item above is the
+  fallback for when the auto-update source is itself unavailable.
 
 - [ ] **Add `--today YYYY-MM-DD` flag** so the safety-net tests are
   deterministic without live mfapi drift. Once it exists, tighten golden

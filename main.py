@@ -37,6 +37,11 @@ def main(settings):
         f"\nPortfolio metrics for {portfolio_label} (direct, growth) using "
         f" {settings["metrics_method"]} metrics method\n"
     )
+    if settings.get("skip_age_check"):
+        print(
+            "⚠️  --skip-age-check active: benchmark/risk-free staleness "
+            "gate bypassed. Refresh the CSVs in data/ when convenient."
+        )
     if settings["debug"]:
         info(f"Portfolio label: {portfolio_label}.")
         info("Merged settings:")
@@ -538,6 +543,16 @@ def parse_arguments():
         ),
     )
     parser.add_argument(
+        "--skip-age-check",
+        action="store_true",
+        help=(
+            "Bypass the stale-data blocker on the benchmark CSV and "
+            "risk-free-rate CSV. Use when the auto-update path is "
+            "unavailable; the run will still warn so silent staleness "
+            "doesn't go unnoticed."
+        ),
+    )
+    parser.add_argument(
         "--debug", "-d", action="store_true", help="Show full tracebacks for debugging."
     )
 
@@ -574,7 +589,7 @@ def cli():
             "drawdown_threshold": args.max_drawdown_threshold
             or config.get("max_drawdown_threshold", 5.0),
             "metrics_method": args.metrics_method or config.get("metrics_method", "daily"),
-            "skip_age_check": config.get("skip_age_check", False),
+            "skip_age_check": args.skip_age_check or config.get("skip_age_check", False),
             "quiet": args.quiet or config.get("quiet", False),
             "save_golden": args.save_golden_data or config.get("save_golden_data", False),
             "debug": args.debug or config.get("debug", False),
@@ -591,6 +606,11 @@ def cli():
             "riskfree_date_format": config.get("riskfree_date_format", "%m/%d/%Y"),
             "max_riskfree_delay": args.max_riskfree_delay or config.get("max_riskfree_delay", 61),
         }
+        # --skip-age-check loosens the risk-free CSV gate too, otherwise the
+        # user is one step closer but still blocked by a separate check.
+        # An explicit --max-riskfree-delay wins to keep that knob useful.
+        if settings["skip_age_check"] and not args.max_riskfree_delay:
+            settings["max_riskfree_delay"] = 99999
         main(settings)
     except Exception as e:
         print(f"\nError: {e}", file=sys.stderr)

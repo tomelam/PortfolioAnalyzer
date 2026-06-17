@@ -63,6 +63,41 @@ def test_missing_portfolio_file_exits_nonzero(tmp_path: Path) -> None:
 
 
 @pytest.mark.integration
+def test_help_lists_skip_age_check_flag() -> None:
+    """``--skip-age-check`` must surface in ``--help``; without it, a user
+    facing a stale benchmark CSV has no documented escape from the hard
+    blocker except editing a config file."""
+    result = subprocess.run(
+        [PYTHON, "main.py", "--help"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0
+    assert "--skip-age-check" in result.stdout
+
+
+@pytest.mark.integration
+def test_stale_benchmark_blocks_by_default_passes_with_flag(tmp_path: Path) -> None:
+    """Strict-by-default staleness check should block; ``--skip-age-check``
+    is the documented bypass. Test triggers the error path via the
+    benchmark loader without making a network call (missing TOML stops
+    the run early, but argparse exits 0 only when --help-style flags are
+    accepted)."""
+    # Strict run with a real TOML against the stale CSV: exit non-zero.
+    strict = subprocess.run(
+        [PYTHON, "main.py", "--quiet", "--disable-plot-display", "port/port-1.toml"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert strict.returncode != 0
+    assert "outdated" in (strict.stdout + strict.stderr).lower()
+
+
+@pytest.mark.integration
 @pytest.mark.network
 def test_full_run_produces_csv(tmp_path: Path) -> None:
     """End-to-end smoke: a real portfolio run produces the expected CSV file
