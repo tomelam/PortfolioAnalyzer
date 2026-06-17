@@ -1,8 +1,8 @@
 
 import pandas as pd
 
-from asset_timeseries import AssetTimeseries, from_civ
-from timeseries_civ import TimeseriesCIV
+from timeseries.asset import AssetTimeseries, from_civ
+from timeseries.civ import TimeseriesCIV
 from utils import dbg
 
 

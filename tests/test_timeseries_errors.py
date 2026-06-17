@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 import metrics
-from timeseries import TimeseriesReturn
+from timeseries.returns import TimeseriesReturn
 
 # === Edge Case Extensions ===
 

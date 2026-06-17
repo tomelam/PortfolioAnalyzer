@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from timeseries import TimeseriesReturn
+from timeseries.returns import TimeseriesReturn
 
 
 @dataclass

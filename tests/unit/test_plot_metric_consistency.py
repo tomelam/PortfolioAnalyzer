@@ -22,8 +22,8 @@ import pandas as pd
 import pytest
 
 import metrics
-from asset_timeseries import from_civ
-from portfolio_timeseries import PortfolioTimeseries
+from timeseries.asset import from_civ
+from timeseries.portfolio import PortfolioTimeseries
 
 
 def _bdaily(values: list[float], start: str = "2020-01-01") -> pd.Series:
@@ -105,7 +105,7 @@ def test_alpha_capm_is_sensible_for_mixed_frequency_portfolio() -> None:
     """
     import numpy as np
 
-    from timeseries import TimeseriesReturn
+    from timeseries.returns import TimeseriesReturn
 
     rng = np.random.default_rng(seed=42)
 

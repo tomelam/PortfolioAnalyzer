@@ -14,7 +14,7 @@ import pandas as pd
 import pytest
 
 from loaders.benchmark import load_timeseries_csv
-from timeseries import TimeseriesReturn
+from timeseries.returns import TimeseriesReturn
 
 FIXTURES = Path(__file__).resolve().parent.parent.parent / "fixtures" / "data"
 

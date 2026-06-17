@@ -57,10 +57,10 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 | `*_loader.py` | One per asset class; ingest source data → standardized Series/DataFrame |
 | `synthetic_civ.py` | PPF / SCSS / REC interest-rate → daily-equivalent CIV |
 | `civ_to_returns.py` | CIV → daily/monthly returns (with `pct_change`) |
-| `timeseries.py` | `TimeseriesReturn` class: the alpha/beta methods + thin delegates to `metrics.py` |
-| `timeseries_civ.py` | `TimeseriesCIV` class: validates name='value'; `to_returns` + hand-rolled `max_drawdowns` |
-| `asset_timeseries.py` | `AssetTimeseries` dataclass holding `civ` / `ret` / `cumret` views |
-| `portfolio_timeseries.py` | `PortfolioTimeseries`: weighted aggregation; the two CIV-bug fixes live here |
+| `timeseries/returns.py` | `TimeseriesReturn` class: the alpha/beta methods + thin delegates to `metrics.py` |
+| `timeseries/civ.py` | `TimeseriesCIV` class: validates name='value'; `to_returns` + hand-rolled `max_drawdowns` |
+| `timeseries/asset.py` | `AssetTimeseries` dataclass holding `civ` / `ret` / `cumret` views |
+| `timeseries/portfolio.py` | `PortfolioTimeseries`: weighted aggregation; the two CIV-bug fixes live here |
 | `metrics.py` | **Pure-function math layer.** All Sharpe/Sortino/Vol/CAGR/drawdown logic |
 | `portfolio_calculator.py` | `calculate_portfolio_allocations` + `calculate_gains_cumulative` |
 | `bond_calculators.py` | `calculate_variable_bond_cumulative_gain` (used by `rec_bond_loader`) |

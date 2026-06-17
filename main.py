@@ -17,8 +17,8 @@ from portfolio_calculator import (
     calculate_gains_cumulative,
     calculate_portfolio_allocations,
 )
-from portfolio_timeseries import from_multiple_nav_series
-from timeseries import TimeseriesReturn  # TODO: FIXME: TimeseriesReturn is being obsoleted
+from timeseries.portfolio import from_multiple_nav_series
+from timeseries.returns import TimeseriesReturn  # TODO: FIXME: TimeseriesReturn is being obsoleted
 from utils import (
     dbg,
     info,

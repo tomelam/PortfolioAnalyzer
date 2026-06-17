@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from timeseries import TimeseriesReturn
+from timeseries.returns import TimeseriesReturn
 
 # === Core Safety Tests ===
 

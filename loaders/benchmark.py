@@ -15,7 +15,7 @@ import os
 
 import pandas as pd
 
-from timeseries import TimeseriesReturn
+from timeseries.returns import TimeseriesReturn
 from utils import dbg, info
 
 try:

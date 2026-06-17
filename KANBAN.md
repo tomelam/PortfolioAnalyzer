@@ -106,8 +106,16 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   re-export shim still lives at the top level. `pyproject.toml`
   switched to `packages = ["loaders"]`. Suite 193 pass + 7 network
   pass after the move.
-- [ ] **Consolidate `*timeseries*.py` into `timeseries/` package** — four
-  files doing related work. *(Already on Phase D backlog.)*
+- [x] **Consolidated `*timeseries*.py` into `timeseries/` package**
+  (2026-06-17, cycle 15). 4 files renamed: `timeseries.py` →
+  `timeseries/returns.py`, `timeseries_civ.py` → `timeseries/civ.py`,
+  `asset_timeseries.py` → `timeseries/asset.py`, `portfolio_timeseries.py`
+  → `timeseries/portfolio.py`. `timeseries/__init__.py` re-exports the
+  four public classes (TimeseriesReturn, TimeseriesCIV, AssetTimeseries,
+  PortfolioTimeseries) plus the two factories (`from_civ`,
+  `from_multiple_nav_series`). All consumers' imports updated to
+  point at the qualified module path. Suite 193 pass + 7 network
+  pass after the move.
 - [ ] **Walk `tests/TODO.md` checklist** — 25+ CLI-flag/TOML-override/
   failure-mode scenarios never converted to real tests. Most overlap with
   `tests/integration/test_main_e2e.py` which currently has only 3 tests.

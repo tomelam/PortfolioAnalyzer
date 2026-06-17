@@ -46,10 +46,6 @@ live-gold = [
 py-modules = [
     "main",
     "data_loader",
-    "timeseries",
-    "timeseries_civ",
-    "asset_timeseries",
-    "portfolio_timeseries",
     "portfolio_calculator",
     "synthetic_civ",
     "civ_to_returns",
@@ -70,7 +66,9 @@ py-modules = [
     "fund_lifecycle",
 ]
 # Cycle 14: all *_loader.py files consolidated into the loaders/ package.
-packages = ["loaders"]
+# Cycle 15: timeseries.py + timeseries_civ.py + asset_timeseries.py +
+# portfolio_timeseries.py consolidated into the timeseries/ package.
+packages = ["loaders", "timeseries"]
 
 [tool.ruff]
 line-length = 100

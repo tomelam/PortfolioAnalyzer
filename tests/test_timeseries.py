@@ -3,8 +3,8 @@ import pandas as pd
 import pytest
 
 import metrics
-from asset_timeseries import AssetTimeseries, from_civ
-from timeseries import TimeseriesReturn
+from timeseries.asset import AssetTimeseries, from_civ
+from timeseries.returns import TimeseriesReturn
 
 
 @pytest.mark.order(10)
