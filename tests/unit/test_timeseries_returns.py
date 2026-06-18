@@ -127,12 +127,15 @@ def test_alpha_and_beta_happy_paths():
     assert np.isfinite(port.beta_capm(bench))
 
 
-def test_alpha_capm_fallback_to_regression_beta():
+def test_alpha_capm_fallback_to_regression_beta(monkeypatch):
     # fallback path: if beta_capm raises, fall back to beta_regression.
+    # alpha_capm delegates to the pure metrics layer, so patch it there.
+    import metrics
     bench = TimeseriesReturn(_returns(300, seed=3))
     port = TimeseriesReturn(pd.Series(_returns(300, seed=4).values, index=bench.index, name="value"))
-    # Force beta_capm to raise, exercising the fallback branch.
-    port.beta_capm = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+    monkeypatch.setattr(
+        metrics, "beta_capm", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
     assert np.isfinite(port.alpha_capm(bench, fallback_to_simple_beta=True))
 
 

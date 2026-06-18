@@ -16,7 +16,12 @@ import math
 import pandas as pd
 import pytest
 
+import metrics
 from metrics import (
+    alpha_capm,
+    alpha_regression,
+    beta_capm,
+    beta_regression,
     cagr,
     max_drawdown,
     max_drawdowns,
@@ -191,3 +196,81 @@ def test_max_drawdowns_skips_unrecovered() -> None:
 
 def test_max_drawdowns_empty_input_returns_empty() -> None:
     assert max_drawdowns(pd.Series([], dtype=float), threshold=0.05) == []
+
+
+# ---- alpha / beta (return series in, scalar out) ------------------------
+
+_BENCH = pd.Series(
+    [0.01, -0.02, 0.03, 0.0, 0.015, -0.01],
+    index=pd.bdate_range("2024-01-01", periods=6),
+)
+
+
+def test_beta_capm_two_x_benchmark_is_two() -> None:
+    # A portfolio that is exactly 2× the benchmark has CAPM beta = 2.
+    port = 2.0 * _BENCH
+    assert beta_capm(port, _BENCH) == pytest.approx(2.0, abs=1e-9)
+
+
+def test_beta_capm_empty_raises() -> None:
+    empty = pd.Series([], dtype=float)
+    with pytest.raises(ValueError, match="input series is empty"):
+        beta_capm(empty, empty)
+
+
+def test_beta_capm_too_few_aligned_raises() -> None:
+    two = pd.Series([0.01, 0.02], index=pd.bdate_range("2024-01-01", periods=2))
+    with pytest.raises(ValueError, match="Too few aligned data points to compute beta_capm"):
+        beta_capm(two, two)
+
+
+def test_beta_regression_three_x_benchmark_is_three() -> None:
+    # A portfolio that is exactly 3× the benchmark has regression beta = 3.
+    port = 3.0 * _BENCH
+    assert beta_regression(port, _BENCH) == pytest.approx(3.0, abs=1e-9)
+
+
+def test_beta_regression_too_few_points_raises() -> None:
+    one = pd.Series([0.01], index=pd.bdate_range("2024-01-01", periods=1))
+    with pytest.raises(ValueError, match="at least two aligned data points"):
+        beta_regression(one, one)
+
+
+def test_alpha_regression_exact_line_has_zero_intercept() -> None:
+    # port = 2×bench exactly ⇒ regression line passes through origin ⇒ alpha ≈ 0.
+    port = 2.0 * _BENCH
+    assert alpha_regression(port, _BENCH) == pytest.approx(0.0, abs=1e-9)
+
+
+def test_alpha_regression_empty_raises() -> None:
+    empty = pd.Series([], dtype=float)
+    with pytest.raises(ValueError, match="input series is empty"):
+        alpha_regression(empty, empty)
+
+
+def test_alpha_regression_no_variation_raises() -> None:
+    flat = pd.Series([0.01] * 5, index=pd.bdate_range("2024-01-01", periods=5))
+    with pytest.raises(ValueError, match="no variation"):
+        alpha_regression(flat, flat)
+
+
+def test_alpha_capm_identical_series_is_zero() -> None:
+    # port == bench ⇒ beta = 1 and mean(Rp) - (Rf + beta·(mean(Rb) - Rf)) = 0.
+    assert alpha_capm(_BENCH, _BENCH) == pytest.approx(0.0, abs=1e-9)
+
+
+def test_alpha_capm_empty_raises() -> None:
+    empty = pd.Series([], dtype=float)
+    with pytest.raises(ValueError, match="input series is empty"):
+        alpha_capm(empty, empty)
+
+
+def test_alpha_capm_falls_back_to_regression_beta(monkeypatch) -> None:
+    # When beta_capm raises and fallback is enabled, alpha_capm uses
+    # beta_regression instead and still returns a finite number.
+    def boom(*a, **k):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(metrics, "beta_capm", boom)
+    result = alpha_capm(2.0 * _BENCH, _BENCH, fallback_to_simple_beta=True)
+    assert math.isfinite(result)
