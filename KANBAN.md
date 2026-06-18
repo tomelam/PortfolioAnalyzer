@@ -403,8 +403,24 @@ are unaware of each other.
 - [x] Test `TimeseriesCIV`, `TimeseriesReturn`, `AssetTimeseries`, `PortfolioTimeseries` independently — 11 tests in `tests/unit/test_timeseries_classes.py` covering class-level surface (constructors, validation, `combined_daily_returns`, hand-rolled `TimeseriesCIV.max_drawdowns`, `summary`). Coverage of the four files now 71–98% (was 23–81%).
 - [x] Unit tests for `synthetic_civ.py` — 6 tests pin PPF monthly accrual, March yearly credit, mid-year rate changes, and Series/DataFrame input flexibility.
 - [x] Unit tests for `civ_to_returns.py` — 6 tests including the round-trip identity (CIV → returns → cumprod ≈ normalized CIV).
-- [ ] Replace dead/scattered metrics code with tested `metrics.py` (CAGR, vol, Sharpe, Sortino, alpha, beta, drawdowns)
-- [ ] Reference: `~/Projects/PortfolioAnalyzer.attic/tmp-mar2025/test_metrics.py` has golden formulas
+- [x] **Replace dead/scattered metrics code with tested `metrics.py`** (2026-06-18).
+  The risky 80% (cagr/vol/Sharpe/Sortino/max_drawdown/max_drawdowns) was already
+  consolidated in Phase C/F; the only metric math still living inline in
+  `timeseries/returns.py` was the CAPM/regression alpha & beta. Moved all four
+  (`alpha_capm`, `beta_capm`, `alpha_regression`, `beta_regression`) into
+  `metrics.py` as pure functions taking two return Series; the class methods now
+  delegate (and the lazy per-method `import metrics` + unused `warnings`/`dbg`
+  imports were cleaned up — single top-level `import metrics`). 10 new pure-function
+  tests in `test_metrics.py` (beta=2× / 3× known answers, zero-intercept, identical-
+  series-alpha=0, empty/too-few raises, fallback-to-regression-beta via monkeypatch).
+  The class-level fallback test was repointed at `metrics.beta_capm` since the
+  instance method is no longer consulted. Behavior byte-identical: all 6 goldens
+  green at 1e-9; suite 337 pass (340 incl. network). `returns.py` delegators 100%
+  covered, `metrics.py` 95%, TOTAL 88%.
+- [x] **Reference `attic/tmp-mar2025/test_metrics.py`** (2026-06-18). Inspected —
+  it only asserts dict keys exist (`"Annualized Return" in metrics`); no golden
+  formulas to salvage. The live `tests/unit/test_metrics.py` is already richer.
+  Nothing to port.
 - [x] Decided: `portfolio_calculator.py` — KEEP. Two functions live (`calculate_portfolio_allocations`, `calculate_gains_cumulative`); dropped dead `calculate_gain_daily_portfolio_series` and its unused import in main.py, plus the commented-out duplicate header.
 - [x] **Audited `bond_calculators.py`** (already done in post-v0.1 cleanup cycle 5; reconciled 2026-06-17). The 4 unused funcs (`calculate_bond_cumulative_gain` + 3 pre-refactor SGB approximations) were deleted — superseded by `sgb_holdings.sgb_holding_civ`. Only the live `calculate_variable_bond_cumulative_gain` remains (used by `loaders/rec_bond.py` + `main.py` SCSS path); file is now ~52 lines at 100% coverage. Their removal is preserved in git history (no future rationale — superseded, not parked).
 - [x] Decided: `visualizer.py` — KEEP. `plot_cumulative_returns` + `print_major_drawdowns` both live in main.py. Matplotlib import cost is acceptable for now; tests use `--disable-plot-display`.

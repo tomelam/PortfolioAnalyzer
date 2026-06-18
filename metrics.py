@@ -14,7 +14,9 @@ Naming convention:
 from __future__ import annotations
 
 import math
+import warnings
 
+import numpy as np
 import pandas as pd
 
 
@@ -166,3 +168,110 @@ def max_drawdowns(prices: pd.Series, threshold: float = 0.05) -> list[dict]:
                 in_drawdown = False
                 peak_value = peak_date = trough_value = trough_date = None
     return out
+
+
+# --- CAPM / regression alpha & beta --------------------------------------
+#
+# These consume two **return** series (portfolio and benchmark), aligned
+# on dates by inner join. ``risk_free_rate`` is a scalar per-period rate.
+
+
+def beta_capm(
+    portfolio_returns: pd.Series,
+    benchmark_returns: pd.Series,
+    risk_free_rate: float = 0.0,
+) -> float:
+    """CAPM beta: ``Cov(Rp - Rf, Rb - Rf) / Var(Rb - Rf)``."""
+    if portfolio_returns.empty or benchmark_returns.empty:
+        raise ValueError("Cannot compute beta_capm: input series is empty.")
+
+    benchmark_aligned, portfolio_aligned = benchmark_returns.align(
+        portfolio_returns, join="inner"
+    )
+    if len(benchmark_aligned) < 3:
+        raise ValueError("Too few aligned data points to compute beta_capm.")
+
+    excess_benchmark = benchmark_aligned - risk_free_rate
+    excess_portfolio = portfolio_aligned - risk_free_rate
+    return excess_portfolio.cov(excess_benchmark) / excess_benchmark.var()
+
+
+def beta_regression(
+    portfolio_returns: pd.Series,
+    benchmark_returns: pd.Series,
+) -> float:
+    """Regression beta: slope of ``Rp`` regressed on ``Rb``."""
+    benchmark_aligned, portfolio_aligned = benchmark_returns.align(
+        portfolio_returns, join="inner"
+    )
+    if len(benchmark_aligned) < 2:
+        raise ValueError("Beta requires at least two aligned data points")
+    coeffs = np.polyfit(benchmark_aligned, portfolio_aligned, 1)
+    return float(coeffs[0])
+
+
+def alpha_regression(
+    portfolio_returns: pd.Series,
+    benchmark_returns: pd.Series,
+) -> float:
+    """Regression alpha: the intercept of ``Rp`` regressed on ``Rb``.
+
+    The intercept is the portfolio's average per-period return when the
+    benchmark's return is zero. Not annualized (unlike ``alpha_capm``).
+    """
+    if portfolio_returns.empty or benchmark_returns.empty:
+        raise ValueError("Cannot compute alpha: input series is empty.")
+
+    if np.allclose(benchmark_returns, benchmark_returns.iloc[0]) or np.allclose(
+        portfolio_returns, portfolio_returns.iloc[0]
+    ):
+        raise ValueError("Cannot compute alpha: no variation in returns.")
+
+    benchmark_aligned, portfolio_aligned = benchmark_returns.align(
+        portfolio_returns, join="inner"
+    )
+    if len(benchmark_aligned) < 3:
+        raise ValueError("Too few aligned data points after trimming. Cannot compute alpha.")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", np.RankWarning)
+        coeffs = np.polyfit(benchmark_aligned, portfolio_aligned, 1)
+
+    return float(coeffs[1])  # intercept = alpha
+
+
+def alpha_capm(
+    portfolio_returns: pd.Series,
+    benchmark_returns: pd.Series,
+    risk_free_rate: float = 0.0,
+    periods_per_year: int = 252,
+    fallback_to_simple_beta: bool = False,
+) -> float:
+    """Annualized Jensen's alpha via CAPM.
+
+        alpha_per_period = mean(Rp) - [Rf + beta·(mean(Rb) - Rf)]
+        alpha            = (1 + alpha_per_period) ** periods_per_year - 1
+
+    ``beta`` comes from :func:`beta_capm`; if that raises and
+    ``fallback_to_simple_beta`` is set, :func:`beta_regression` is used.
+    """
+    if portfolio_returns.empty or benchmark_returns.empty:
+        raise ValueError("Cannot compute alpha_capm: input series is empty.")
+
+    benchmark_aligned, portfolio_aligned = benchmark_returns.align(
+        portfolio_returns, join="inner"
+    )
+    if len(benchmark_aligned) < 3:
+        raise ValueError("Too few aligned data points to compute alpha_capm.")
+
+    try:
+        beta = beta_capm(portfolio_returns, benchmark_returns, risk_free_rate=risk_free_rate)
+    except Exception:
+        if not fallback_to_simple_beta:
+            raise
+        beta = beta_regression(portfolio_returns, benchmark_returns)
+
+    mean_portfolio = portfolio_aligned.mean()
+    mean_benchmark = benchmark_aligned.mean()
+    alpha_per_period = mean_portfolio - (risk_free_rate + beta * (mean_benchmark - risk_free_rate))
+    return (1 + alpha_per_period) ** periods_per_year - 1

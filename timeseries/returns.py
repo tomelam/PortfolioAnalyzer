@@ -1,9 +1,7 @@
-import warnings
-
 import numpy as np
 import pandas as pd
 
-from utils import dbg
+import metrics
 
 
 class TimeseriesReturn:
@@ -102,7 +100,6 @@ class TimeseriesReturn:
         Delegates to ``metrics.cagr`` (the underlying ``_series`` is
         treated as a price/CIV series).
         """
-        import metrics
         return metrics.cagr(self.value_series())
 
     def volatility(
@@ -111,7 +108,6 @@ class TimeseriesReturn:
             frequency: str = "daily"
     ) -> float:
         """Annualized volatility. Delegates to ``metrics.volatility``."""
-        import metrics
         returns, scale = self._standardized_returns(frequency, periods_per_year)
         return metrics.volatility(returns, periods_per_year=scale)
 
@@ -122,7 +118,6 @@ class TimeseriesReturn:
             frequency: str = "daily"
     ) -> float:
         """Annualized Sortino ratio. Delegates to ``metrics.sortino``."""
-        import metrics
         returns, scale = self._standardized_returns(frequency, periods_per_year)
         return metrics.sortino(returns, risk_free_rate=risk_free_rate, periods_per_year=scale)
 
@@ -133,13 +128,11 @@ class TimeseriesReturn:
             frequency: str = "daily"
     ) -> float:
         """Annualized Sharpe ratio. Delegates to ``metrics.sharpe``."""
-        import metrics
         returns, scale = self._standardized_returns(frequency, periods_per_year)
         return metrics.sharpe(returns, risk_free_rate=risk_free_rate, periods_per_year=scale)
 
     def max_drawdown(self):
         """Maximum drawdown of the price series. Delegates to ``metrics.max_drawdown``."""
-        import metrics
         return metrics.max_drawdown(self.value_series())
 
     def max_drawdowns(self, threshold=0.05):
@@ -149,44 +142,14 @@ class TimeseriesReturn:
         with ``start_date``, ``trough_date``, ``recovery_date``, and
         ``drawdown`` (positive fraction).
         """
-        import metrics
         return metrics.max_drawdowns(self.value_series(), threshold=threshold)
 
     def alpha_regression(self, benchmark_ret: "TimeseriesReturn") -> float:
+        """Regression alpha (the intercept). Delegates to ``metrics.alpha_regression``.
+
+        Both series are assumed to be daily returns; they are aligned by date.
         """
-        Calculate regression alpha (not Jensen's alpha).
-
-        This uses a linear regression of the portfolio's daily returns against the benchmark's:
-            y = alpha + beta * x
-
-        The intercept (alpha) represents the portfolio's average daily return
-        when the benchmark's return is zero.
-
-        Assumes both series are daily returns and aligned by date.
-        """
-        x = benchmark_ret.value_series()
-        y = self.value_series()
-        if x.empty or y.empty:
-            raise ValueError("Cannot compute alpha: input series is empty.")
-
-        if np.allclose(x, x.iloc[0]) or np.allclose(y, y.iloc[0]):
-            raise ValueError("Cannot compute alpha: no variation in returns.")
-
-        # Align series and warn if any mismatch occurred
-        x_aligned, y_aligned = x.align(y, join="inner")
-        num_trimmed = max(len(x) - len(x_aligned), len(y) - len(y_aligned))
-        if num_trimmed > 0:
-            dbg(f"alpha(): alignment trimmed {num_trimmed} entries from return series.")
-
-        if len(x_aligned) < 3:
-            raise ValueError("Too few aligned data points after trimming. Cannot compute alpha.")
-
-        # Linear regression: y = alpha + beta * x
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", np.RankWarning)
-            coeffs = np.polyfit(x_aligned, y_aligned, 1)
-
-        return float(coeffs[1])  # Intercept = alpha
+        return metrics.alpha_regression(self.value_series(), benchmark_ret.value_series())
 
     def alpha_capm(
             self,
@@ -194,82 +157,20 @@ class TimeseriesReturn:
             risk_free_rate: float = 0.0,
             fallback_to_simple_beta: bool = False
     ) -> float:
-        """
-        Calculate Jensen's alpha using CAPM:
-
-            alpha = mean(Rp) - [Rf + beta * (mean(Rb) - Rf)]
-
-        Where:
-        - Rp = portfolio daily returns (self)
-        - Rb = benchmark daily returns (benchmark_ret)
-        - Rf = scalar risk-free daily return
-        - beta = covariance(Rp, Rb) / variance(Rb)
-
-        Assumes both series are aligned on dates and expressed as daily returns.
-        Falls back to simple beta() if beta_capm() fails and fallback is enabled.
-        """
-        x = benchmark_ret.value_series()
-        y = self.value_series()
-
-        if x.empty or y.empty:
-            raise ValueError("Cannot compute alpha_capm: input series is empty.")
-
-        x_aligned, y_aligned = x.align(y, join="inner")
-        if len(x_aligned) < 3:
-            raise ValueError("Too few aligned data points to compute alpha_capm.")
-
-        try:
-            beta = self.beta_capm(benchmark_ret, risk_free_rate=risk_free_rate)
-        except Exception as e:
-            if fallback_to_simple_beta:
-                dbg(f"⚠️ beta_capm() failed, falling back to beta(): {e}")
-                beta = self.beta_regression(benchmark_ret)
-            else:
-                raise
-
-        mean_rp = y_aligned.mean()
-        mean_rb = x_aligned.mean()
-        alpha_daily = mean_rp - (risk_free_rate + beta * (mean_rb - risk_free_rate))
-        alpha = (1 + alpha_daily) ** 252 - 1
-        return alpha
+        """Annualized Jensen's alpha (CAPM). Delegates to ``metrics.alpha_capm``."""
+        return metrics.alpha_capm(
+            self.value_series(),
+            benchmark_ret.value_series(),
+            risk_free_rate=risk_free_rate,
+            fallback_to_simple_beta=fallback_to_simple_beta,
+        )
 
     def beta_regression(self, benchmark_ret: "TimeseriesReturn") -> float:
-        """
-        Calculate beta: sensitivity of returns to benchmark returns.
-        Assumes daily returns. Aligned by date.
-        """
-        x = benchmark_ret.value_series()
-        y = self.value_series()
-        x, y = x.align(y, join="inner")
-        if len(x) < 2:
-            raise ValueError("Beta requires at least two aligned data points")
-        coeffs = np.polyfit(x, y, 1)
-        return float(coeffs[0])
+        """Regression beta (the slope). Delegates to ``metrics.beta_regression``."""
+        return metrics.beta_regression(self.value_series(), benchmark_ret.value_series())
 
     def beta_capm(self, benchmark_ret: "TimeseriesReturn", risk_free_rate: float = 0.0) -> float:
-        """
-        Calculate CAPM-style beta:
-
-        beta = Cov(Rp - Rf, Rb - Rf) / Var(Rb - Rf)
-
-        Where:
-        - Rp = portfolio daily returns (self)
-        - Rb = benchmark daily returns (benchmark_ret)
-        - Rf = scalar risk-free daily return
-
-        Assumes both series are aligned on dates and expressed as daily returns.
-        """
-        x = benchmark_ret.value_series()
-        y = self.value_series()
-
-        if x.empty or y.empty:
-            raise ValueError("Cannot compute beta_capm: input series is empty.")
-
-        x_aligned, y_aligned = x.align(y, join="inner")
-        if len(x_aligned) < 3:
-            raise ValueError("Too few aligned data points to compute beta_capm.")
-
-        excess_x = x_aligned - risk_free_rate
-        excess_y = y_aligned - risk_free_rate
-
-        return excess_y.cov(excess_x) / excess_x.var()
+        """CAPM beta. Delegates to ``metrics.beta_capm``."""
+        return metrics.beta_capm(
+            self.value_series(), benchmark_ret.value_series(), risk_free_rate=risk_free_rate
+        )
