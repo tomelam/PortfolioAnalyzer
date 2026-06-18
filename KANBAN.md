@@ -158,6 +158,23 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   in `~/Downloads/sgb-master-ledger.md` (2017-18 Series IV ₹12,704,
   Series XI ₹12,801, Series XIV ₹13,486, 2019-20 Series VII ₹15,275).
 
+- [ ] **SGB hold-to-maturity vs redeemable subtypes** (user-raised 2026-06-18).
+  Split the SGB asset type into two valuation subtypes so a portfolio can model
+  a holder's actual intent per tranche:
+  - **hold-to-maturity (HTM)** — valued through to the 8-year maturity, with the
+    terminal value pinned to RBI's maturity redemption price (the average of the
+    last week's gold) rather than the single-day IBJA-spot proxy.
+  - **redeemable** — a tranche the holder intends to (or may) pre-redeem from the
+    5-year window onward; valued at the RBI-announced premature-redemption price
+    on the redemption date (the `sgb_redemptions.csv` mechanism in the item above).
+  The scheme no longer accepts new purchases, so the universe is fixed. For our
+  personal example we hold **2 tranches** (2019-20-IX, 2020-21-VII); crossed with
+  the 2 subtypes that yields **4 possible SGB-related asset types** for hypothetical
+  portfolios — letting us model, e.g., holding IX to maturity while pre-redeeming
+  VII early and compare the portfolio metrics under each combination. Builds on the
+  per-tranche "each tranche is a distinct investment" constraint (see Hygiene →
+  SGB Phase 1) and depends on the premature-redemption pricing item above.
+
 - [x] **Deleted `combined_daily_returns()`** (2026-06-17, cycle 4). And
   `civ_and_returns()` which was its only caller. Test churn:
   `test_timeseries_classes.py` swapped to test the canonical
