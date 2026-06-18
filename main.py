@@ -642,14 +642,19 @@ def parse_arguments():
         "--max-drawdown-threshold",
         "-dt",
         type=float,
-        default=5,
-        help="Drawdown threshold, in percent.",
+        # No argparse default: when the flag is absent this stays None so
+        # build_settings can fall back to the config-file value (and only then
+        # the 5.0 built-in). A baked-in default here would shadow config.
+        default=None,
+        help="Drawdown threshold, in percent (default 5.0; config may override).",
     )
     parser.add_argument(
         "--metrics-method",
         choices=["daily", "monthly"],
-        default="daily",
-        help="Choose frequency for return/risk calculations: daily or monthly",
+        # No argparse default (see --max-drawdown-threshold): absent → None so
+        # build_settings falls back to config, then the "daily" built-in.
+        default=None,
+        help="Frequency for return/risk calculations (default daily; config may override).",
     )
     parser.add_argument(
         "--lookback",
@@ -745,6 +750,59 @@ def parse_arguments():
     return args
 
 
+def build_settings(args, config: dict) -> dict:
+    """Merge CLI args (``args``) over a config-file dict into the run settings.
+
+    Precedence is CLI > config-file > built-in default. Pure (no I/O): given
+    the same ``args`` namespace and ``config`` dict it always returns the same
+    settings, which is what makes the precedence logic unit-testable apart from
+    argparse and ``main()``.
+    """
+    return {
+        "portfolio_file": args.toml_file,
+        "show_plot": (
+            args.show_plot if args.show_plot is not None else config.get("show_plot", True)
+        ),
+        "output_snapshot": args.output_snapshot or config.get("output_snapshot", False),
+        "output_csv": args.output_csv or config.get("output_csv", False),
+        "output_dir": args.output_dir or config.get("output_dir", "outputs"),
+        "drawdown_threshold": args.max_drawdown_threshold
+        or config.get("max_drawdown_threshold", 5.0),
+        "metrics_method": args.metrics_method or config.get("metrics_method", "daily"),
+        # Block-by-default freshness invariant; --allow-stale is the single
+        # override (config may set it too for non-interactive setups).
+        "allow_stale": args.allow_stale or config.get("allow_stale", False),
+        "quiet": args.quiet or config.get("quiet", False),
+        "debug": args.debug or config.get("debug", False),
+        "lookback": args.lookback or config.get("lookback"),  # None → full history
+        # Default risk-free source is FRED INDIRLTLT01STM (India 10Y govt
+        # bond rate) — the auto-updatable, no-auth feed (see
+        # loaders.data_update). The legacy manual investing.com 10Y CSV
+        # can still be selected via config if preferred.
+        "risk_free_rates_file": config.get(
+            "risk_free_rates_file", "data/INDIRLTLT01STM.csv"
+        ),
+        "use_benchmark": config.get("use_benchmark", True),
+        "benchmark_name": config.get("benchmark_name", "NIFTY Total Returns Index"),
+        "benchmark_file": config.get(
+            "benchmark_returns_file", "data/NIFTY Total Returns Historical Data.csv"
+        ),
+        "benchmark_date_format": config.get("benchmark_date_format", "%m/%d/%Y"),
+        "riskfree_date_format": config.get("riskfree_date_format", "%Y-%m-%d"),
+        # --as-of YYYY-MM-DD pins the evaluation date for determinism;
+        # parsed once here so downstream code sees a Timestamp, not a str.
+        "as_of": (
+            pd.Timestamp(args.as_of).normalize()
+            if args.as_of is not None
+            else None
+        ),
+        # Offline replay: read fixtures from / write fixtures to DIR.
+        # Mutually exclusive at the argparse layer.
+        "replay_from": args.replay_from,
+        "save_replay": args.save_replay,
+    }
+
+
 def cli():
     """Console entry point. Wired into pyproject [project.scripts].
 
@@ -761,49 +819,7 @@ def cli():
 
     settings = None
     try:
-        settings = {
-            "portfolio_file": args.toml_file,
-            "show_plot": (
-                args.show_plot if args.show_plot is not None else config.get("show_plot", True)
-            ),
-            "output_snapshot": args.output_snapshot or config.get("output_snapshot", False),
-            "output_csv": args.output_csv or config.get("output_csv", False),
-            "output_dir": args.output_dir or config.get("output_dir", "outputs"),
-            "drawdown_threshold": args.max_drawdown_threshold
-            or config.get("max_drawdown_threshold", 5.0),
-            "metrics_method": args.metrics_method or config.get("metrics_method", "daily"),
-            # Block-by-default freshness invariant; --allow-stale is the single
-            # override (config may set it too for non-interactive setups).
-            "allow_stale": args.allow_stale or config.get("allow_stale", False),
-            "quiet": args.quiet or config.get("quiet", False),
-            "debug": args.debug or config.get("debug", False),
-            "lookback": args.lookback or config.get("lookback"),  # None → full history
-            # Default risk-free source is FRED INDIRLTLT01STM (India 10Y govt
-            # bond rate) — the auto-updatable, no-auth feed (see
-            # loaders.data_update). The legacy manual investing.com 10Y CSV
-            # can still be selected via config if preferred.
-            "risk_free_rates_file": config.get(
-                "risk_free_rates_file", "data/INDIRLTLT01STM.csv"
-            ),
-            "use_benchmark": config.get("use_benchmark", True),
-            "benchmark_name": config.get("benchmark_name", "NIFTY Total Returns Index"),
-            "benchmark_file": config.get(
-                "benchmark_returns_file", "data/NIFTY Total Returns Historical Data.csv"
-            ),
-            "benchmark_date_format": config.get("benchmark_date_format", "%m/%d/%Y"),
-            "riskfree_date_format": config.get("riskfree_date_format", "%Y-%m-%d"),
-            # --as-of YYYY-MM-DD pins the evaluation date for determinism;
-            # parsed once here so downstream code sees a Timestamp, not a str.
-            "as_of": (
-                pd.Timestamp(args.as_of).normalize()
-                if args.as_of is not None
-                else None
-            ),
-            # Offline replay: read fixtures from / write fixtures to DIR.
-            # Mutually exclusive at the argparse layer.
-            "replay_from": args.replay_from,
-            "save_replay": args.save_replay,
-        }
+        settings = build_settings(args, config)
         main(settings)
     except Exception as e:
         print(f"\nError: {e}", file=sys.stderr)

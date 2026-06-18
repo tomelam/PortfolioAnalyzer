@@ -21,6 +21,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 # Use the current interpreter so CI works without a checked-out venv.
 PYTHON = sys.executable
 GOLDEN_CONFIG = REPO_ROOT / "tests" / "fixtures" / "golden_master_config.toml"
+# Deterministic + offline knobs (shared with test_golden_master): --as-of pins
+# the eval date and skips the freshness gate; --replay-from reads NAV/SCSS from
+# committed fixtures, so the failure-mode tests below need no network.
+REPLAY_DIR = REPO_ROOT / "tests" / "golden" / "replay"
+AS_OF = "2026-06-13"
 
 
 @pytest.mark.integration
@@ -94,6 +99,50 @@ def test_removed_freshness_flags_error_with_pointer(removed_flag: str) -> None:
     )
     assert result.returncode != 0
     assert "--allow-stale" in (result.stdout + result.stderr)
+
+
+def _run_offline(config_path: Path, tmp_path: Path) -> subprocess.CompletedProcess:
+    """Run port-1 deterministically and offline (--as-of + --replay-from) with
+    the given config overlay. Returns the completed process for assertions."""
+    out_dir = tmp_path / "out"
+    out_dir.mkdir(exist_ok=True)
+    return subprocess.run(
+        [
+            PYTHON, "main.py",
+            "--config", str(config_path),
+            "--quiet", "--disable-plot-display",
+            "--output-dir", str(out_dir), "--output-csv",
+            "--as-of", AS_OF,
+            "--replay-from", str(REPLAY_DIR),
+            "port/port-1.toml",
+        ],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=180,
+    )
+
+
+@pytest.mark.integration
+def test_missing_benchmark_file_errors_clearly(tmp_path: Path) -> None:
+    """A benchmark_returns_file that doesn't exist must fail with a non-zero
+    exit and a clear error, not a traceback or a silent wrong result."""
+    cfg = tmp_path / "bad_bench.toml"
+    cfg.write_text('benchmark_returns_file = "data/__no_such_benchmark__.csv"\n')
+    result = _run_offline(cfg, tmp_path)
+    assert result.returncode != 0, f"expected failure\nstdout:\n{result.stdout}"
+    combined = (result.stdout + result.stderr).lower()
+    assert "error" in combined
+    assert "__no_such_benchmark__" in (result.stdout + result.stderr)
+
+
+@pytest.mark.integration
+def test_missing_risk_free_file_errors_clearly(tmp_path: Path) -> None:
+    """A risk_free_rates_file that doesn't exist must fail cleanly (non-zero
+    exit, clear error) rather than crashing mid-computation."""
+    cfg = tmp_path / "bad_rf.toml"
+    cfg.write_text('risk_free_rates_file = "data/__no_such_riskfree__.csv"\n')
+    result = _run_offline(cfg, tmp_path)
+    assert result.returncode != 0, f"expected failure\nstdout:\n{result.stdout}"
+    assert "error" in (result.stdout + result.stderr).lower()
+    assert "__no_such_riskfree__" in (result.stdout + result.stderr)
 
 
 @pytest.mark.integration
