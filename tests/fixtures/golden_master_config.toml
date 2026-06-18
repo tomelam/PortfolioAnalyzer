@@ -1,7 +1,18 @@
-# Config overlay used when capturing golden-master data.
+# Config overlay used when capturing AND replaying golden-master data.
 #
 # Golden/replay runs pass --as-of + --replay-from, which are deterministic
 # modes: they neither fetch nor enforce the freshness gate (data pinned
 # through the as-of date is current as of that date). So no staleness knobs
-# are needed here; this overlay only exists to keep capture and replay using
-# an identical config surface.
+# are needed here.
+#
+# Reference inputs are pinned to FROZEN copies under tests/golden/replay/
+# rather than the live data/ files. The live data/ CSVs are rewritten in
+# place by the on-run freshness refresh (loaders.data_update); pointing the
+# goldens at them would let an ordinary `./pa` run silently change the golden
+# inputs and break the suite. Freezing them here mirrors how NAV history and
+# the SCSS table are already frozen under replay/, and fully insulates the
+# goldens from data/ mutation. Re-copy these two files whenever the goldens
+# are re-captured (see test_golden_master.py header). Paths are relative to
+# the repo root (main.py runs with cwd=REPO_ROOT).
+benchmark_returns_file = "tests/golden/replay/reference/NIFTY Total Returns Historical Data.csv"
+risk_free_rates_file   = "tests/golden/replay/reference/INDIRLTLT01STM.csv"

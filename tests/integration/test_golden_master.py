@@ -22,22 +22,30 @@ network guard would raise if any `requests.get` slipped through.
 
 Notes:
 
-- Capture used `tests/fixtures/golden_master_config.toml` to bypass
-  the data-staleness gates; tests use the same config until the data
-  files are refreshed (see KANBAN "Data freshness").
-- Re-capture both the goldens and the replay fixtures together: run
-  main.py for each (portfolio, method) with the same `--config`,
-  `--lookback 5Y`, and `--as-of` used here, plus `--save-replay
-  tests/golden/replay` once (any portfolio covering all funds + SCSS,
-  e.g. port-everything), writing each CSV into
-  tests/golden/<portfolio>/<method>/. Bump AS_OF only on re-capture,
-  never independently.
+- Capture used `tests/fixtures/golden_master_config.toml`, which pins the
+  benchmark + risk-free reference inputs to FROZEN copies under
+  `tests/golden/replay/reference/` (not the live `data/` files, which the
+  on-run freshness refresh rewrites in place). This insulates the goldens
+  from `data/` mutation; `test_golden_config_does_not_read_live_data_dir`
+  enforces it.
+- Re-capture the goldens, the replay fixtures, and the frozen reference
+  inputs together:
+    1. Copy the current live reference CSVs into the freeze:
+       `cp "data/NIFTY Total Returns Historical Data.csv" \
+           "data/INDIRLTLT01STM.csv" tests/golden/replay/reference/`
+    2. Run main.py for each (portfolio, method) with the same `--config`,
+       `--lookback 5Y`, and `--as-of` used here, plus `--save-replay
+       tests/golden/replay` once (any portfolio covering all funds + SCSS,
+       e.g. port-everything), writing each CSV into
+       tests/golden/<portfolio>/<method>/.
+  Bump AS_OF only on re-capture, never independently.
 """
 
 from __future__ import annotations
 
 import csv
 import subprocess
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -111,6 +119,38 @@ def _run_main(toml: str, method: str, out_dir: Path) -> None:
     assert result.returncode == 0, (
         f"main.py exited {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
     )
+
+
+@pytest.mark.golden
+def test_golden_config_does_not_read_live_data_dir() -> None:
+    """Guard: the golden config must pin its reference inputs (benchmark +
+    risk-free) to the FROZEN copies under tests/golden/replay/, never the
+    live data/ dir.
+
+    The on-run freshness refresh (loaders.data_update) rewrites the live
+    data/ CSVs in place. If the goldens read those files, an ordinary
+    ``./pa`` run would silently change the golden inputs and break the
+    suite (the documented gotcha this guard exists to prevent). This test
+    fails loudly if anyone re-points the goldens back at data/, or if a
+    frozen reference file goes missing.
+    """
+    with GOLDEN_CONFIG.open("rb") as f:
+        cfg = tomllib.load(f)
+
+    ref_paths = [cfg.get("benchmark_returns_file"), cfg.get("risk_free_rates_file")]
+    assert all(ref_paths), (
+        "golden config must explicitly set benchmark_returns_file and "
+        f"risk_free_rates_file; got {ref_paths}"
+    )
+
+    for rel in ref_paths:
+        p = Path(rel)
+        assert p.parts[0] != "data", (
+            f"golden reference input {rel!r} points at the live data/ dir, which "
+            "the freshness refresh mutates — pin it to a frozen copy under "
+            "tests/golden/replay/ instead"
+        )
+        assert (REPO_ROOT / p).is_file(), f"frozen golden reference input missing: {rel}"
 
 
 @pytest.mark.golden
