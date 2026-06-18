@@ -18,11 +18,6 @@ import pandas as pd
 from timeseries.returns import TimeseriesReturn
 from utils import dbg, info
 
-try:
-    from main import DEBUG
-except ImportError:
-    DEBUG = False
-
 
 def load_timeseries_csv(
     file_path: str,
@@ -43,8 +38,7 @@ def load_timeseries_csv(
         TimeseriesReturn wrapping a float-valued Series indexed by date.
     """
     df = pd.read_csv(file_path)
-    if DEBUG:
-        info(f"📂 Loading time‑series «{file_path}»")
+    dbg(f"📂 Loading time‑series «{file_path}»")
 
     date_cols = [c for c in df.columns if "date" in c.lower()]
     if len(date_cols) != 1:
@@ -62,8 +56,7 @@ def load_timeseries_csv(
     df = df.set_index(date_column).sort_index()
     if not isinstance(df.index, pd.DatetimeIndex):
         raise TypeError(f"Expected DatetimeIndex, got {type(df.index)}")
-    if DEBUG:
-        info(f"Date index now ranges from {df.index.min().date()} to {df.index.max().date()}")
+    dbg(f"Date index now ranges from {df.index.min().date()} to {df.index.max().date()}")
 
     col_priority = ["rate", "price", "close", "yield"]
     candidates = [

@@ -5,7 +5,7 @@ def calculate_portfolio_allocations(portfolio) -> pd.Series:
     """
     Calculate allocation percentages by asset class across the entire portfolio.
     """
-    allocations = {}
+    allocations: dict[str, float] = {}
 
     for name, asset in portfolio.assets.items():
         if not hasattr(asset, "asset_allocation"):

@@ -234,8 +234,28 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
 - [x] **Ratcheted CI coverage gate 20% → 65%** (2026-06-17, cycle 7).
   Current coverage on the no-network slice is 73%; 65% gives a small
   headroom for new scaffolding without immediately busting the gate.
-- [ ] **Incremental type hints + per-module mypy strictness.** Currently
-  `ignore_missing_imports = true` globally. Tighten module-by-module.
+- [x] **Incremental type hints — light-touch pass** (2026-06-18). Investigated
+  first: at the project's (sane) mypy config the *entire* real codebase had only
+  **5 errors**, so there was no "vast slew" to annotate. Fixed the 3 real things
+  they pointed at rather than carpet-bombing annotations:
+  - **Latent bug found by mypy:** `loaders/benchmark.py`, `loaders/risk_free.py`,
+    and `data_loader.py` did `from main import DEBUG` (try) / `DEBUG = False`
+    (except). `main.py` never defines a module-level `DEBUG` (it sets
+    `utils.DEBUG`), so the import *always* failed → `DEBUG` was permanently False
+    → the `if DEBUG:` debug-logging blocks were **dead, even under `--debug`**.
+    Replaced the broken dance with the already-imported `dbg()` (which gates live
+    on `utils.DEBUG`), so debug logging now actually works; `data_loader`'s
+    `DEBUG` was imported-but-unused and just deleted.
+  - `metrics.py` drawdown loop: `assert peak_value is not None …` to document the
+    in-drawdown invariant and satisfy the None-operand check (1 line).
+  - `portfolio_calculator.py`: `allocations: dict[str, float]` annotation.
+  mypy now clean at the project config; ruff clean; suite 343 green.
+  **Deliberately NOT done** (over-annotation / noise): adopting `pandas-stubs` +
+  flipping `ignore_missing_imports` off. That is the *only* way to make mypy
+  verify Series-vs-DataFrame return contracts (the class behind the old gold
+  loader bug), but it adds a dependency and a lot of `Any`-wrestling noise for
+  modest gain. Left as an explicit future option, not a default. See the Hygiene
+  entry below.
 
 #### F. Optional features from the tmp4 attic
 
@@ -512,7 +532,13 @@ are unaware of each other.
 - [x] **GitHub Actions Node-20 deprecation fixed** — `actions/checkout@v4 → @v5`, `actions/setup-python@v5 → @v6`. Both newer majors ship Node 24.
 - [x] **`SIM` (flake8-simplify) lint family re-enabled** (reconciled 2026-06-17). `SIM` is in `[tool.ruff.lint] select` and `ruff check .` is clean — no outstanding hints.
 - [x] **No deprecated `.fillna(method='ffill')` remain** (reconciled 2026-06-17). Repo-wide grep is clean; the `synthetic_civ.py` cases were fixed earlier (see Phase-C bug-fix log).
-- [ ] Add type hints incrementally; switch `ignore_missing_imports` off per-module
+- [x] Add type hints incrementally (2026-06-18). Light-touch pass done — see
+  *Quality gates → Incremental type hints* above (fixed the dead `main.DEBUG`
+  import bug + 2 trivial annotations; codebase was already cleanly typed at the
+  signature level). Switching `ignore_missing_imports` off per-module is
+  **deferred by decision** — it only pays off with `pandas-stubs`, which adds a
+  dependency and `Any`-noise disproportionate to the benefit; revisit only if a
+  Series/DataFrame contract bug recurs.
 - [x] **CI coverage gate raised to 85%** (2026-06-17; `--cov-fail-under=85`). Baseline TOTAL is 87% (287 passed) after adding `data_loader`, `data_update`, and `visualizer` (smoke) tests, and parking the dead `ppf_calculator.py` / `extract_gold_inr_from_excel.py` to `attic/`. The only large remaining "gap" is `main.py` at 1%, which is a subprocess-measurement artifact (it's covered end-to-end by the golden + e2e tests), not untested behavior.
 - [x] **Deleted `defunct_feature_var_rate_bonds` and `defunct_main`** (local + origin, 2026-06-17), now that `v0.1-salvage` is confirmed tagged + pushed. Both superseded (defunct_main = pre-salvage main, fully reachable from current main; defunct_feature_var_rate_bonds = old Yahoo-Finance-replacement WIP, functionality reimplemented live in `bond_calculators.calculate_variable_bond_cumulative_gain`). Tip SHAs recorded for recovery (defunct branch had 8 commits not on main): `defunct_main` = `cea0300`, `defunct_feature_var_rate_bonds` = `2fe272d`. Recoverable from local reflog short-term; re-create with `git branch <name> <sha>` if ever needed.
 - [x] **Decided: keep `port/`** (2026-06-17) — cosmetic rename not worth the cross-repo churn post-tag; see Housekeeping section.

@@ -27,12 +27,6 @@ import toml
 
 from utils import info
 
-# DEBUG flag is set by main.py (‑d/‑‑debug). Fallback = False.
-try:
-    from main import DEBUG
-except ImportError:
-    DEBUG = False  # fallback default if main hasn't been run yet
-
 
 def load_config_toml(config_path: str) -> dict:
     """Load general runtime settings from a config TOML file."""
