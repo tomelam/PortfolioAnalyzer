@@ -95,10 +95,29 @@ and `tests/unit/test_freshness_gate.py` (the main.py block / --allow-stale glue)
 
 ---
 
-## Remaining (not yet covered)
+## ✅ Remaining (now covered, 2026-06-18)
 
-- [ ] Invalid benchmark file *format* (well-formed path, garbage contents) →
+All three are in `tests/integration/test_main_e2e.py`.
+
+- [x] Invalid benchmark file *format* (well-formed path, garbage contents) →
       clean failure with a useful message
-- [ ] Incorrect benchmark/risk-free date format → warning, not a crash
-- [ ] Drawdown threshold fraction conversion (`/100`) asserted end-to-end,
+      (`test_garbage_benchmark_file_fails_cleanly`: a file with no date column
+      exits non-zero with a clean `Error: …` line naming the problem, via the
+      `cli()` wrapper — not a bare traceback).
+- [x] Incorrect benchmark/risk-free date format → **clean hard error**, not a
+      crash *(decision: not a warning)*
+      (`test_wrong_benchmark_date_format_fails_loudly`). The original wording
+      asked for a "warning, not a crash", but under the block-by-default
+      freshness philosophy proceeding on mis-parsed dates would silently corrupt
+      every benchmark-derived metric. The loader already fails fast with
+      `date parsing failed. Check format: <fmt>`, which `cli()` surfaces as a
+      clean non-zero `Error:`. We pin that fail-fast behavior rather than
+      weaken it to a warning.
+- [x] Drawdown threshold fraction conversion (`/100`) asserted end-to-end,
       not just at the settings-merge layer
+      (`test_drawdown_threshold_honored_and_percent_scaled`). **This surfaced a
+      latent bug:** `main.py` built `settings["drawdown_threshold"]` (percent)
+      but then called `max_drawdowns(threshold=0.05)` with a hardcoded literal,
+      so `--max-drawdown-threshold` and the config override were silently dead.
+      Fixed to pass `settings["drawdown_threshold"] / 100`; default 5.0 → 0.05
+      is unchanged, so the goldens stay green.

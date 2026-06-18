@@ -422,7 +422,11 @@ def main(settings):
     vol = metrics["Volatility"] * 100
     alpha = metrics["Alpha"] * 100 if metrics["Alpha"] is not None else None
     beta = metrics["Beta"]
-    max_drawdowns = portfolio_civ_series.max_drawdowns(threshold=0.05)
+    # drawdown_threshold is carried in percent (CLI/config, default 5.0);
+    # TimeseriesCIV.max_drawdowns wants a fraction, hence /100.
+    max_drawdowns = portfolio_civ_series.max_drawdowns(
+        threshold=settings["drawdown_threshold"] / 100
+    )
     if max_drawdowns:
         worst = max(max_drawdowns, key=lambda d: d["drawdown"])  # smallest (most negative) drawdown
         drawdown_days = worst["drawdown_days"]

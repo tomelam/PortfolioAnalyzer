@@ -11,6 +11,7 @@ smoke run that hits mfapi.in is marked ``network``.
 
 from __future__ import annotations
 
+import csv
 import subprocess
 import sys
 from pathlib import Path
@@ -143,6 +144,96 @@ def test_missing_risk_free_file_errors_clearly(tmp_path: Path) -> None:
     assert result.returncode != 0, f"expected failure\nstdout:\n{result.stdout}"
     assert "error" in (result.stdout + result.stderr).lower()
     assert "__no_such_riskfree__" in (result.stdout + result.stderr)
+
+
+def _run_port1_offline(
+    out_root: Path, extra_args: tuple[str, ...] = ()
+) -> tuple[subprocess.CompletedProcess, Path]:
+    """Run port-1 deterministically/offline (GOLDEN_CONFIG + --as-of +
+    --replay-from), append ``extra_args``, return (process, output dir)."""
+    out_dir = out_root / "out"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    result = subprocess.run(
+        [
+            PYTHON, "main.py",
+            "--config", str(GOLDEN_CONFIG),
+            "--quiet", "--disable-plot-display",
+            "--output-dir", str(out_dir), "--output-csv",
+            "--as-of", AS_OF,
+            "--replay-from", str(REPLAY_DIR),
+            *extra_args,
+            "port/port-1.toml",
+        ],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=180,
+    )
+    return result, out_dir
+
+
+def _drawdown_count(out_dir: Path) -> int:
+    """The drawdowns-count column (index 7) from the one-row metrics CSV."""
+    with (out_dir / "port-1.csv").open() as f:
+        row = next(csv.reader(f))
+    return int(row[7])
+
+
+@pytest.mark.integration
+def test_drawdown_threshold_honored_and_percent_scaled(tmp_path: Path) -> None:
+    """End-to-end proof that ``--max-drawdown-threshold`` is consumed AND
+    interpreted as a percent (the ``/100`` conversion).
+
+    - At 3% (→ 0.03 fraction) real drawdowns are found. Were the flag
+      uninterpreted, 3.0 would mean a 300% drop and find none; were the
+      threshold hardcoded, the flag would be ignored.
+    - At 80% (→ 0.80 fraction) nothing qualifies, so the count is 0. A
+      hardcoded 0.05 would still report the 5% drawdowns here.
+    Only "consumed and percent-scaled" satisfies both assertions.
+    """
+    res3, out3 = _run_port1_offline(tmp_path / "t3", ("--max-drawdown-threshold", "3.0"))
+    assert res3.returncode == 0, f"stderr:\n{res3.stderr}"
+    res80, out80 = _run_port1_offline(tmp_path / "t80", ("--max-drawdown-threshold", "80.0"))
+    assert res80.returncode == 0, f"stderr:\n{res80.stderr}"
+
+    count3 = _drawdown_count(out3)
+    count80 = _drawdown_count(out80)
+    assert count80 == 0, f"expected no >=80% drawdowns, got {count80}"
+    assert count3 >= 1, f"expected >=3% drawdowns to be found, got {count3}"
+
+
+@pytest.mark.integration
+def test_garbage_benchmark_file_fails_cleanly(tmp_path: Path) -> None:
+    """A well-formed path to a benchmark file with garbage contents (no
+    recognizable date column) must fail with a clean, useful error and a
+    non-zero exit — not a bare traceback or a silent wrong result."""
+    bad_csv = tmp_path / "garbage_benchmark.csv"
+    bad_csv.write_text("foo,bar\n1,2\n3,4\n")
+    cfg = tmp_path / "bad_format.toml"
+    cfg.write_text(f'benchmark_returns_file = "{bad_csv}"\n')
+    result = _run_offline(cfg, tmp_path)
+    assert result.returncode != 0, f"expected failure\nstdout:\n{result.stdout}"
+    combined = result.stdout + result.stderr
+    assert "Error:" in combined, "cli() should print a clean 'Error:' line"
+    assert "date column" in combined.lower()
+
+
+@pytest.mark.integration
+def test_wrong_benchmark_date_format_fails_loudly(tmp_path: Path) -> None:
+    """A benchmark CSV whose dates don't match the configured format fails
+    fast with a clear error naming the format — deliberately NOT a silent
+    warning that proceeds on mis-parsed dates, which would corrupt every
+    benchmark-derived metric (block-by-default freshness philosophy)."""
+    bench = tmp_path / "bench.csv"
+    # ISO dates, but the config tells the loader to expect US m/d/Y.
+    bench.write_text("Date,Close\n2024-01-01,100\n2024-01-02,101\n2024-01-03,102\n")
+    cfg = tmp_path / "wrong_fmt.toml"
+    cfg.write_text(
+        f'benchmark_returns_file = "{bench}"\n'
+        'benchmark_date_format = "%m/%d/%Y"\n'
+    )
+    result = _run_offline(cfg, tmp_path)
+    assert result.returncode != 0, f"expected failure\nstdout:\n{result.stdout}"
+    combined = (result.stdout + result.stderr).lower()
+    assert "error:" in combined
+    assert "date parsing failed" in combined or "format" in combined
 
 
 @pytest.mark.integration

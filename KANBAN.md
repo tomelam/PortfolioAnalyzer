@@ -202,9 +202,21 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   `from_multiple_nav_series`). All consumers' imports updated to
   point at the qualified module path. Suite 193 pass + 7 network
   pass after the move.
-- [ ] **Walk `tests/TODO.md` checklist** — 25+ CLI-flag/TOML-override/
-  failure-mode scenarios never converted to real tests. Most overlap with
-  `tests/integration/test_main_e2e.py` which currently has only 3 tests.
+- [x] **Walked `tests/TODO.md` checklist** (2026-06-18). The "25+ scenarios"
+  framing was stale: the settings/config/CLI/freshness/failure sections were
+  already `[x]` (covered by `test_settings_merge`, `test_data_update`,
+  `test_freshness_gate`, and an e2e suite that had grown to 7 functions, not 3).
+  Only the 3 items under "Remaining (not yet covered)" were genuinely open — all
+  now in `test_main_e2e.py`:
+  (1) garbage benchmark file → clean non-zero `Error:` naming the problem;
+  (2) wrong benchmark date format → **clean hard error** (decided: fail-fast, not
+  a warning — proceeding on mis-parsed dates would silently corrupt benchmark
+  metrics; TODO wording updated with rationale);
+  (3) drawdown-threshold `/100` end-to-end — which **surfaced a latent bug**:
+  `main.py` built `settings["drawdown_threshold"]` but then hardcoded
+  `max_drawdowns(threshold=0.05)`, so `--max-drawdown-threshold` and the config
+  override were silently dead. Fixed to `settings["drawdown_threshold"] / 100`
+  (default 5.0→0.05 unchanged ⇒ goldens green). Suite 340→343.
 - [x] **Audited `bond_calculators.py`** (2026-06-17, cycle 5). 4 unused
   functions deleted (`calculate_bond_cumulative_gain` +
   `calculate_sgb_cumulative_gain` + `calculate_merged_sgb_series` +
@@ -451,7 +463,10 @@ are unaware of each other.
   - **Branch preserved** (not deleted) for the historical record; nothing actionable remains.
 - [x] Decided: `config/` directory — KEEP. 18 files: `example_config.toml` (documents the schema) + `mid-cap_config.toml` (named portfolio config) are useful; the 16 CLI-flag-combo files (`no_output_csv-...toml`) are not referenced from code but document hand-test scenarios. Move to `attic/config-handtest-fixtures/` if/when pytest-parametrize replaces them; not blocking salvage.
 - [x] Decided: `tests/data/*.pkl` — 5 of 7 are unused. Only `portfolio_civs.pkl` and `aligned_civs.pkl` are read (by `tests/test_alignment.py`). Others (`aligned_portfolio_civs.pkl`, `aligned_ppf_portfolio_civs.pkl`, `benchmark_data.pkl`, `benchmark_returns.pkl`, `benchmark_returns_series.pkl`) are written by main.py's `--save-golden-data` path but never read by any test. Safe to delete post-v0.1; left for now.
-- [ ] Walk through `tests/TODO.md` checklist — deferred to Phase F. Most items are CLI-flag/TOML-override and failure-mode testing that overlaps with the planned `tests/integration/test_main_e2e.py`.
+- [x] Walked `tests/TODO.md` checklist (2026-06-18). See the detailed entry under
+  *Structural improvements* above — bulk was already covered; the 3 genuinely-open
+  "Remaining" items are now in `test_main_e2e.py`, and the exercise surfaced + fixed
+  the dead `--max-drawdown-threshold` flag (hardcoded 0.05 in `main.py`).
 
 ### Phase E — Salvage from old checkpoints
 - [x] **Live-gold via yfinance: DROPPED.** User: "yfinance probably cannot be depended upon by a stable program." yfinance scrapes an undocumented Yahoo endpoint that breaks without warning. Keep the static monthly `data/gold_monthly_inr.csv` path; document the manual refresh procedure in `docs/DATA_REFRESH.md` (see Data freshness section). If a stable public gold-price API surfaces later, port it then — but not yfinance.
