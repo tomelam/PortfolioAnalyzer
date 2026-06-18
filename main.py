@@ -18,7 +18,7 @@ from portfolio_calculator import (
     calculate_portfolio_allocations,
 )
 from timeseries.portfolio import from_multiple_nav_series
-from timeseries.returns import TimeseriesReturn  # TODO: FIXME: TimeseriesReturn is being obsoleted
+from timeseries.returns import TimeseriesReturn
 from utils import (
     dbg,
     info,
