@@ -33,16 +33,36 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
 
 #### B. Determinism / trustworthiness
 
-- [ ] **Replicate Value Research Online mutual-fund metrics to high accuracy.**
-  It would be reassuring to reproduce VRO's published per-fund numbers
-  (returns / CAGR / risk ratios) within a tight tolerance — a strong
-  external validation of our metrics. VRO may not use daily NAVs; a likely
-  hypothesis is **month-end NAVs**. Plan: pick 2–3 funds we already load,
-  pull VRO's stated figures + methodology window, then compare our
-  `--metrics-method monthly` (month-end resampled) output against them and
-  reconcile any gap (NAV sampling, trailing-window definition, annualization
-  convention, dividend/TRI treatment). Document the matched methodology so
-  the agreement is repeatable.
+- [x] **Replicate Value Research Online mutual-fund metrics to high accuracy**
+  (2026-06-18). Built a VRO-parity test utility + live wire test; our trailing
+  returns reproduce VRO's published figures to **≤0.25pp** (1Y essentially exact).
+  - **Matched methodology (the hypothesis was wrong):** VRO does **NOT** use
+    month-end NAVs. It uses **point-to-point daily** NAVs — latest NAV to exactly
+    N years prior, annualized. Reconciliation: month-end (`--metrics-method
+    monthly`) ran ~0.5–0.8pp *low*; daily point-to-point matched within ≤0.25pp
+    (5Y to ≤0.01pp). So the canonical analog is plain `metrics.cagr` over the
+    trailing window — captured as `loaders.vro.trailing_cagr_pct`.
+  - **Access:** VRO is Cloudflare-walled (plain `requests` → 403; legacy `.asp`
+    → 410). Cleared with stealth Chromium (the existing `browser` extra), then
+    the React app's same-origin JSON API is fetched from inside the page (the
+    niftyindices cookie-carry trick): `api/funds/peer-comparison-returns/
+    ?fund_id=<id>&period=<P>` → the fund's annualized return is the `returns`
+    entry whose `plan_id == fund_id`.
+  - **Deliverables:** `loaders/vro.py` (pure `parse_peer_comparison_returns` +
+    stealth `fetch_vro_trailing_returns` + `trailing_cagr_pct` + `load_vro_fund_map`);
+    `data/vro_funds.csv` (mfapi↔VRO map, ISIN-verified; **2 equity funds** to
+    start — ICICI Bluechip 120586↔15841, Franklin US Opp FoF 118551↔16027);
+    `scripts/fetch_vro_metrics.py` (collector CLI: VRO vs ours vs Δ, optional
+    `--json` snapshot); `tests/unit/test_vro.py` (9 offline tests, fixture-based);
+    `tests/integration/test_vro_parity.py` (live, `network`+`vro` marked, skips
+    without the browser extra; assertion tolerance a deliberately loose 1.0pp).
+  - **Live result 2026-06-18** (latest NAV 2026-06-17): ICICI 1Y/3Y/5Y
+    Δ +0.00 / +0.24 / +0.01 pp; Franklin Δ +0.02 / +0.14 / +0.01 pp.
+  - **Next (optional):** widen `data/vro_funds.csv` to the other 3 port-1 funds
+    (HDFC Balanced Advantage, ICICI Corp Bond, HDFC Hybrid Debt) — code already
+    iterates the map; just add rows + their VRO Direct plan_ids. Tighten the
+    wire-test tolerance once steady-state-stable. Risk-ratio parity (Sharpe / SD)
+    not yet attempted — returns only.
 
 - [x] **Stale NIFTY benchmark is a hard blocker — add a bypass flag**
   (2026-06-17, cycle 10). Added `--skip-age-check` CLI flag. When
