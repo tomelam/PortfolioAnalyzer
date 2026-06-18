@@ -18,11 +18,6 @@ import pandas as pd
 from loaders.benchmark import load_timeseries_csv
 from utils import dbg, info
 
-try:
-    from main import DEBUG
-except ImportError:
-    DEBUG = False
-
 
 def fetch_and_standardize_risk_free_rates(
     file_path: str,
@@ -53,16 +48,15 @@ def align_dynamic_risk_free_rates(
     )
 
     overlap = portfolio_returns.index.intersection(risk_free_data.index)
-    if DEBUG:
-        info(f"Risk-free rate series shape: {risk_free_data.shape}")
-        idx = risk_free_data.index
-        start = pd.to_datetime(idx.min(), errors="coerce")
-        end = pd.to_datetime(idx.max(), errors="coerce")
-        info(
-            f"Index range: {start.date() if pd.notna(start) else 'NaT'} → "
-            f"{end.date() if pd.notna(end) else 'NaT'}"
-        )
-        info(f"Common dates between portfolio and risk-free: {len(overlap)}")
+    dbg(f"Risk-free rate series shape: {risk_free_data.shape}")
+    idx = risk_free_data.index
+    start = pd.to_datetime(idx.min(), errors="coerce")
+    end = pd.to_datetime(idx.max(), errors="coerce")
+    dbg(
+        f"Index range: {start.date() if pd.notna(start) else 'NaT'} → "
+        f"{end.date() if pd.notna(end) else 'NaT'}"
+    )
+    dbg(f"Common dates between portfolio and risk-free: {len(overlap)}")
     if len(overlap) < 10:
         info("⚠️ Very few or no overlapping dates — risk-free may not be aligned.")
 

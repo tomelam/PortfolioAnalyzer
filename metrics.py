@@ -151,6 +151,8 @@ def max_drawdowns(prices: pd.Series, threshold: float = 0.05) -> list[dict]:
                 trough_date = date
         else:
             if in_drawdown and value >= peak_value:
+                # In a drawdown ⇒ peak/trough were set on entry above.
+                assert peak_value is not None and trough_value is not None
                 drawdown_pct = (peak_value - trough_value) / peak_value
                 if drawdown_pct >= threshold:
                     out.append(
