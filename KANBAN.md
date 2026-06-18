@@ -50,19 +50,28 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
     entry whose `plan_id == fund_id`.
   - **Deliverables:** `loaders/vro.py` (pure `parse_peer_comparison_returns` +
     stealth `fetch_vro_trailing_returns` + `trailing_cagr_pct` + `load_vro_fund_map`);
-    `data/vro_funds.csv` (mfapi↔VRO map, ISIN-verified; **2 equity funds** to
-    start — ICICI Bluechip 120586↔15841, Franklin US Opp FoF 118551↔16027);
-    `scripts/fetch_vro_metrics.py` (collector CLI: VRO vs ours vs Δ, optional
-    `--json` snapshot); `tests/unit/test_vro.py` (9 offline tests, fixture-based);
-    `tests/integration/test_vro_parity.py` (live, `network`+`vro` marked, skips
-    without the browser extra; assertion tolerance a deliberately loose 1.0pp).
-  - **Live result 2026-06-18** (latest NAV 2026-06-17): ICICI 1Y/3Y/5Y
-    Δ +0.00 / +0.24 / +0.01 pp; Franklin Δ +0.02 / +0.14 / +0.01 pp.
-  - **Next (optional):** widen `data/vro_funds.csv` to the other 3 port-1 funds
-    (HDFC Balanced Advantage, ICICI Corp Bond, HDFC Hybrid Debt) — code already
-    iterates the map; just add rows + their VRO Direct plan_ids. Tighten the
-    wire-test tolerance once steady-state-stable. Risk-ratio parity (Sharpe / SD)
-    not yet attempted — returns only.
+    `data/vro_funds.csv` (mfapi↔VRO map, ISIN-verified; **all 5 port-1 funds** —
+    ICICI Bluechip 120586↔15841, Franklin US Opp FoF 118551↔16027, HDFC Balanced
+    Advantage 118968↔16055, ICICI Corp Bond 120692↔15568, HDFC Hybrid Debt
+    119118↔16453); `scripts/fetch_vro_metrics.py` (collector CLI: VRO vs ours vs
+    Δ, optional `--json` snapshot); `tests/unit/test_vro.py` (9 offline tests,
+    fixture-based); `tests/integration/test_vro_parity.py` (live, `network`+`vro`
+    marked, skips without the browser extra; tolerance **0.5pp**).
+  - **Live result 2026-06-18** (latest NAV 2026-06-17), all 5 funds within 0.25pp:
+    ICICI Bluechip Δ +0.00/+0.24/+0.01 (1Y/3Y/5Y); Franklin +0.02/+0.14/+0.01;
+    HDFC Bal Adv +.. /+0.05/+0.02; ICICI Corp Bond +0.00/+0.01; HDFC Hybrid Debt
+    +0.04/+0.00. (HDFC Bal Adv had two VRO Direct ids — 16055 vs 16056; parity
+    disambiguated to **16055** Growth; 16056 returns no peer data.)
+  - **Done (next-steps batch, 2026-06-18):** widened the map to all 5 funds
+    (each disambiguated by parity vs our Growth-NAV CAGR) and tightened the
+    wire-test tolerance 1.0 → 0.5pp.
+  - **Deferred — risk-ratio parity (Sharpe / SD / alpha / beta).** Probed: VRO's
+    fund **overview** API exposes only returns / allocation / port-aggregate
+    endpoints — no risk-ratios endpoint among them (guessed routes 404). VRO's
+    risk ratios render on a separate tab with their own XHR, and matching them is
+    a deeper reconciliation than returns (VRO uses its *own* risk-free rate and a
+    3Y-monthly Sharpe convention). That's a follow-up of its own size, not a quick
+    add. Returns parity only for now.
 
 - [x] **Stale NIFTY benchmark is a hard blocker — add a bypass flag**
   (2026-06-17, cycle 10). Added `--skip-age-check` CLI flag. When

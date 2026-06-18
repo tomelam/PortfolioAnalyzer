@@ -9,9 +9,10 @@ with ``pytest -m vro``).
 Methodology (reconciled 2026-06-18): VRO uses point-to-point **daily** NAVs —
 latest NAV to exactly N years prior — so we compare against
 ``loaders.vro.trailing_cagr_pct``, NOT the month-end ``--metrics-method
-monthly`` (which ran ~0.5–0.8pp low). Observed agreement was ≤0.25pp; the
-assertion tolerance is a deliberately loose 1.0pp, leaving room for NAV-date
-drift across funds and run days. Tighten once it has proven stable.
+monthly`` (which ran ~0.5–0.8pp low). Across all 5 mapped port-1 funds the
+observed agreement was ≤0.25pp (worst: ICICI Bluechip 3Y at 0.24pp; most ≤0.05pp),
+so the assertion tolerance is tightened to 0.5pp — ≈2× headroom over the worst
+observed, leaving room for NAV-date drift across funds and run days.
 """
 
 from __future__ import annotations
@@ -26,8 +27,9 @@ from loaders.vro import (
     trailing_cagr_pct,
 )
 
-# Starting tolerance in percentage points (loose by design — see module docstring).
-TOL_PP = 1.0
+# Tolerance in percentage points. Tightened 1.0 → 0.5 after all 5 funds
+# reconciled to ≤0.25pp (see module docstring).
+TOL_PP = 0.5
 PERIODS = (("3Y", 3), ("5Y", 5))
 
 pytestmark = [
