@@ -19,7 +19,6 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 │  - mutual_fund_loader        │  mfapi.in JSON (live)
 │  - ppf_loader                │  static rate CSV → synthetic CIV
 │  - scss_loader               │  NSI HTML scrape → synthetic CIV
-│  - rec_bond_loader           │  TOML coupon → synthetic CIV
 │  - sgb_holdings + sgb_tranches│ per-tranche CIV from IBJA gold spot
 │  - gold_loader               │  monthly INR CSV
 │  - benchmark_loader          │  NIFTY Total Return CSV
@@ -55,7 +54,7 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 |---|---|
 | `main.py` | CLI orchestration: argparse, config merge, pipeline driver, reporting |
 | `*_loader.py` | One per asset class; ingest source data → standardized Series/DataFrame |
-| `synthetic_civ.py` | PPF / SCSS / REC interest-rate → daily-equivalent CIV |
+| `synthetic_civ.py` | PPF / SCSS interest-rate → daily-equivalent CIV |
 | `civ_to_returns.py` | CIV → daily/monthly returns (with `pct_change`) |
 | `timeseries/returns.py` | `TimeseriesReturn` class: the alpha/beta methods + thin delegates to `metrics.py` |
 | `timeseries/civ.py` | `TimeseriesCIV` class: validates name='value'; `to_returns` + hand-rolled `max_drawdowns` |
@@ -63,7 +62,7 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 | `timeseries/portfolio.py` | `PortfolioTimeseries`: weighted aggregation; the two CIV-bug fixes live here |
 | `metrics.py` | **Pure-function math layer.** All Sharpe/Sortino/Vol/CAGR/drawdown logic |
 | `portfolio_calculator.py` | `calculate_portfolio_allocations` + `calculate_gains_cumulative` |
-| `bond_calculators.py` | `calculate_variable_bond_cumulative_gain` (used by `rec_bond_loader`) |
+| `bond_calculators.py` | `calculate_variable_bond_cumulative_gain` (used by the SCSS path) |
 | `fund_lifecycle.py` | Inauguration + DEFUNCT-status detection; writes the per-asset sibling CSV |
 | `drawdowns_csv.py` | Per-drawdown sibling CSV writer |
 | `sgb_holdings.py` | Per-tranche SGB valuation: `sgb_holding_civ(tranche, grams, gold)` |
@@ -103,7 +102,7 @@ Two TDD test files pin these contracts:
 
 ### Synthetic CIVs
 
-PPF / SCSS / REC bonds don't have NAV histories. `synthetic_civ.py` rebuilds
+PPF / SCSS don't have NAV histories. `synthetic_civ.py` rebuilds
 an equivalent CIV from declared/historical interest rates. PPF specifically:
 monthly accrual on the year's opening principal, with yearly credit in March
 that compounds for the following year.

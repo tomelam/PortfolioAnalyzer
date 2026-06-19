@@ -186,7 +186,7 @@ def main(settings):
         dbg(f"\nLatest launch date among all mutual funds: {latest_date.date()}")
         dbg(f'Fund with the latest launch date: "{latest_fund}"')
 
-    ppf_series = scss_series = rec_bond_series = gold_series = None
+    ppf_series = scss_series = gold_series = None
     sgb_series_by_tranche: dict[str, pd.Series] = {}
 
     if "ppf" in portfolio_dict:
@@ -201,11 +201,6 @@ def main(settings):
             save_replay=settings.get("save_replay"),
         )
         scss_series = calculate_variable_bond_cumulative_gain(scss_rates, scss_rates.index.min())
-
-    if "rec_bond" in portfolio_dict:
-        from loaders.rec_bond import load_rec_bond_series
-
-        rec_bond_series = load_rec_bond_series(portfolio_dict["rec_bond"])
 
     if "sgb" in portfolio_dict:
         # Phase 2: each [[sgb]] entry is a distinct holding. Per-tranche
@@ -241,8 +236,6 @@ def main(settings):
             ppf_series = ppf_series[ppf_series.index <= as_of]
         if scss_series is not None:
             scss_series = scss_series[scss_series.index <= as_of]
-        if rec_bond_series is not None:
-            rec_bond_series = rec_bond_series[rec_bond_series.index <= as_of]
         if gold_series is not None:
             gold_series = gold_series[gold_series.index <= as_of]
         sgb_series_by_tranche = {
@@ -263,7 +256,6 @@ def main(settings):
         aligned_portfolio_civs,
         ppf_series,
         scss_series,
-        rec_bond_series,
         gold_series,
         *sgb_series_by_tranche.values(),
     ]
@@ -292,8 +284,6 @@ def main(settings):
         ppf_series = ppf_series[ppf_series.index >= portfolio_start_date]
     if scss_series is not None:
         scss_series = scss_series[scss_series.index >= portfolio_start_date]
-    if rec_bond_series is not None:
-        rec_bond_series = rec_bond_series[rec_bond_series.index >= portfolio_start_date]
     sgb_series_by_tranche = {
         name: s[s.index >= portfolio_start_date]
         for name, s in sgb_series_by_tranche.items()
@@ -311,7 +301,6 @@ def main(settings):
         ("aligned_portfolio_civs", aligned_portfolio_civs),
         ("ppf_series", ppf_series),
         ("scss_series", scss_series),
-        ("rec_bond_series", rec_bond_series),
         ("gold_series", gold_series),
     ]:
         dbg(f"{name}: {type(var)}")
@@ -329,7 +318,6 @@ def main(settings):
         for k, s, col in [
             ("PPF", ppf_series, "value"),
             ("SCSS", scss_series, "var_rate_bond_value"),
-            ("REC", rec_bond_series, "var_rate_bond_value"),
             ("Gold", gold_series, "price"),
         ]
         if s is not None

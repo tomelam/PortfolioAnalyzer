@@ -68,7 +68,7 @@ Cover three portfolios:
 
 - `port-1`: 5 mutual funds + NIFTY benchmark
 - `port-mf-ppf-gold`: 5 MFs + PPF + physical gold
-- `port-everything`: 5 MFs + PPF + Gold + SGB + SCSS + REC Bond
+- `port-everything`: 5 MFs + PPF + Gold + SGB + SCSS
 
 Each runs in both `--metrics-method daily` and `--metrics-method monthly` →
 6 goldens total. Runs are deterministic — pinned with `--as-of 2026-06-13`

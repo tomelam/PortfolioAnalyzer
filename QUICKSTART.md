@@ -134,10 +134,9 @@ The `port/` directory has tiny single-asset TOMLs for sanity checks:
 ./venv/bin/portfolio-analyzer port/port-scss.toml
 ./venv/bin/portfolio-analyzer port/port-sgb.toml
 ./venv/bin/portfolio-analyzer port/port-gold.toml
-./venv/bin/portfolio-analyzer port/port-rec-bond.toml
 ```
 
-Or all six in one go via `scripts/single-asset-type.sh`.
+Or all of them in one go via `scripts/single-asset-type.sh`.
 
 ### Batch-friendly run
 
@@ -204,11 +203,7 @@ ppf_interest_rates_file = "ppf_interest_rates.csv"
 allocation = 0.10
 
 [scss]
-allocation = 0.05
-
-[rec_bond]
-allocation = 0.05
-coupon = 5.0
+allocation = 0.10
 
 # SGB — one [[sgb]] entry per tranche (different tranches = different
 # investments). Same tranche bought multiple times the same day lumps

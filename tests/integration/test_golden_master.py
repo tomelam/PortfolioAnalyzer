@@ -4,7 +4,7 @@ Phase C safety net captured 2026-06-14. Covers three portfolios:
 
 - port-1: 5 mutual funds + NIFTY benchmark (simplest path)
 - port-mf-ppf-gold: 5 MFs + PPF (synthetic CIV) + physical gold (monthly)
-- port-everything: 5 MFs + PPF + Gold + SGB + SCSS + REC Bond
+- port-everything: 5 MFs + PPF + Gold + SGB + SCSS
   (exercises every loader)
 
 Determinism: runs are pinned with `--as-of {AS_OF}`, which trims every

@@ -1,8 +1,7 @@
 """Variable-rate bond cumulative-gain series.
 
 Only ``calculate_variable_bond_cumulative_gain`` is live (called by
-``rec_bond_loader`` and ``main.py`` via the SCSS path). Four other
-functions used to live here:
+``main.py`` via the SCSS path). Four other functions used to live here:
 
 - ``calculate_bond_cumulative_gain`` — fixed-rate bond (uncalled).
 - ``calculate_sgb_cumulative_gain``, ``calculate_merged_sgb_series``,

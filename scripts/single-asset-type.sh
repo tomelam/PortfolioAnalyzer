@@ -14,7 +14,7 @@ if [[ "${1:-}" == "-H" || "${1:-}" == "--headless" ]]; then
     HEADLESS="--disable-plot-display"
 fi
 
-for p in port-ppf port-scss port-1 port-sgb port-gold port-rec-bond; do
+for p in port-ppf port-scss port-1 port-sgb port-gold; do
     echo
     echo "════ $p ════"
     "$PA" $HEADLESS "port/$p.toml" || echo "  ✗ $p failed" >&2

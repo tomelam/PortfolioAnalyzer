@@ -3,7 +3,7 @@
 synthetic_civ.py
 
 Functions to generate synthetic Cumulative Investment Value (CIV) series
-for non-NAV-traded assets like PPF, SCSS, SGBs, REC bonds, and physical gold.
+for non-NAV-traded assets like PPF, SCSS, SGBs, and physical gold.
 
 Main functions:
 - generate_ppf_civ(): Build a PPF balance growth series from interest rate data.

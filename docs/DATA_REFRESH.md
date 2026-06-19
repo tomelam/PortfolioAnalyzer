@@ -83,9 +83,9 @@ Practical guidance:
   `--allow-stale` if you accept degraded alpha/beta).
 - A benchmark already current for the day triggers **zero** fetches.
 
-## Manual, feedless sources (gold, PPF, REC bond)
+## Manual, feedless sources (gold, PPF)
 
-Three inputs have **no upstream feed** to auto-refresh, so they can't be
+These inputs have **no upstream feed** to auto-refresh, so they can't be
 enforced like the benchmark/risk-free reference data — the program can only
 *warn*, never block or fetch (see `docs/ARCHITECTURE.md` → *Data freshness as a
 correctness invariant*). You maintain these by hand.
@@ -109,9 +109,6 @@ correctness invariant*). You maintain these by hand.
   PPF rate change, add a `YYYY-MM-DD,rate` row. The loader **fails fast** on an
   unparseable date or non-numeric rate (a silently-dropped row would corrupt the
   CIV — this caught a real `2025=01-01` typo).
-- **REC bond coupon** — a **contractual** per-bond rate carried in the portfolio
-  TOML (`[rec_bond].coupon`), not a feed. It does not go stale; set it to the
-  bond's actual coupon when modelling one.
 
 ## Manual one-shot refresh (optional)
 

@@ -2,7 +2,7 @@
 
 Targets the previously-uncovered surface: config/portfolio TOML loading,
 ``load_portfolio_details`` validation errors (funds / PPF / gold / SCSS /
-REC — SGB is covered in test_sgb_portfolio_schema.py), ``extract_weights``,
+SGB is covered in test_sgb_portfolio_schema.py), ``extract_weights``,
 ``validate_allocations``, the replay/save paths of ``fetch_portfolio_civs``,
 and the small numeric helpers.
 """
@@ -131,7 +131,6 @@ def test_fund_asset_allocation_negative_value(mocker):
         ("ppf", {"name": "PPF"}, "PPF"),
         ("gold", {"name": "Gold"}, "Gold"),
         ("scss", {"name": "SCSS"}, "SCSS"),
-        ("rec_bond", {"name": "REC"}, "REC"),
     ],
 )
 def test_asset_missing_allocation(mocker, key, section, name):
@@ -139,15 +138,10 @@ def test_asset_missing_allocation(mocker, key, section, name):
         _load(mocker, {"label": "x", key: section})
 
 
-@pytest.mark.parametrize("key", ["ppf", "gold", "scss", "rec_bond"])
+@pytest.mark.parametrize("key", ["ppf", "gold", "scss"])
 def test_asset_invalid_allocation(mocker, key):
     with pytest.raises(ValueError, match="(Invalid allocation|allocation)"):
         _load(mocker, {"label": "x", key: {"allocation": 1.5}})
-
-
-def test_rec_bond_invalid_coupon(mocker):
-    with pytest.raises(ValueError, match="Invalid coupon value"):
-        _load(mocker, {"label": "x", "rec_bond": {"allocation": 1.0, "coupon": -1.0}})
 
 
 def test_valid_multi_asset_portfolio_loads(mocker):
@@ -158,8 +152,7 @@ def test_valid_multi_asset_portfolio_loads(mocker):
         "funds": [_valid_fund(allocation=0.4)],
         "ppf": {"allocation": 0.2},
         "gold": {"allocation": 0.2},
-        "scss": {"allocation": 0.1},
-        "rec_bond": {"allocation": 0.1, "coupon": 5.25},
+        "scss": {"allocation": 0.2},
     }
     out = _load(mocker, d)
     assert out["label"] == "Everything"
@@ -173,11 +166,10 @@ def test_extract_weights_funds_and_assets():
             "funds": [_valid_fund("A", 0.5)],
             "gold": {"allocation": 0.2},
             "ppf": {"allocation": 0.1},
-            "scss": {"allocation": 0.1},
-            "rec_bond": {"allocation": 0.1},
+            "scss": {"allocation": 0.2},
         }
     )
-    assert w == {"A": 0.5, "Gold": 0.2, "PPF": 0.1, "SCSS": 0.1, "REC": 0.1}
+    assert w == {"A": 0.5, "Gold": 0.2, "PPF": 0.1, "SCSS": 0.2}
 
 
 def test_extract_weights_fund_missing_allocation():
@@ -209,8 +201,7 @@ def test_validate_allocations_sums_to_one():
             "ppf": {"allocation": 0.1},
             "gold": {"allocation": 0.1},
             "sgb": [{"allocation": 0.1}],
-            "scss": {"allocation": 0.1},
-            "rec_bond": {"allocation": 0.2},
+            "scss": {"allocation": 0.3},
         }
     )  # no raise
 

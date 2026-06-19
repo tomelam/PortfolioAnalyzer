@@ -148,7 +148,7 @@ def load_portfolio_details(toml_file_path):
         raise ValueError("Missing required top-level key: 'label'")
     
     # Check that at least one asset exists (including new asset types)
-    valid_asset_keys = ["funds", "ppf", "gold", "sgb", "scss", "rec_bond"]
+    valid_asset_keys = ["funds", "ppf", "gold", "sgb", "scss"]
     if not any(key in portfolio_details for key in valid_asset_keys):
         raise ValueError("TOML file specifies no assets")
     
@@ -250,21 +250,7 @@ def load_portfolio_details(toml_file_path):
         else:
             if not isinstance(scss["allocation"], (float, int)) or not (0 <= scss["allocation"] <= 1):
                 errors.append(f"Invalid allocation value for {scss_id}: Must be between 0 and 1")
-    
-    # Validate REC Bond if present
-    if "rec_bond" in portfolio_details:
-        rec = portfolio_details["rec_bond"]
-        rec_id = rec.get("name", "REC Bond section")
-        if "allocation" not in rec:
-            errors.append(f"Missing required key 'allocation' in {rec_id}")
-        elif not isinstance(rec["allocation"], (float, int)) or not (0 <= rec["allocation"] <= 1):
-            errors.append(f"Invalid allocation value for {rec_id}: Must be between 0 and 1")
-        # Optionally, validate coupon if provided.
-        if "coupon" in rec and (
-            not isinstance(rec["coupon"], (float, int)) or rec["coupon"] <= 0
-        ):
-            errors.append(f"Invalid coupon value for {rec_id}: Must be a positive number")
-    
+
     if errors:
         all_errors = "\n".join(errors)
         raise ValueError("TOML file errors detected:\n" + all_errors)
@@ -300,7 +286,6 @@ def extract_weights(portfolio_dict):
         ("gold", "Gold"),
         ("ppf", "PPF"),
         ("scss", "SCSS"),
-        ("rec_bond", "REC"),
     ]:
         if key in portfolio_dict:
             add_weight(key, label)
@@ -332,8 +317,6 @@ def validate_allocations(portfolio_details, tol=0.01):
         )
     if "scss" in portfolio_details:
         total_allocation += portfolio_details["scss"].get("allocation", 0)
-    if "rec_bond" in portfolio_details:
-        total_allocation += portfolio_details["rec_bond"].get("allocation", 0)
     if abs(total_allocation - 1.0) > tol:
         raise ValueError(f"Total allocation is {total_allocation:.4f}, but it must sum to 1.00 within tolerance {tol}.")
 
