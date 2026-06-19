@@ -77,7 +77,9 @@ outputs/port-1/port-1.csv    ← the metrics as one CSV row
 | `--output-snapshot` | `-os` | Save the plot as a PNG to the output directory. |
 | `--output-csv` | `-co` | Write the metrics as a single-row CSV instead of human-readable stdout. |
 | `--output-dir DIR` | `-od` | Where to put `*.png` / `*.csv` output. Default `outputs/`. |
-| `--save-golden-data` | `-sgd` | Pickle the intermediate data sets for regression tests. |
+| `--as-of YYYY-MM-DD` |     | Evaluate the portfolio as of this date (trims every series to ≤ it; makes runs deterministic). |
+| `--replay-from DIR` |     | Read NAV/SCSS data from local fixtures in DIR instead of the network (fully offline/deterministic with `--as-of`). |
+| `--save-replay DIR` |     | Capture fetched NAV/SCSS data into DIR for later use with `--replay-from`. |
 | `--quiet` | `-q` | Run non-interactively (assume "yes" to any prompt). |
 | `--debug` | `-d` | Show full Python tracebacks on error. |
 
