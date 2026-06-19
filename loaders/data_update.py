@@ -267,7 +267,6 @@ class DataSource:
     out_date_col: str  # must contain "date" for load_timeseries_csv
     out_value_col: str  # one of: rate / price / close / yield
     out_date_format: str  # strftime; must match the config's date_format
-    description: str
     # Publication cadence the freshness gate measures "behind" against:
     # "business_day" (the feed updates every trading day) or "month".
     cadence: str = "business_day"
@@ -302,7 +301,7 @@ REGISTRY: dict[str, DataSource] = {
         out_date_col="observation_date",
         out_value_col="rate",
         out_date_format="%Y-%m-%d",
-        description="FRED India 10Y government bond rate (monthly); risk-free proxy.",
+        # FRED India 10Y government bond rate (monthly); risk-free proxy.
         cadence="month",
         day_gated=False,  # clean public CSV, no ban risk: refresh whenever behind
         affects="Sharpe, Sortino, alpha",
@@ -315,8 +314,8 @@ REGISTRY: dict[str, DataSource] = {
         out_date_col="Date",
         out_value_col="Price",
         out_date_format="%m/%d/%Y",
-        description="NIFTY 50 TRI from niftyindices.com via stealth browser "
-        "(needs 'browser' extra; live fetch unverified in CI).",
+        # NIFTY 50 TRI from niftyindices.com via stealth browser
+        # (needs 'browser' extra; live fetch unverified in CI).
         cadence="business_day",
         day_gated=True,  # anti-scrape host: at most one attempt per day
         affects="alpha, beta",

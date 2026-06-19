@@ -471,20 +471,6 @@ def _fetch_risk_fragment(page, *, timeout: int = 45) -> str:
     return page.evaluate(_RISK_XHR_JS, url)
 
 
-def fetch_vro_trailing_returns(
-    plan_id: str,
-    slug: str,
-    periods: tuple[str, ...] = VRO_PERIODS,
-    *,
-    timeout: int = 45,
-    headless: bool = True,
-) -> dict[str, float]:  # pragma: no cover - requires a real browser + network
-    """VRO's annualised trailing returns, ``{period: annualised_return_pct}``."""
-    with _vro_session(plan_id, slug, timeout=timeout, headless=headless) as page:
-        texts = _fetch_returns_texts(page, plan_id, periods)
-    return {p: parse_peer_comparison_returns(t, plan_id) for p, t in texts.items()}
-
-
 def fetch_vro_metrics(
     plan_id: str,
     slug: str,

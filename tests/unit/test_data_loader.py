@@ -3,8 +3,8 @@
 Targets the previously-uncovered surface: config/portfolio TOML loading,
 ``load_portfolio_details`` validation errors (funds / PPF / gold / SCSS /
 REC — SGB is covered in test_sgb_portfolio_schema.py), ``extract_weights``,
-``validate_allocations``, ``check_time_index_cleanliness``, the replay/save
-paths of ``fetch_portfolio_civs``, and the small numeric helpers.
+``validate_allocations``, the replay/save paths of ``fetch_portfolio_civs``,
+and the small numeric helpers.
 """
 
 from __future__ import annotations
@@ -15,9 +15,6 @@ import toml
 
 from data_loader import (
     _fund_slug,
-    calculate_gold_cumulative_gain,
-    check_time_index_cleanliness,
-    extract_fom_values,
     extract_weights,
     fetch_portfolio_civs,
     get_benchmark_gain_daily,
@@ -223,24 +220,6 @@ def test_validate_allocations_off_total_raises():
         validate_allocations({"funds": [{"allocation": 0.4}], "gold": {"allocation": 0.2}})
 
 
-# --- check_time_index_cleanliness -----------------------------------------
-
-def test_check_time_index_clean(capsys):
-    df = pd.DataFrame({"v": [1, 2]}, index=pd.date_range("2020-01-01", periods=2))
-    check_time_index_cleanliness(df)  # logs "clean", no raise
-
-
-def test_check_time_index_not_datetime():
-    df = pd.DataFrame({"v": [1, 2]})  # RangeIndex
-    check_time_index_cleanliness(df, name="X")  # logs problems, no raise
-
-
-def test_check_time_index_unsorted_and_duplicated():
-    idx = pd.DatetimeIndex(["2020-01-02", "2020-01-01", "2020-01-01"])
-    df = pd.DataFrame({"v": [1, 2, 3]}, index=idx)
-    check_time_index_cleanliness(df)  # not monotonic + not unique branches
-
-
 # --- replay / save paths of fetch_portfolio_civs --------------------------
 
 def test_fetch_portfolio_civs_replay_from(tmp_path):
@@ -279,25 +258,3 @@ def test_get_benchmark_gain_daily():
     assert gain.index.name == "date"
     assert gain.iloc[0] == 0.0  # first pct_change filled with 0
     assert gain.iloc[1] == pytest.approx(0.10)
-
-
-def test_calculate_gold_cumulative_gain():
-    idx = pd.date_range("2020-01-01", periods=3)
-    gold = pd.DataFrame({"price": [200.0, 220.0, 210.0]}, index=idx)
-    out = calculate_gold_cumulative_gain(gold, pd.Timestamp("2020-01-01"))
-    assert "gold" in out.columns
-    assert out["gold"].iloc[0] == pytest.approx(1.0)
-
-
-def test_calculate_gold_cumulative_gain_empty_after_start_raises():
-    idx = pd.date_range("2020-01-01", periods=3)
-    gold = pd.DataFrame({"price": [200.0, 220.0, 210.0]}, index=idx)
-    with pytest.raises(ValueError, match="No gold price data available"):
-        calculate_gold_cumulative_gain(gold, pd.Timestamp("2025-01-01"))
-
-
-def test_extract_fom_values():
-    idx = pd.date_range("2020-01-01", "2020-03-15", freq="D")
-    df = pd.DataFrame({"v": range(len(idx))}, index=idx)
-    fom = extract_fom_values(df)
-    assert list(fom.index) == [pd.Timestamp("2020-01-01"), pd.Timestamp("2020-02-01"), pd.Timestamp("2020-03-01")]

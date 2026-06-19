@@ -8,7 +8,7 @@ Deviation, Sharpe, Sortino, Beta, Alpha, Mean — served by *some* same-origin
 JSON API whose URL/shape was never mapped (a prior pass only established it is
 NOT in the overview API). This script finds it empirically.
 
-It reuses the exact stealth pattern in ``loaders.vro.fetch_vro_trailing_returns``
+It reuses the exact stealth pattern in ``loaders.vro.fetch_vro_metrics``
 (``Stealth().use_sync(sync_playwright())``, the real-Chrome UA, en-IN /
 Asia/Kolkata, 1920x1080), but instead of fetching one known URL it records
 *every* ``/api/`` request the page makes — on first load and after nudging the

@@ -154,7 +154,6 @@ def test_write_normalized_csv_is_loader_compatible(tmp_path):
         out_date_col="observation_date",
         out_value_col="rate",
         out_date_format="%Y-%m-%d",
-        description="test",
     )
     df = du.parse_fred_csv(FRED_SAMPLE)
     du.write_normalized_csv(src, df)
@@ -176,7 +175,6 @@ def test_update_source_writes_file_and_stamp(tmp_path, monkeypatch):
         out_date_col="observation_date",
         out_value_col="rate",
         out_date_format="%Y-%m-%d",
-        description="test",
     )
     monkeypatch.setattr(du, "REGISTRY", {"rf": src})
     res = du.update_source("rf")
@@ -199,7 +197,6 @@ def test_update_all_isolates_failures(tmp_path, monkeypatch):
         out_date_col="observation_date",
         out_value_col="rate",
         out_date_format="%Y-%m-%d",
-        description="ok",
     )
     bad = du.DataSource(
         name="bad",
@@ -208,7 +205,6 @@ def test_update_all_isolates_failures(tmp_path, monkeypatch):
         out_date_col="Date",
         out_value_col="price",
         out_date_format="%m/%d/%Y",
-        description="down",
     )
     monkeypatch.setattr(du, "REGISTRY", {"good": good, "bad": bad})
     results = {r["name"]: r for r in du.update_all()}
@@ -246,7 +242,6 @@ def _rf_source(tmp_path, fetch):
         out_date_col="observation_date",
         out_value_col="rate",
         out_date_format="%Y-%m-%d",
-        description="test",
         cadence="month",
         day_gated=False,
         affects="Sharpe, Sortino, alpha",
@@ -262,7 +257,6 @@ def _bench_source(tmp_path, fetch):
         out_date_col="Date",
         out_value_col="Price",
         out_date_format="%m/%d/%Y",
-        description="test",
         cadence="business_day",
         day_gated=True,
         affects="alpha, beta",

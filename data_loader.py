@@ -6,26 +6,18 @@
 #
 # Function Table
 # 1. Top-Level Functions:
-#    - get_aligned_portfolio_civs
 #    - align_portfolio_civs
-#    - get_benchmark_navs
 #    - load_portfolio_details
 #    - fetch_and_standardize_risk_free_rates
 #    - align_dynamic_risk_free_rates
-#    - extract_fund_allocations
 #    - fetch_navs_of_mutual_fund
 #    - load_ppf_interest_rates
-#    - extract_fom_values
-#    - align_fund_data
-#    - get_dynamic_risk_free_rate
 
 import os
 import re
 
 import pandas as pd
 import toml
-
-from utils import info
 
 
 def load_config_toml(config_path: str) -> dict:
@@ -42,57 +34,8 @@ def load_portfolio_toml(portfolio_path: str) -> dict:
     return toml.load(portfolio_path)
 
 
-def check_time_index_cleanliness(df, name="DataFrame"):
-    import pandas as pd
-
-
-    idx = df.index
-    problems = []
-
-    if not isinstance(idx, pd.DatetimeIndex):
-        problems.append("Index is not a DatetimeIndex — possibly string-based. Was date_format applied correctly?")
-
-    if idx.hasnans:
-        problems.append("Index contains NaT values — likely due to failed date parsing.")
-
-    if not idx.is_monotonic_increasing:
-        problems.append("Index is not sorted.")
-
-    if not idx.is_unique:
-        problems.append("Index contains duplicate timestamps.")
-
-    if problems:
-        info(f"⚠️  {name} time index issues detected:")
-        for p in problems:
-            info(f"   - {p}")
-        # Show sample of problematic index
-        sample = list(idx[:5])
-        info(f"   → First few index values: {sample}")
-    else:
-        info(f"{name} time index appears clean.")
-
-
 # Backward-compatibility re-export. Implementation lives in benchmark_loader.
 from loaders.benchmark import load_timeseries_csv  # noqa: E402, F401
-
-
-def get_aligned_portfolio_civs(portfolio):
-    """
-    Load and align the CIVs from each fund in a portfolio.
-
-    Parameters:
-        portfolio: portfolio allocations to each component fund and
-            each fund's asset allocations
-
-    Returns:
-        pd.DataFrame: Aligned NAV data for all funds in the portfolio.
-    """
-
-    portfolio_civs = fetch_portfolio_civs(portfolio)
-    aligned_civs = align_portfolio_civs(portfolio_civs)
-    # Flatten the MultiIndex columns by removing the second level ('nav')
-    aligned_civs.columns = aligned_civs.columns.droplevel(1)
-    return aligned_civs
 
 
 def _fund_slug(name: str) -> str:
@@ -408,43 +351,6 @@ def fetch_navs_of_mutual_fund(url, retries=10, timeout=20):
 
 # Backward-compatibility re-exports. Implementation lives in ppf_loader.
 from loaders.ppf import load_ppf_civ, load_ppf_interest_rates  # noqa: E402, F401
-
-
-def calculate_gold_cumulative_gain(gold_data, portfolio_start_date):
-    """
-    Compute a relative cumulative gain series from a gold price series.
-    Assumes that at the portfolio start date, the relative value is 1.0.
-    """
-    # Restrict to dates on/after portfolio start.
-    gold_data = gold_data.loc[gold_data.index >= portfolio_start_date]
-    if gold_data.empty:
-        raise ValueError("No gold price data available after portfolio start date.")
-
-    # Normalize: divide by the price on portfolio_start_date.
-    base_price = gold_data.iloc[0]["price"]
-    gold_data = gold_data.copy()
-    gold_data["gold"] = gold_data["price"] / base_price  # Should be 1.0
-
-    # Reindex to daily frequency.
-    gold_data = gold_data.asfreq("D", method="ffill")  # Ensure no missing dates.
-
-    return gold_data[["gold"]]
-
-
-# Extract first-of-the-month (FOM) values
-def extract_fom_values(nav_data):
-    """
-    Extract the first-of-the-month (FOM) values from CIV data.
-
-    Parameters:
-        nav_data (pd.DataFrame): DataFrame containing CIV data indexed by date.
-
-    Returns:
-        pd.DataFrame: FOM values.
-    """
-    fom_values = nav_data.loc[nav_data.index.is_month_start]
-    return fom_values
-
 
 # Load risk-free rate data
 # Backward-compatibility re-exports. Implementations live in risk_free_loader.
