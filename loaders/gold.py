@@ -46,7 +46,11 @@ def load_gold_prices(csv_path: str = "data/gold_monthly_inr.csv") -> pd.Series:
     if "Date" not in df.columns:
         raise RuntimeError(f"No 'Date' column found in {csv_path}; data can't be time-indexed.")
 
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    parsed = pd.to_datetime(df["Date"], errors="coerce")
+    if parsed.isna().any():  # fail fast: a dropped row would silently bend the series
+        bad = df["Date"][parsed.isna()].tolist()
+        raise RuntimeError(f"Unparseable date(s) in {csv_path}: {bad}")
+    df["Date"] = parsed
     df = df.set_index("Date").sort_index()
 
     series = (

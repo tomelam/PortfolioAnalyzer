@@ -71,9 +71,9 @@ def build_assets_meta(
     """Build a uniform list of asset-metadata rows for the portfolio.
 
     For mutual funds, inauguration / last_nav / status come from the
-    NAV DataFrames. For non-fund assets (PPF, gold, SCSS, REC bond, SGB
-    tranches) those fields are blank ("N/A") because there's no NAV
-    history to introspect.
+    NAV DataFrames. For non-fund assets (PPF, gold, SCSS, SGB tranches)
+    those fields are blank ("N/A") because there's no NAV history to
+    introspect.
     """
     rows: list[dict] = []
 
@@ -88,7 +88,7 @@ def build_assets_meta(
             **lifecycle,
         })
 
-    for key in ("ppf", "gold", "scss", "rec_bond"):
+    for key in ("ppf", "gold", "scss"):
         if key in portfolio_dict:
             entry = portfolio_dict[key]
             rows.append({

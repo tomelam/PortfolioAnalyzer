@@ -55,6 +55,15 @@ def test_missing_file_raises() -> None:
         load_gold_prices(csv_path="/nonexistent/path/gold.csv")
 
 
+def test_unparseable_date_fails_fast(tmp_path) -> None:
+    """A malformed date must raise (naming the bad value), not be silently
+    coerced to NaT and bend the series."""
+    bad = tmp_path / "gold.csv"
+    bad.write_text("Date,Spot Price\n2025-01-31,100.0\nnot-a-date,200.0\n")
+    with pytest.raises(RuntimeError, match=r"Unparseable date.*not-a-date"):
+        load_gold_prices(csv_path=str(bad))
+
+
 def test_per_gram_is_per_ounce_divided_by_31_103() -> None:
     """Per-gram series = per-ounce series / GRAMS_PER_TROY_OUNCE, point by point."""
     per_oz = load_gold_prices(csv_path=str(FIXTURES / "gold_tiny.csv"))

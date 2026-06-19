@@ -232,6 +232,41 @@ def test_cadence_frontier_month_is_first_of_current_month():
     assert du.cadence_frontier("month", pd.Timestamp("2026-06-18")) == pd.Timestamp("2026-06-01")
 
 
+# --- manual (feedless) source staleness warning ---------------------------
+
+def test_manual_staleness_warning_stale_month_source_warns():
+    w = du.manual_staleness_warning(
+        "Gold (data/gold.csv)",
+        pd.Timestamp("2025-03-31"),
+        cadence="month",
+        affects="gold and SGB valuation",
+        refresh_hint="See docs.",
+        today=pd.Timestamp("2026-06-19"),
+    )
+    assert w is not None
+    assert "stale" in w and "2025-03-31" in w and "gold and SGB valuation" in w
+
+
+def test_manual_staleness_warning_current_source_is_silent():
+    w = du.manual_staleness_warning(
+        "Gold (data/gold.csv)",
+        pd.Timestamp("2026-06-30"),  # this month's data present
+        cadence="month",
+        affects="gold",
+        refresh_hint="See docs.",
+        today=pd.Timestamp("2026-06-19"),
+    )
+    assert w is None
+
+
+def test_manual_staleness_warning_no_data_warns():
+    w = du.manual_staleness_warning(
+        "Gold (data/gold.csv)", None, cadence="month",
+        affects="gold", refresh_hint="See docs.", today=pd.Timestamp("2026-06-19"),
+    )
+    assert w is not None and "no dated rows" in w
+
+
 # --- cadence-driven freshness ----------------------------------------------
 
 def _rf_source(tmp_path, fetch):

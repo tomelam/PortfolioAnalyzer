@@ -29,11 +29,21 @@ def load_ppf_interest_rates(csv_file_path: str = "data/ppf_interest_rates.csv") 
     if "date" not in ppf_data.columns or "rate" not in ppf_data.columns:
         raise ValueError("CSV file must contain 'date' and 'rate' columns.")
 
-    ppf_data["date"] = pd.to_datetime(ppf_data["date"], format="%Y-%m-%d", errors="coerce")
-    ppf_data = ppf_data.dropna(subset=["date"]).set_index("date")
+    parsed = pd.to_datetime(ppf_data["date"], format="%Y-%m-%d", errors="coerce")
+    # Fail fast on unparseable dates rather than silently dropping the row: a
+    # dropped rate change would corrupt the CIV invisibly (cf. the benchmark
+    # date-format fail-fast decision). Name the offending value(s).
+    if parsed.isna().any():
+        bad = ppf_data["date"][parsed.isna()].tolist()
+        raise ValueError(
+            f"Unparseable date(s) in {csv_file_path} (expected YYYY-MM-DD): {bad}"
+        )
+    ppf_data["date"] = parsed
+    ppf_data = ppf_data.set_index("date")
     ppf_data["rate"] = pd.to_numeric(ppf_data["rate"], errors="coerce")
-    ppf_data = ppf_data.dropna(subset=["rate"]).sort_index()
-    return ppf_data
+    if ppf_data["rate"].isna().any():
+        raise ValueError(f"Non-numeric rate(s) in {csv_file_path}.")
+    return ppf_data.sort_index()
 
 
 def load_ppf_civ() -> pd.Series:

@@ -89,3 +89,15 @@ def test_rates_loader_missing_file_raises() -> None:
 
     with pytest.raises(FileNotFoundError):
         load_ppf_interest_rates("/nonexistent/ppf.csv")
+
+
+def test_rates_loader_unparseable_date_fails_fast(tmp_path) -> None:
+    """A malformed date must raise (naming the bad value), not be silently
+    dropped — a dropped rate change would corrupt the CIV invisibly. Regression
+    for the real `2025=01-01` typo found in data/ppf_interest_rates.csv."""
+    from loaders.ppf import load_ppf_interest_rates
+
+    bad = tmp_path / "ppf.csv"
+    bad.write_text("date,rate\n2024-10-01,7.1\n2025=01-01,7.1\n")
+    with pytest.raises(ValueError, match=r"Unparseable date.*2025=01-01"):
+        load_ppf_interest_rates(str(bad))

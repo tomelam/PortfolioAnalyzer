@@ -17,7 +17,6 @@ This repository contains the Portfolio Analyzer application. It fetches historic
   - Uses PPF interest rates manually encoded as CSV in the file `data/ppf_interest_rates.csv`.
   - Scrapes the SCSS interest rates from [The National Savings Institute's table "Senior Citizens' Savings Scheme--Interest Rate Since Inception"](https://www.nsiindia.gov.in/(S(2xgxs555qwdlfb2p4ub03n3n))/InternalPage.aspx?Id_Pk=181).
   - Loads the SGB issue price/unit and redemption price/unit data manually copied from the Wikipedia page [Sovereign Gold Bond](https://en.wikipedia.org/wiki/Sovereign_Gold_Bond).
-  - Uses a fixed rate (5.0%) for the REC Limited 5% bond (ISIN: INE020B07MD4).
   - Uses gold futures (GCJ5) manually downloaded as CSV from [https://www.investing.com/commodities/gold-historical-data](https://www.investing.com/commodities/gold-historical-data) and stored in the file `"data/Gold Futures Historical Data.csv"`. It is difficult to source the gold spot price for free, but gold futures front-month contracts closely approximate the gold spot price, especially as the contract nears expiration. This is why PortfolioAnalyzer uses the gold futures front-month contract price as a proxy for the gold spot price.
   - Uses benchmark historical data from [niftyindices.com](https://www.niftyindices.com) or [investing.com](https://investing.com) (deprecated).
   - Aligns data to a common date range across all data sources.
@@ -33,7 +32,7 @@ This repository contains the Portfolio Analyzer application. It fetches historic
 
 - **Modular Design:**
   - Loaders (one per asset class): `mutual_fund_loader.py`, `ppf_loader.py`,
-    `scss_loader.py`, `rec_bond_loader.py`, `sgb_holdings.py` + `sgb_tranches.py`,
+    `scss_loader.py`, `sgb_holdings.py` + `sgb_tranches.py`,
     `gold_loader.py`, `benchmark_loader.py`, `risk_free_loader.py`.
   - Math layer: `metrics.py` (pure-function CAGR / vol / Sharpe / Sortino /
     drawdowns) plus `timeseries.py` / `timeseries_civ.py` /
@@ -234,7 +233,7 @@ _[5 ratios to measure risk and return](https://www.morningstar.in/posts/28205/5-
 ```
 .
 ├── main.py                  # CLI entry point + pipeline driver
-├── *_loader.py              # Per-asset loaders (mutual_fund, ppf, scss, rec_bond,
+├── *_loader.py              # Per-asset loaders (mutual_fund, ppf, scss,
 │                            #   benchmark, risk_free, gold)
 ├── sgb_holdings.py          # Per-tranche SGB valuation engine (gold spot + coupons)
 ├── sgb_tranches.py          # SGB tranche reference + lookup API
@@ -247,7 +246,7 @@ _[5 ratios to measure risk and return](https://www.morningstar.in/posts/28205/5-
 ├── portfolio_timeseries.py  # PortfolioTimeseries (weighted aggregation, effective window)
 ├── metrics.py               # Pure-function math: CAGR / Vol / Sharpe / Sortino / drawdowns
 ├── portfolio_calculator.py  # Allocations + cumulative gains
-├── bond_calculators.py      # Variable-rate bond cumulative gain (used by rec_bond_loader)
+├── bond_calculators.py      # Variable-rate bond cumulative gain (used by the SCSS path)
 ├── fund_lifecycle.py        # Inauguration + DEFUNCT status + assets-CSV writer
 ├── drawdowns_csv.py         # Per-drawdown sibling CSV writer
 ├── visualizer.py            # Matplotlib plotting + drawdown printout

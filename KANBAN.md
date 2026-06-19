@@ -208,6 +208,18 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
 
 #### C. Correctness bugs surfaced but not fixed
 
+- [ ] **Maturing instruments are modelled as perpetual compounding** (surfaced
+  2026-06-19 by the REC-bond drop). SCSS (and the dropped REC bond) are valued by
+  `calculate_variable_bond_cumulative_gain`, which compounds a fixed coupon from
+  2000→today with **no maturity event** — so a 5-year instrument keeps "earning"
+  forever in a backtest, overstating its late-window contribution. A faithful
+  model would stop compounding at the maturity (or pre-redemption) date and carry
+  the principal as **cash** (flat) thereafter, optionally reinvested. This is the
+  same gap as SGB maturity (see SGB items) — worth doing **generally** for all
+  fixed-term instruments (SCSS, SGB, FDs), not per-asset. Not yet scheduled;
+  related: [[project-sgb-htm-default]]. *(This is the real value the REC bond
+  surfaced; REC itself was dropped — modelled identically to SCSS, no longer held.)*
+
 - [x] **Fixed `PortfolioTimeseries.__init__` weight-sum check** (2026-06-17,
   cycle 1). Strict `!= 1` replaced with `abs(total_weight - 1) > 0.01`.
   All 6 previously-failing portfolios now render. Two new unit tests:
@@ -644,11 +656,38 @@ first, then big. Per-thread branch + full network-gated merge. Progress below.
   assets → `TimeseriesCIV` ctor rejected it → non-overlapping portfolios crashed;
   now names it `"value"`. Also removed 2 provably-unreachable `if not self.assets:`
   guards (ctor already forbids empty). TOTAL 89→90%.
-- [ ] **Thread 3 — data sources & benchmarks** (next-ish per sequence): ppf/REC/gold
-  freshness + niftyindices steady-state + the 3 hybrid/debt benchmark-TRI sourcing
-  investigation.
+- [x] **Thread 3 — data-source freshness & quality** (2026-06-19). Scoped to the
+  bounded data-quality work; the open-ended hybrid/debt benchmark-TRI *sourcing*
+  was deferred into Thread 5 (big) per tidy-first. Delivered:
+  - **Gold staleness now surfaced.** `data/gold_monthly_inr.csv` was ~15 months
+    stale (ended 2025-03-31) with nothing catching it. New
+    `data_update.manual_staleness_warning` (reuses `cadence_frontier`); main.py's
+    `_warn_manual_sources` prints a one-line stderr warning naming the file +
+    affected metrics (gold/SGB) on non-deterministic runs. Warn-only (feedless →
+    can't block/auto-fetch, per ARCHITECTURE).
+  - **PPF data bug fixed:** `data/ppf_interest_rates.csv` had `2025=01-01` (typo)
+    → the row was silently dropped → PPF stopped accruing at 2024-10 instead of
+    2025-01. Fixed the date; made `load_ppf_interest_rates` **fail-fast** on
+    unparseable dates / non-numeric rates (was silent-drop). Re-captured the 4
+    PPF-bearing goldens (CAGR +0.03–0.05pp; anchored cols unchanged).
+  - **Gold loader** also fails fast on unparseable dates (was silent NaT-coerce).
+  - PPF deliberately *not* cadence-warned (sparse-by-design: rows only on rate
+    *changes*). Docs: `DATA_REFRESH.md` → *Manual, feedless sources*.
+  - **REC bond DROPPED as an asset class** (user, 2026-06-19): the user's REC
+    54EC bond matured and was redeemed to cash. REC was modelled *identically* to
+    SCSS (same `calculate_variable_bond_cumulative_gain` perpetual-compounding
+    machinery), so it demonstrated nothing SCSS doesn't, and the user no longer
+    holds it. Removed `loaders/rec_bond.py`, `port/port-rec-bond.toml`,
+    `tests/unit/loaders/test_rec_bond.py`, all `main.py`/`data_loader.py`/
+    `fund_lifecycle.py` handling, and doc/pyproject refs. `port-everything`'s 5%
+    REC folded into SCSS (5→10%, both fixed-coupon bonds); 2 goldens re-captured
+    (CAGR 13.21→13.32%, label updated). Surfaced a real limitation → backlog item
+    below.
+  - **niftyindices steady-state** = observational (needs real runs over days);
+    nothing to code — stays open for the user to confirm.
 - [ ] **Thread 4 — docs staleness sweep** (after code settles).
-- [ ] **Thread 5 (big) — benchmark TRI sourcing** | **Thread 6 (big) — reporting helpers**.
+- [ ] **Thread 5 (big) — benchmark TRI sourcing** (incl. the 3 hybrid/debt indices
+  investigation deferred from Thread 3) | **Thread 6 (big) — reporting helpers**.
 
 ### Remaining candidate detail (unprioritized)
 
