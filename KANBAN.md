@@ -626,20 +626,33 @@ are unaware of each other.
 
 ## In Progress
 
-_Nothing actively coding. **Staging a big new round of cleanup / audits /
-improvements** (user, 2026-06-19) — see the candidate slate below; scope to be
-confirmed before work starts._
+**Big round of cleanup / audits / improvements (user, 2026-06-19).** Scope = all
+four areas (code+coverage, docs, data+benchmarks, reporting); sequence = tidy
+first, then big. Per-thread branch + full network-gated merge. Progress below.
 
-### Next big round — candidate slate (staged 2026-06-19, unprioritized)
+### Big round — thread log
 
-A fresh sweep after the VRO-parity tracks closed. Grouped; the user will pick the
-order and what's in/out. Sequence small tidy items first, big open-ended ones last.
+- [x] **Thread 1 — dead-code sweep** (merged 2026-06-19, `--no-ff`). Vulture-guided
+  removal of ~342 lines reachable from nothing + tests of dead code: superseded
+  `vro.fetch_vro_trailing_returns`, never-read `DataSource.description`, 4 legacy
+  `data_loader` funcs, 2 whole dead test files, 5 unused conftest fixtures.
+- [x] **Thread 2 — coverage gaps** (2026-06-19). The stale premise (returns.py 44%)
+  was obsolete — returns.py is now 100% (metrics consolidation). Real gaps closed:
+  `portfolio_calculator` 62→100, `sgb_tranches` 86→100 (incl. the thread-1-deferred
+  `describe_tranche` test), `timeseries/portfolio` 70→98. **Bug found+fixed:**
+  `combined_civ_series` returned an *unnamed* empty Series on non-overlapping
+  assets → `TimeseriesCIV` ctor rejected it → non-overlapping portfolios crashed;
+  now names it `"value"`. Also removed 2 provably-unreachable `if not self.assets:`
+  guards (ctor already forbids empty). TOTAL 89→90%.
+- [ ] **Thread 3 — data sources & benchmarks** (next-ish per sequence): ppf/REC/gold
+  freshness + niftyindices steady-state + the 3 hybrid/debt benchmark-TRI sourcing
+  investigation.
+- [ ] **Thread 4 — docs staleness sweep** (after code settles).
+- [ ] **Thread 5 (big) — benchmark TRI sourcing** | **Thread 6 (big) — reporting helpers**.
+
+### Remaining candidate detail (unprioritized)
 
 - **Audits (read-then-fix).**
-  - *Dead/duplicated code sweep* across the live modules now that the salvage
-    churn has settled (loaders, timeseries, main.py glue).
-  - *Coverage gaps* — biggest genuine hole is `timeseries/returns.py` (44% at last
-    baseline); confirm what's untested vs. measurement artifact (`main.py` 1%).
   - *Docs staleness sweep* — README / QUICKSTART / ARCHITECTURE / DATA_REFRESH /
     OUTPUTS / TESTING / CONTRIBUTING vs. current code (several touched this round).
   - *Test-suite hygiene* — marker correctness, network-tier cost/runtime, any
