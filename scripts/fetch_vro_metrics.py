@@ -34,6 +34,7 @@ from loaders.vro import (  # noqa: E402
     VRO_RISK_FREE_ANNUAL,
     VRO_RISK_PERIOD_YEARS,
     browser_extra_available,
+    fetch_benchmark_tri,
     fetch_vro_metrics,
     load_vro_fund_map,
     trailing_cagr_pct,
@@ -93,21 +94,26 @@ def main() -> None:
             return_rows[period] = {"vro": vro_val, "ours": round(ours, 2), "delta_pp": round(delta, 2)}
 
         # --- risk ratios (trailing 3Y monthly) ---
-        ours_risk = trailing_risk_ratios(nav, years=VRO_RISK_PERIOD_YEARS)
+        # Beta/Alpha need the fund's benchmark TRI; fetch it only where sourceable
+        # (currently just NIFTY 100 → ICICI Bluechip). Without it, those two stay
+        # VRO-only in the snapshot.
+        bench_tri = fetch_benchmark_tri(fund.benchmark_index) if fund.benchmark_index else None
+        ours_risk = trailing_risk_ratios(
+            nav, years=VRO_RISK_PERIOD_YEARS, benchmark_nav=bench_tri
+        )
         risk_rows: dict[str, dict] = {}
-        for key in ("mean", "std_dev", "sharpe", "sortino"):
+        for key in ("mean", "std_dev", "sharpe", "sortino", "beta", "alpha"):
             vro_val = vro.risk.get(key)
             our_val = ours_risk.get(key)
-            if vro_val is None or our_val is None:
+            if vro_val is None:
+                continue
+            if our_val is None:  # VRO publishes it but we can't source the benchmark
+                print(f"  {key:>8}: VRO={vro_val:7.2f}  (VRO-only)")
+                risk_rows[key] = {"vro": vro_val}
                 continue
             delta = our_val - vro_val
             print(f"  {key:>8}: VRO={vro_val:7.2f}  ours={our_val:7.2f}  Δ{delta:+.2f}")
             risk_rows[key] = {"vro": vro_val, "ours": round(our_val, 2), "delta": round(delta, 2)}
-        for key in ("beta", "alpha"):  # VRO-only (no benchmark TRI on our side yet)
-            vro_val = vro.risk.get(key)
-            if vro_val is not None:
-                print(f"  {key:>8}: VRO={vro_val:7.2f}  (VRO-only)")
-                risk_rows[key] = {"vro": vro_val}
 
         snapshot.append(
             {

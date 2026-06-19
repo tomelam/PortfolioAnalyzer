@@ -98,10 +98,15 @@ class VROFund:
     vro_slug: str
     isin: str
     name: str
-    # The fund's stated benchmark (TRI). Scaffolding for the deferred Beta/Alpha
-    # parity — those need the benchmark's own return series, which the repo does
-    # not yet ship. Empty when unmapped.
+    # The fund's stated benchmark (TRI), as a human label.
     benchmark: str = ""
+    # The niftyindices index name whose TRI we can actually fetch for this
+    # benchmark (see :func:`fetch_benchmark_tri`). Set only where the benchmark
+    # is on niftyindices' free feed — currently NIFTY 100 (ICICI Bluechip). Empty
+    # for benchmarks not on that feed (the tiered/hybrid debt indices) or out of
+    # scope (Russell 3000 Growth for the US FoF); those funds' Beta/Alpha stay
+    # unasserted. See the probe under ``scripts/probe_niftyindices_*.py``.
+    benchmark_index: str = ""
 
     @property
     def mfapi_url(self) -> str:
@@ -120,6 +125,7 @@ def load_vro_fund_map(path: Path | None = None) -> list[VROFund]:
                 isin=row["isin"].strip(),
                 name=row["name"].strip(),
                 benchmark=(row.get("benchmark") or "").strip(),
+                benchmark_index=(row.get("benchmark_index") or "").strip(),
             )
             for row in csv.DictReader(f)
         ]
@@ -330,6 +336,23 @@ def trailing_risk_ratios(
             * 100.0
         )
     return out
+
+
+def fetch_benchmark_tri(
+    index_name: str, *, start: str = "01-Jan-2007", end: str | None = None
+) -> pd.Series:  # pragma: no cover - requires a real browser + network
+    """Fetch a benchmark's Total-Returns-Index from niftyindices as a daily Series.
+
+    Thin wrapper over :func:`loaders.data_update.fetch_niftyindices_tri` (same
+    stealth-browser path, same ``browser`` extra) that returns the ``value``
+    column as a date-indexed Series — the shape ``trailing_risk_ratios``'
+    ``benchmark_nav`` expects. Used to source Beta/Alpha for funds whose stated
+    benchmark is on niftyindices' feed (currently only NIFTY 100).
+    """
+    from loaders.data_update import fetch_niftyindices_tri
+
+    frame = fetch_niftyindices_tri(index_name=index_name, start=start, end=end)
+    return frame["value"].rename(index_name)
 
 
 def browser_extra_available() -> bool:

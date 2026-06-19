@@ -101,6 +101,10 @@ def test_fund_map_loads_expected_columns() -> None:
     # Stated benchmark column (scaffolding for Beta/Alpha parity).
     assert icici.benchmark == "NIFTY 100 TRI"
     assert all(f.benchmark for f in funds)  # every mapped fund has one
+    # Fetchable-benchmark column: only NIFTY 100 (ICICI Bluechip) is on
+    # niftyindices' feed; the rest are empty (not sourceable / out of scope).
+    assert icici.benchmark_index == "NIFTY 100"
+    assert [f.benchmark_index for f in funds if f.benchmark_index] == ["NIFTY 100"]
 
 
 def test_returns_api_url_shape() -> None:
@@ -188,6 +192,16 @@ def test_trailing_risk_ratios_beta_alpha_need_benchmark() -> None:
     out = trailing_risk_ratios(nav, years=3, benchmark_nav=bench)
     assert "beta" in out and "alpha" in out
     assert np.isfinite(out["beta"]) and np.isfinite(out["alpha"])
+
+
+def test_trailing_risk_ratios_beta_alpha_known_answer() -> None:
+    # A fund benchmarked against *itself* has CAPM beta 1 and alpha 0 by
+    # construction — pins that benchmark_nav is wired into the CAPM math
+    # correctly (not just that it returns finite numbers).
+    nav = _synthetic_monthly_nav(seed=3)
+    out = trailing_risk_ratios(nav, years=3, benchmark_nav=nav)
+    assert out["beta"] == pytest.approx(1.0)
+    assert out["alpha"] == pytest.approx(0.0, abs=1e-9)
 
 
 def test_trailing_risk_ratios_too_few_points_raises() -> None:
