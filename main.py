@@ -624,7 +624,13 @@ def main(settings):
         os.makedirs(settings["output_dir"], exist_ok=True)
 
 
-def parse_arguments():
+def build_parser():
+    """Construct the argument parser.
+
+    Separated from :func:`parse_arguments` so tests can introspect the real
+    option set (the single source of truth for documented CLI flags) without
+    argparse consuming ``sys.argv``. See ``tests/unit/test_docs_consistency.py``.
+    """
     import argparse
 
     parser = argparse.ArgumentParser(description="Portfolio Analyzer application.")
@@ -766,6 +772,11 @@ def parse_arguments():
             help=argparse.SUPPRESS,
         )
 
+    return parser
+
+
+def parse_arguments():
+    parser = build_parser()
     args = parser.parse_args()
     # overwrite the module‑level debug flag so utils.dbg() can see it
     utils.DEBUG = args.debug
