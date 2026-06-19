@@ -696,15 +696,17 @@ first, then big. Per-thread branch + full network-gated merge. Progress below.
   - **TESTING**: coverage baseline refreshed (287→355 passed, TOTAL 87→89%,
     returns.py 99→100%, main.py 1→14%).
   - OUTPUTS / CONTRIBUTING / QUICKSTART: clean (no stale module refs).
-  - **Surfaced, not done (needs user decision):** ~8 orphaned pre-refactor
-    ChatGPT-era planning docs in `docs/` (STRUCTURE, TODO, Variables, Calculations,
+  - **Follow-up DONE (user, 2026-06-19):** archived the 8 orphaned pre-refactor
+    ChatGPT-era planning docs (STRUCTURE, TODO, Variables, Calculations,
     Calculation_styles, Class_Roles_Summary, RefactorTable, full_global_todos) —
-    0 references from canonical docs, describe a superseded design (TimeseriesFrame
-    / metrics_calculator). Recommend archiving to `attic/`. External reference
-    material (CRISIL, RBI WSS, 5-ratios, etc.) stays.
-  - **Straggler flagged:** `utils.warn_if_stale` is app-dead (only `test_staleness.py`
-    uses it; superseded by the freshness invariant) — a thread-1 dead-code miss;
-    small follow-up to remove fn+test.
+    0 references from canonical docs, described a superseded design (TimeseriesFrame
+    / metrics_calculator) — to `attic/legacy-planning-docs/` (with a provenance
+    README). External reference material (CRISIL, RBI WSS, 5-ratios, etc.) stays in
+    `docs/`.
+  - **Follow-up DONE (user, 2026-06-19):** removed app-dead `utils.warn_if_stale`
+    (+ its only consumer `tests/test_staleness.py` + the now-unused `import datetime`)
+    — a thread-1 dead-code miss, superseded by the freshness invariant. README +
+    ARCHITECTURE `utils.py` role lines updated.
 - [ ] **Thread 5 (big) — benchmark TRI sourcing** (incl. the 3 hybrid/debt indices
   investigation deferred from Thread 3) | **Thread 6 (big) — reporting helpers**.
 

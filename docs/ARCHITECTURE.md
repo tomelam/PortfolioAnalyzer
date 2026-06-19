@@ -70,7 +70,7 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 | `loaders/gold.py` | Monthly INR/troy-ounce CSV → per-gram price series |
 | `visualizer.py` | Matplotlib plotting + drawdown printout; embeds PNG `tEXt` metadata + provenance footnote |
 | `output_metadata.py` | Pure formatters for the metrics block / provenance / PNG `tEXt` payload |
-| `utils.py` | `info` / `dbg` / `warn_if_stale` / `to_cutoff_date` |
+| `utils.py` | `info` / `dbg` / `to_cutoff_date` |
 | `data_loader.py` | Legacy aggregator; re-exports loaders for back-compat |
 
 ## Key design decisions

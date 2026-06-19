@@ -251,7 +251,7 @@ _[5 ratios to measure risk and return](https://www.morningstar.in/posts/28205/5-
 ├── fund_lifecycle.py        # Inauguration + DEFUNCT status + assets-CSV writer
 ├── drawdowns_csv.py         # Per-drawdown sibling CSV writer
 ├── visualizer.py            # Matplotlib plotting + drawdown printout
-├── utils.py                 # info / dbg / warn_if_stale / to_cutoff_date
+├── utils.py                 # info / dbg / to_cutoff_date
 ├── pyproject.toml           # Package + dev-tool config (ruff, pytest, etc.)
 └── README.md                # This file
 ```
