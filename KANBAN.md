@@ -644,11 +644,29 @@ first, then big. Per-thread branch + full network-gated merge. Progress below.
   assets → `TimeseriesCIV` ctor rejected it → non-overlapping portfolios crashed;
   now names it `"value"`. Also removed 2 provably-unreachable `if not self.assets:`
   guards (ctor already forbids empty). TOTAL 89→90%.
-- [ ] **Thread 3 — data sources & benchmarks** (next-ish per sequence): ppf/REC/gold
-  freshness + niftyindices steady-state + the 3 hybrid/debt benchmark-TRI sourcing
-  investigation.
+- [x] **Thread 3 — data-source freshness & quality** (2026-06-19). Scoped to the
+  bounded data-quality work; the open-ended hybrid/debt benchmark-TRI *sourcing*
+  was deferred into Thread 5 (big) per tidy-first. Delivered:
+  - **Gold staleness now surfaced.** `data/gold_monthly_inr.csv` was ~15 months
+    stale (ended 2025-03-31) with nothing catching it. New
+    `data_update.manual_staleness_warning` (reuses `cadence_frontier`); main.py's
+    `_warn_manual_sources` prints a one-line stderr warning naming the file +
+    affected metrics (gold/SGB) on non-deterministic runs. Warn-only (feedless →
+    can't block/auto-fetch, per ARCHITECTURE).
+  - **PPF data bug fixed:** `data/ppf_interest_rates.csv` had `2025=01-01` (typo)
+    → the row was silently dropped → PPF stopped accruing at 2024-10 instead of
+    2025-01. Fixed the date; made `load_ppf_interest_rates` **fail-fast** on
+    unparseable dates / non-numeric rates (was silent-drop). Re-captured the 4
+    PPF-bearing goldens (CAGR +0.03–0.05pp; anchored cols unchanged).
+  - **Gold loader** also fails fast on unparseable dates (was silent NaT-coerce).
+  - PPF deliberately *not* cadence-warned (sparse-by-design: rows only on rate
+    *changes*). REC coupon documented as contractual (no feed). Docs:
+    `DATA_REFRESH.md` → *Manual, feedless sources*.
+  - **niftyindices steady-state** = observational (needs real runs over days);
+    nothing to code — stays open for the user to confirm.
 - [ ] **Thread 4 — docs staleness sweep** (after code settles).
-- [ ] **Thread 5 (big) — benchmark TRI sourcing** | **Thread 6 (big) — reporting helpers**.
+- [ ] **Thread 5 (big) — benchmark TRI sourcing** (incl. the 3 hybrid/debt indices
+  investigation deferred from Thread 3) | **Thread 6 (big) — reporting helpers**.
 
 ### Remaining candidate detail (unprioritized)
 

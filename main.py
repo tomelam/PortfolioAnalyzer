@@ -88,6 +88,33 @@ def _report_reference_provenance(settings):
     return provenance
 
 
+def _warn_manual_sources(portfolio_dict):
+    """Surface staleness of hand-maintained, feedless data files the portfolio
+    actually uses. Warn-only: these have no upstream feed to auto-refresh, so the
+    remedy is the user updating the CSV (see docs/DATA_REFRESH.md).
+
+    Only **gold** is checked: it is a genuine monthly price series, so a cadence
+    gap means real staleness. PPF is deliberately *not* cadence-checked — its CSV
+    is sparse by design (one row per rate *change*), so a months-old last entry
+    just means the rate is unchanged and correctly carried forward, not stale.
+    """
+    if not ("gold" in portfolio_dict or "sgb" in portfolio_dict):
+        return  # portfolio doesn't touch gold-priced assets
+    from loaders.data_update import manual_staleness_warning
+    from loaders.gold import load_gold_prices
+
+    last = load_gold_prices().index.max()
+    warning = manual_staleness_warning(
+        "Gold prices (data/gold_monthly_inr.csv)",
+        last,
+        cadence="month",
+        affects="gold and SGB valuation",
+        refresh_hint="Refresh the monthly CSV — see docs/DATA_REFRESH.md.",
+    )
+    if warning:
+        info(warning)
+
+
 def main(settings):
     import os
     from pathlib import Path
@@ -114,6 +141,9 @@ def main(settings):
     deterministic = settings.get("as_of") is not None or settings.get("replay_from")
     if not deterministic:
         _enforce_reference_freshness(settings)
+        # Feedless manual sources (gold) can't be auto-refreshed or blocked on —
+        # warn if stale. Skipped in deterministic modes, where data is pinned.
+        _warn_manual_sources(portfolio_dict)
     # Provenance is echoed to stderr in every mode and embedded in the PNG.
     reference_provenance = _report_reference_provenance(settings)
 

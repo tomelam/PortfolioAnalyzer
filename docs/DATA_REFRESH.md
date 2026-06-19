@@ -83,6 +83,36 @@ Practical guidance:
   `--allow-stale` if you accept degraded alpha/beta).
 - A benchmark already current for the day triggers **zero** fetches.
 
+## Manual, feedless sources (gold, PPF, REC bond)
+
+Three inputs have **no upstream feed** to auto-refresh, so they can't be
+enforced like the benchmark/risk-free reference data — the program can only
+*warn*, never block or fetch (see `docs/ARCHITECTURE.md` → *Data freshness as a
+correctness invariant*). You maintain these by hand.
+
+- **Gold — `data/gold_monthly_inr.csv`** (monthly INR/troy-ounce spot). A true
+  monthly price series, so a gap is real staleness: it drives both the **gold
+  asset** and **SGB** valuation, and a stale file silently freezes those at the
+  last price (and clips the portfolio's effective window). Every non-deterministic
+  run that uses gold/SGB checks it and prints a one-line **stderr warning** when
+  the latest row is behind the current month (cadence = `month`), naming the file,
+  the affected metrics, and this doc. Refresh: append the new month-end spot
+  rows and re-run. (`--as-of`/`--replay-from` runs skip the check — data is
+  pinned as of that date.) yfinance was rejected as a feed (unstable scrape); if
+  a stable public gold API appears, register it then.
+- **PPF — `data/ppf_interest_rates.csv`** (declared rate by effective date).
+  **Sparse by design**: one row per rate *change*, not per month. The loader
+  carries the latest rate forward, so a months-old last row usually just means
+  the rate is unchanged (7.1% since 2019) — **not** staleness, which is why PPF
+  is deliberately *not* cadence-warned (a monthly check would false-alarm
+  forever). The review cadence is **quarterly**: when the government announces a
+  PPF rate change, add a `YYYY-MM-DD,rate` row. The loader **fails fast** on an
+  unparseable date or non-numeric rate (a silently-dropped row would corrupt the
+  CIV — this caught a real `2025=01-01` typo).
+- **REC bond coupon** — a **contractual** per-bond rate carried in the portfolio
+  TOML (`[rec_bond].coupon`), not a feed. It does not go stale; set it to the
+  bond's actual coupon when modelling one.
+
 ## Manual one-shot refresh (optional)
 
 `portfolio-analyzer-update` refreshes every registered source in one shot and

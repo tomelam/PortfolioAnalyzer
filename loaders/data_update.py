@@ -435,6 +435,43 @@ def cadence_frontier(cadence: str, today) -> pd.Timestamp:
     raise ValueError(f"unknown cadence: {cadence!r}")
 
 
+def manual_staleness_warning(
+    label: str,
+    last_date,
+    cadence: str,
+    affects: str,
+    refresh_hint: str,
+    *,
+    today=None,
+) -> str | None:
+    """Warn (never block) when a hand-maintained, feedless data file is behind.
+
+    Gold and PPF have no upstream feed to auto-refresh (see ARCHITECTURE.md →
+    *Data freshness as a correctness invariant*: feedless sources can only warn).
+    This surfaces a file that has fallen behind its own publication cadence so
+    the user knows to refresh it — rather than letting carried-forward values
+    silently shorten or flatten the affected metrics. Returns one warning line,
+    or ``None`` when the source is current.
+
+    Args:
+        label: human name of the source (and its file).
+        last_date: latest dated row in the file (``None`` if none parsed).
+        cadence: ``"month"`` or ``"business_day"`` — how often it should update.
+        affects: metrics that degrade when it's stale (named in the warning).
+        refresh_hint: how to refresh (a file path / doc pointer).
+        today: override for testing.
+    """
+    if last_date is None:
+        return f"⚠️  {label}: no dated rows found — {affects} may be wrong. {refresh_hint}"
+    frontier = cadence_frontier(cadence, today or pd.Timestamp.today().normalize())
+    if pd.Timestamp(last_date).normalize() < frontier:
+        return (
+            f"⚠️  {label} is stale (latest {pd.Timestamp(last_date).date()}, expected "
+            f"≥ {frontier.date()}); {affects} use carried-forward values. {refresh_hint}"
+        )
+    return None
+
+
 def assess_freshness(source: DataSource, *, today=None) -> dict:
     """Read local data + stamp and report where ``source`` stands today.
 
