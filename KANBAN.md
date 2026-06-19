@@ -65,13 +65,32 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   - **Done (next-steps batch, 2026-06-18):** widened the map to all 5 funds
     (each disambiguated by parity vs our Growth-NAV CAGR) and tightened the
     wire-test tolerance 1.0 → 0.5pp.
-  - **Deferred — risk-ratio parity (Sharpe / SD / alpha / beta).** Probed: VRO's
-    fund **overview** API exposes only returns / allocation / port-aggregate
-    endpoints — no risk-ratios endpoint among them (guessed routes 404). VRO's
-    risk ratios render on a separate tab with their own XHR, and matching them is
-    a deeper reconciliation than returns (VRO uses its *own* risk-free rate and a
-    3Y-monthly Sharpe convention). That's a follow-up of its own size, not a quick
-    add. Returns parity only for now.
+  - **Done — risk-ratio parity (Mean / SD / Sharpe / Sortino), 2026-06-19.**
+    The earlier "no risk-ratios endpoint" finding was right about the *overview
+    API* but the data does exist — it just isn't under `/api/funds/*`. The Risk
+    tab's ratios load lazily (bundle fn `risk_ratio_tab_ajax`) from
+    **`GET /funds/risk-ratios-tab-data/`**, which returns an **HTML fragment**
+    (not JSON) and keys on the fund's **short name** (`#fund_name` hidden input,
+    e.g. "ICICI Pru Large Cap Dir"), *not* the plan id — with peers optional.
+    That route is fully Cloudflare-challenged (the `/api/` JSON routes aren't),
+    and an in-page XHR straight from the fund page hangs behind the challenge; the
+    working sequence is **navigate the risk URL once to clear CF for that path,
+    then in-page XHR** (carries the `X-Requested-With` the route requires).
+    Mapped via a throwaway-but-kept discovery spike (`scripts/vro_discover_endpoints.py`)
+    that dumps the page bundle + `/api/` traffic + the risk fragment.
+    - **Matched methodology:** VRO computes risk ratios trailing-3Y, *monthly*;
+      `loaders.vro.trailing_risk_ratios` mirrors it via `metrics.*` with
+      `periods_per_year=12`. VRO's assumed risk-free back-solves to ≈5.9% from a
+      captured fragment (`VRO_RISK_FREE_ANNUAL`).
+    - **Deliverables:** `parse_risk_ratios` (BeautifulSoup, fixture-tested),
+      `vro_risk_ratios_api`, `fetch_vro_metrics` (one stealth session, both
+      families), `VROMetrics`; fixture `tests/fixtures/vro_risk_ratios.html`;
+      extended `tests/unit/test_vro.py` and `tests/integration/test_vro_parity.py`
+      (asserts Mean/SD/Sharpe/Sortino) and `scripts/fetch_vro_metrics.py` snapshot.
+    - **Still deferred — Beta / Alpha parity:** both are *fetched* from VRO, but
+      asserting ours needs each fund's **stated benchmark TRI**, which the repo
+      doesn't ship (only NIFTY TRI) and `data/vro_funds.csv` has no benchmark
+      column. Collected-for-the-record only.
 
 - [x] **Stale NIFTY benchmark is a hard blocker — add a bypass flag**
   (2026-06-17, cycle 10). Added `--skip-age-check` CLI flag. When
