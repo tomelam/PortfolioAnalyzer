@@ -98,6 +98,9 @@ def test_fund_map_loads_expected_columns() -> None:
     assert icici.vro_plan_id == "15841"
     assert icici.isin == "INF109K016L0"
     assert icici.mfapi_url == "https://api.mfapi.in/mf/120586"
+    # Stated benchmark column (scaffolding for Beta/Alpha parity).
+    assert icici.benchmark == "NIFTY 100 TRI"
+    assert all(f.benchmark for f in funds)  # every mapped fund has one
 
 
 def test_returns_api_url_shape() -> None:
