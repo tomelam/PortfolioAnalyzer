@@ -109,13 +109,13 @@ It just `exec`s `venv/bin/python main.py "$@"`, so it's exactly equivalent to
 the longer forms above and editing the code takes effect immediately. Paths
 you pass are resolved from the project root; use an absolute path for a
 portfolio/config file that lives elsewhere.
-The `--max-drawdown-threshhold` option (shortcut `-dt`) sets the percentage drawdown that is considered significant to count in the "Drawdowns" statistic. By default, the threshhold is set to `5` (5%).
+The `--max-drawdown-threshold` option (shortcut `-dt`) sets the percentage drawdown that is considered significant to count in the "Drawdowns" statistic. By default, the threshold is set to `5` (5%).
 
 The benchmark name and benchmark/risk-free CSV paths live in the config TOML
 (see `config/example_config.toml`); no CLI shortcuts exist for those. Run
 `portfolio-analyzer --help` for the authoritative flag list.
 
-⚠️ NOTE: Files downloaded from Investing.com sometimes use different date formats (e.g., %d-%m-%Y vs %m/%d/%Y). Always check the format of the first few rows and pass --benchmark-date-format accordingly.
+⚠️ NOTE: Files downloaded from Investing.com sometimes use different date formats (e.g., %d-%m-%Y vs %m/%d/%Y). Always check the format of the first few rows and set `benchmark_date_format` in your config TOML accordingly — there is no CLI flag for it (see [Benchmark Indices](#benchmark-indices-config-file-only-not-in-command-line-options) below).
 
 Mac users might notice messages like `2025-02-04 20:00:14.220 python[20791:454371] +[IMKClient subclass]: chose IMKClient_Modern` cluttering the terminal output. These are OS Activity Mode messages coming from Apple's Input Method Kit (IMK). They can be suppressed by appending `2> /dev/null` to the command. This is not a perfect solution. Normally, the OS_ACTIVITY_MODE environment variable could be set to "disable" to suppress such messages, but it appears that Apple's Input Method Kit (IMK) framework does not consistently honor that variable.
 
@@ -138,20 +138,22 @@ Each of the options (except for `--config`) can also be set in the config TOML, 
 
 #### 📤 Output Control
 
-- `--output-csv` → `output_csv = true`:  
-  If set, outputs metrics in CSV format.
-  - If `--save-output-to` is set (or `output_dir` is defined in the config), the CSV is written to a file in that directory. The filename is derived from the portfolio TOML file name.
-  - Otherwise, the CSV is printed to the terminal (`stdout`).
+- `--output-csv` (`-co`) → `output_csv = true`:  
+  If set, writes the headline metrics in CSV format.
+  - The CSV is written to `<output_dir>/<portfolio>.csv` (with sibling
+    `<portfolio>.drawdowns.csv` and `<portfolio>.assets.csv`). The filename stem
+    is derived from the portfolio TOML file name.
+  - `output_dir` defaults to `outputs/`, so by default the files land there.
+    Only if `output_dir` is explicitly set to an empty string is the CSV printed
+    to the terminal (`stdout`) instead.
 
-  `--output-snapshot` → `output_snapshot = true`:  
-  If set, saves a snapshot image of the performance plot.
-  - If --save-output-to <dir> is given, the image is saved to that directory.
-  - Otherwise, it is saved to the default `outputs/` directory.
+- `--output-snapshot` (`-os`) → `output_snapshot = true`:  
+  If set, saves a snapshot image (PNG) of the performance plot to
+  `<output_dir>/` (default `outputs/`).
 
-- `--save-output-to <dir>` → `output_dir = "outputs"`:  
-  Specifies the directory where any output file (CSV and/or snapshot image) will be saved.  
-  - If not set and `--output-snapshot` is used, output goes to the `outputs/` directory by default.
-  - If not set and `--output-csv` is used, the CSV is printed to the terminal (`stdout`).
+- `--output-dir <dir>` (`-od`) → `output_dir = "outputs"`:  
+  Directory where output files (CSV and/or snapshot image) are written.
+  Defaults to `outputs/`.
 
 ---
 
@@ -192,18 +194,42 @@ Each of the options (except for `--config`) can also be set in the config TOML, 
 
       python main.py -lb 6M -d portfolio.toml
 
+- `--metrics-method <daily|monthly>` → `metrics_method = "daily"`:  
+  Sampling frequency for return/risk calculations (Volatility, Sharpe, Sortino).
+  Default `daily`.
+
+- `--as-of YYYY-MM-DD`:  
+  Evaluate the portfolio as of this date: every NAV/CIV series is trimmed to
+  `<= as_of`, the freshness gate uses it as the reference date, and `--lookback`
+  counts back from it. Makes a run deterministic regardless of when data was
+  fetched, and opts out of auto-refresh/blocking. (No config key.)
+
+- `--replay-from <dir>` / `--save-replay <dir>`:  
+  `--replay-from` reads NAV/SCSS data from local fixtures in `<dir>`
+  (`<dir>/navs/<fund>.csv`, `<dir>/scss_nsi.html`) instead of the network;
+  combined with `--as-of` a run is fully offline and deterministic.
+  `--save-replay` captures those fixtures during a live run. The two are mutually
+  exclusive. (No config keys.)
+
 ---
 
 #### Benchmark Indices (config-file only, not in command-line options)
 
   `benchmark_name = "NIFTY Total Returns Index"`:  
   Sets the name of the benchmark index in the outputs.
-  
-  `benchmark_file = "data/NIFTY TOTAL MARKET_Historical_PR_01012007to28032025.csv"`:  
-  Sets the filename of the benchmark data.
-  
-  `benchmark_date_format = "%d %b %Y"`:  
-  Sets the date format for the dates in the benchmark data CSV file. "%d %b %Y" is the format that Niftyindices.com typically uses. "%m/%d/%Y" is the format that Investing.com typically uses for Indian indices, since they changed the format in the first quarter of 2025.
+
+  `benchmark_returns_file = "data/NIFTY Total Returns Historical Data.csv"`:  
+  Sets the filename of the benchmark data CSV. (Note the key is
+  `benchmark_returns_file`, not `benchmark_file`.) The bundled default is the
+  NIFTY 50 TRI history the auto-updater maintains.
+
+  `benchmark_date_format = "%m/%d/%Y"`:  
+  Sets the date format of the dates in the benchmark CSV. The bundled
+  `NIFTY Total Returns Historical Data.csv` uses `%m/%d/%Y` (e.g. `05/02/2025`),
+  which is also the built-in default. Niftyindices.com pages typically render
+  `%d %b %Y`; Investing.com exports for Indian indices typically use `%m/%d/%Y`
+  (they changed the format in early 2025). Match this setting to whatever file you
+  actually point `benchmark_returns_file` at.
 
 ## Metrics
 
