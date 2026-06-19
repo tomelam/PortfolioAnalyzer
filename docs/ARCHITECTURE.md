@@ -56,7 +56,7 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 | `loaders/*.py` | One per asset class; ingest source data → standardized Series/DataFrame |
 | `synthetic_civ.py` | PPF / SCSS interest-rate → daily-equivalent CIV |
 | `civ_to_returns.py` | CIV → daily/monthly returns (with `pct_change`) |
-| `timeseries/returns.py` | `TimeseriesReturn` class: the alpha/beta methods + thin delegates to `metrics.py` |
+| `timeseries/returns.py` | `TimeseriesReturn` class: the alpha/beta methods + thin delegates to `metrics.py` + the reporting helpers (see *Reporting helpers* below) |
 | `timeseries/civ.py` | `TimeseriesCIV` class: validates name='value'; `to_returns` + hand-rolled `max_drawdowns` |
 | `timeseries/asset.py` | `AssetTimeseries` dataclass holding `civ` / `ret` / `cumret` views |
 | `timeseries/portfolio.py` | `PortfolioTimeseries`: weighted aggregation; the two CIV-bug fixes live here |
@@ -81,6 +81,32 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 `max_drawdown`, and `max_drawdowns`. The class methods on `TimeseriesReturn`
 delegate to it. Pure functions are trivially unit-tested with hand-computed
 inputs (see `tests/unit/test_metrics.py`, 20 tests).
+
+### Reporting helpers on `TimeseriesReturn`
+
+Six optional, ad-hoc reporting/export methods sit alongside the metric
+delegates. They are *not* wired into the CLI pipeline — they exist for
+interactive/library use (notebooks, scratch scripts, comparison runs). The
+console-printing ones write to **stderr** via `utils.info` so they never
+pollute a piped CSV/LaTeX payload on stdout.
+
+| Method | Purpose |
+|---|---|
+| `info_summary(name)` | Print a compact structural summary — shape, date range, NaN count, non-zero count. |
+| `describe_as_report(name)` | Print descriptive stats — observations, missing/non-zero, mean, std, min, max. |
+| `to_csv_report(path, name)` | Write a one-row summary CSV (structure + descriptive stats). |
+| `to_latex_table(compare_to, name, title, label)` | Return a LaTeX metrics table (CAGR / Max DD / Vol / Sharpe / Sortino); optional second column for a comparison series. |
+| `compare_to(other, …)` | Print a side-by-side metrics comparison over the two series' common dates (needs ≥30 overlapping dates). |
+| `as_rolling(window, method)` | Return a new `TimeseriesReturn` of a rolling `mean`/`std`/`median`/`min`/`max` over the value series. |
+
+A private `_summary_metrics(ts, …)` builds the ordered `(label, value,
+is_percent)` rows shared by `to_latex_table` and `compare_to`. Its
+annualized-return notion is `cagr()` and its annualized-vol notion is
+`volatility()` (the older parked code's removed `annualized()` dict). The
+`is_percent` flag drives formatting: CAGR / Max Drawdown / Volatility render as
+percents, Sharpe / Sortino as plain ratios. These were revived from
+`attic/timeseries_return_helpers.py` (Thread 6, 2026-06-19); see
+`tests/unit/test_reporting_helpers.py`.
 
 ### Portfolio CIV is unit-free and daily
 

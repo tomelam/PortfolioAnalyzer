@@ -241,7 +241,7 @@ _[5 ratios to measure risk and return](https://www.morningstar.in/posts/28205/5-
 ├── synthetic_civ.py         # Interest-rate series → daily-equivalent CIV
 ├── civ_to_returns.py        # CIV → returns
 ├── timeseries/              # Timeseries class package:
-│   ├── returns.py           #   TimeseriesReturn (alpha/beta + thin metrics delegates)
+│   ├── returns.py           #   TimeseriesReturn (alpha/beta + thin metrics delegates + reporting helpers)
 │   ├── civ.py               #   TimeseriesCIV (validated-NAV class)
 │   ├── asset.py             #   AssetTimeseries dataclass (civ/ret/cumret views)
 │   └── portfolio.py         #   PortfolioTimeseries (weighted aggregation, effective window)
