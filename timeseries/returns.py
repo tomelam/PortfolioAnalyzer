@@ -2,6 +2,25 @@ import numpy as np
 import pandas as pd
 
 import metrics
+from utils import info
+
+
+def _summary_metrics(ts, risk_free_rate=0.0, frequency="daily"):
+    """Ordered ``(label, value, is_percent)`` metric rows for reporting helpers.
+
+    The current API's annualized-return notion is CAGR (geometric) and its
+    annualized-volatility notion is ``volatility()`` — these replace the parked
+    code's removed ``annualized()`` dict. ``is_percent`` drives display
+    formatting: CAGR / Max Drawdown / Volatility are fractions shown as
+    percents; Sharpe / Sortino are dimensionless ratios shown as-is.
+    """
+    return [
+        ("CAGR", ts.cagr(), True),
+        ("Max Drawdown", ts.max_drawdown(), True),
+        ("Volatility", ts.volatility(frequency=frequency), True),
+        ("Sharpe", ts.sharpe(risk_free_rate, frequency=frequency), False),
+        ("Sortino", ts.sortino(risk_free_rate, frequency=frequency), False),
+    ]
 
 
 class TimeseriesReturn:
@@ -13,9 +32,12 @@ class TimeseriesReturn:
 
     Only accepts a pandas Series as input. Fails fast on incorrect types.
 
-    Note: a number of unused reporting/alignment helpers were parked in
-    ``attic/timeseries_return_helpers.py`` on 2026-06-17 (see KANBAN Phase E
-    port candidates); this class now exposes only its live surface.
+    Note: the reporting helpers below (``info_summary`` / ``describe_as_report``
+    / ``to_csv_report`` / ``to_latex_table`` / ``compare_to`` / ``as_rolling``)
+    were revived from ``attic/timeseries_return_helpers.py`` in 2026-06. The
+    remaining parked alignment helpers (``align_with`` / ``clip_to_overlap`` /
+    ``aligned_to`` / ``interpolated``) stay parked until cross-asset analysis
+    needs them.
     """
     @property
     def name(self) -> str:
@@ -174,3 +196,132 @@ class TimeseriesReturn:
         return metrics.beta_capm(
             self.value_series(), benchmark_ret.value_series(), risk_free_rate=risk_free_rate
         )
+
+    # --- reporting helpers (revived from attic/, 2026-06) ------------------
+
+    def info_summary(self, name: str = "Timeseries") -> None:
+        """Print a compact structural summary (shape, range, NaNs) to stderr."""
+        s = self.value_series()
+        info(f"{name} shape: {s.shape}")
+        info(f"{name} date range: {self.index.min().date()} → {self.index.max().date()}")
+        info(f"NaNs in 'value': {int(s.isna().sum())}")
+        info(f"Non-zero values: {int((s != 0).sum())}")
+
+    def describe_as_report(self, name: str = "Timeseries") -> None:
+        """Print descriptive statistics of the value series to stderr."""
+        s = self.value_series()
+        info(f"🧾 Report: {name}")
+        info(f"- Date range: {self.index.min().date()} → {self.index.max().date()}")
+        info(f"- Observations: {len(s)}")
+        info(f"- Missing: {int(s.isna().sum())}")
+        info(f"- Non-zero: {int((s != 0).sum())}")
+        info(f"- Mean: {s.mean():.6f}")
+        info(f"- Std Dev: {s.std():.6f}")
+        info(f"- Min: {s.min():.6f}")
+        info(f"- Max: {s.max():.6f}")
+
+    def to_csv_report(self, path, name: str = "Timeseries") -> None:
+        """Write a one-row summary CSV (structure + descriptive stats)."""
+        s = self.value_series()
+        summary = {
+            "name": name,
+            "start_date": self.index.min().date(),
+            "end_date": self.index.max().date(),
+            "observations": len(s),
+            "missing": int(s.isna().sum()),
+            "nonzero": int((s != 0).sum()),
+            "mean": s.mean(),
+            "std_dev": s.std(),
+            "min": s.min(),
+            "max": s.max(),
+        }
+        pd.DataFrame([summary]).to_csv(path, index=False)
+
+    def to_latex_table(
+        self,
+        compare_to: "TimeseriesReturn | None" = None,
+        name: str = "Series",
+        title: str | None = None,
+        label: str | None = None,
+    ) -> str:
+        """Return LaTeX for a metrics table (CAGR / Max DD / Vol / Sharpe / Sortino).
+
+        If ``compare_to`` is another ``TimeseriesReturn``, emit a 2-column
+        comparison. Percent metrics render with ``\\%``; ratios render plain.
+        """
+        from io import StringIO
+
+        rows_self = _summary_metrics(self)
+        rows_other = _summary_metrics(compare_to) if compare_to is not None else None
+
+        def fmt(value: float, is_percent: bool) -> str:
+            return f"{value * 100:.2f}\\%" if is_percent else f"{value:.2f}"
+
+        buffer = StringIO()
+        buffer.write("\\begin{table}[ht]\n\\centering\n")
+        if title:
+            buffer.write(f"\\caption{{{title}}}\n")
+        if label:
+            buffer.write(f"\\label{{{label}}}\n")
+
+        columns = "lrr" if rows_other else "lr"
+        buffer.write(f"\\begin{{tabular}}{{{columns}}}\n\\toprule\n")
+        buffer.write("Metric & " + name)
+        if rows_other:
+            buffer.write(" & Comparison")
+        buffer.write(" \\\\\n\\midrule\n")
+
+        for i, (metric, val1, is_percent) in enumerate(rows_self):
+            if rows_other:
+                val2 = rows_other[i][1]
+                buffer.write(f"{metric} & {fmt(val1, is_percent)} & {fmt(val2, is_percent)} \\\\\n")
+            else:
+                buffer.write(f"{metric} & {fmt(val1, is_percent)} \\\\\n")
+
+        buffer.write("\\bottomrule\n\\end{tabular}\n\\end{table}\n")
+        return buffer.getvalue()
+
+    def compare_to(
+        self,
+        other: "TimeseriesReturn",
+        name_self: str = "This",
+        name_other: str = "Other",
+        risk_free_rate: float = 0.0,
+        frequency: str = "daily",
+    ) -> None:
+        """Print a side-by-side metrics comparison (over the common dates) to stderr.
+
+        Raises ``TypeError`` if ``other`` is not a ``TimeseriesReturn``, and
+        ``ValueError`` if either series is empty or the two share fewer than 30
+        dates (too little overlap to compare meaningfully).
+        """
+        if not isinstance(other, TimeseriesReturn):
+            raise TypeError("Expected TimeseriesReturn")
+        s1 = self.value_series().dropna()
+        s2 = other.value_series().dropna()
+        if s1.empty or s2.empty:
+            raise ValueError("Cannot compare empty series.")
+        common = s1.index.intersection(s2.index)
+        if len(common) < 30:
+            raise ValueError("Too little overlap between series to compare meaningfully.")
+
+        rows1 = _summary_metrics(TimeseriesReturn(s1.loc[common]), risk_free_rate, frequency)
+        rows2 = _summary_metrics(TimeseriesReturn(s2.loc[common]), risk_free_rate, frequency)
+
+        info(f"\n📊 Comparison: {name_self} vs {name_other}\n")
+        info(f"{'Metric':<20} | {name_self:<12} | {name_other}")
+        info("-" * 50)
+        for (metric, v1, is_percent), (_, v2, _) in zip(rows1, rows2, strict=True):
+            f1 = f"{v1 * 100:.2f}%" if is_percent else f"{v1:.2f}"
+            f2 = f"{v2 * 100:.2f}%" if is_percent else f"{v2:.2f}"
+            info(f"{metric:<20} | {f1:<12} | {f2}")
+
+    def as_rolling(self, window: int = 30, method: str = "mean") -> "TimeseriesReturn":
+        """Return a new ``TimeseriesReturn`` of a rolling metric over 'value'.
+
+        Supported ``method``: 'mean', 'std', 'median', 'min', 'max'.
+        """
+        if method not in {"mean", "std", "median", "min", "max"}:
+            raise ValueError(f"Unsupported method: {method}")
+        func = getattr(self.value_series().rolling(window), method)
+        return TimeseriesReturn(func())

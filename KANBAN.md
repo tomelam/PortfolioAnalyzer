@@ -348,13 +348,11 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
 
 #### F. Optional features from the tmp4 attic
 
-- [ ] **Port the parked reporting helpers** to current `TimeseriesReturn`:
+- [x] **Port the parked reporting helpers** to current `TimeseriesReturn`:
   `info_summary`, `describe_as_report`, `to_csv_report`, `to_latex_table`,
-  `compare_to`, `as_rolling`. As of 2026-06-17 these are parked in
-  `attic/timeseries_return_helpers.py` (relocated from the live class to
-  lift its coverage); reviving means re-wiring to today's API — several
-  reference `self.columns`/`self.shape`/`self.interpolate`/`self.annualized`
-  which the current class doesn't expose. *(Also on Phase E backlog.)*
+  `compare_to`, `as_rolling`. **DONE Thread 6 (2026-06-19)** — revived onto the
+  live class, re-wired to the Series API; see the Thread 6 record in the in-flight
+  section above.
 - [ ] **Port the parked alignment helpers** if cross-asset analysis grows
   beyond `combined_civ_series`: `align_with`, `clip_to_overlap`,
   `aligned_to`, `interpolated` (also parked in
@@ -583,7 +581,7 @@ are unaware of each other.
 - [x] **Audit of `attic/tmp4-apr2025/bonus/` complete.** 4 shell helpers (`plot_all.sh`, `run_all_configs.sh`, `run_all_metrics_to_csv.sh`, `single-asset-type.sh`) and one diagnostic script (`ppf_annualized_interest_rate.py`). Useful as references but non-blocking; backlogged for post-v0.1.
 
 ### Phase E — backlog (post-v0.1 only)
-- [ ] Port the reporting helpers to current `TimeseriesReturn` if CSV/LaTeX export is wanted: `info_summary`, `describe_as_report`, `to_csv_report`, `to_latex_table`, `compare_to`, `as_rolling`. Now parked in `attic/timeseries_return_helpers.py` (2026-06-17).
+- [x] Port the reporting helpers to current `TimeseriesReturn`: `info_summary`, `describe_as_report`, `to_csv_report`, `to_latex_table`, `compare_to`, `as_rolling`. **DONE Thread 6 (2026-06-19).**
 - [ ] Port the series-alignment helpers if cross-asset analysis grows beyond `combined_civ_series`: `align_with`, `clip_to_overlap`, `aligned_to`, `interpolated`. Now parked in `attic/timeseries_return_helpers.py` (2026-06-17).
 - [ ] Port tmp4 `bonus/` shell helpers (plot_all / run_all_configs / run_all_metrics_to_csv / single-asset-type) into a `scripts/` directory if the user wants CLI orchestration.
 - [ ] Port tmp4 `bonus/ppf_annualized_interest_rate.py` as an analysis tool under `scripts/`.
@@ -707,8 +705,26 @@ first, then big. Per-thread branch + full network-gated merge. Progress below.
     (+ its only consumer `tests/test_staleness.py` + the now-unused `import datetime`)
     — a thread-1 dead-code miss, superseded by the freshness invariant. README +
     ARCHITECTURE `utils.py` role lines updated.
+- [x] **Thread 6 — reporting helpers revived** (2026-06-19). Ported the six
+  parked reporting helpers from `attic/timeseries_return_helpers.py` onto the
+  live `TimeseriesReturn`, re-wired to today's Series-based API: `info_summary`,
+  `describe_as_report`, `to_csv_report`, `to_latex_table`, `compare_to`,
+  `as_rolling`.
+  - The parked code referenced an older surface that no longer exists
+    (`self.columns` / `self.shape` / `self['value']` / `self.annualized()`);
+    rewired to `value_series()` / `index` and the current metric methods.
+  - New private `_summary_metrics(ts, …)` replaces the removed `annualized()`
+    dict: annualized-return → `cagr()`, annualized-vol → `volatility()`. Carries
+    an `is_percent` flag so CAGR/Max DD/Vol render as percents and Sharpe/Sortino
+    as plain ratios across both `to_latex_table` and `compare_to`.
+  - `compare_to` now raises `TypeError`/`ValueError` (was `assert`) and keeps the
+    <30-overlapping-dates guard. `info`/`describe`/`compare` write to **stderr**
+    via `utils.info` (per self-documenting-outputs preference).
+  - 14 new tests in `tests/unit/test_reporting_helpers.py`; parked copies removed
+    from the attic (alignment helpers `align_with`/`clip_to_overlap`/`aligned_to`/
+    `interpolated` stay parked). Full unit suite green; ruff + mypy clean.
 - [ ] **Thread 5 (big) — benchmark TRI sourcing** (incl. the 3 hybrid/debt indices
-  investigation deferred from Thread 3) | **Thread 6 (big) — reporting helpers**.
+  investigation deferred from Thread 3).
 
 ### Remaining candidate detail (unprioritized)
 
@@ -723,10 +739,10 @@ first, then big. Per-thread branch + full network-gated merge. Progress below.
 - **niftyindices steady-state confirmation** (existing open item): verify the
   ≤once/day on-run refresh advances `NIFTY ... CSV` + `.last_fetched.json` over
   several real runs — one verified hit is not proof of unattended reliability.
-- **Reporting helpers from `attic/`** (existing backlog): port `info_summary`,
-  `describe_as_report`, `to_csv_report`, `to_latex_table`, `compare_to`,
-  `as_rolling` (+ alignment helpers) to today's `TimeseriesReturn` if CSV/LaTeX
-  export is wanted.
+- **Reporting helpers from `attic/`** — DONE Thread 6 (2026-06-19). The six
+  reporting helpers are now on the live `TimeseriesReturn`. The alignment helpers
+  (`align_with`/`clip_to_overlap`/`aligned_to`/`interpolated`) remain parked until
+  cross-asset analysis needs them.
 - **Typing decision** (deferred): whether to adopt `pandas-stubs` +
   `ignore_missing_imports=off` to verify Series/DataFrame contracts, vs. the
   current light-touch mypy config.
