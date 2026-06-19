@@ -31,12 +31,12 @@ This repository contains the Portfolio Analyzer application. It fetches historic
   - Overlays benchmark data and highlights significant drawdown periods.
 
 - **Modular Design:**
-  - Loaders (one per asset class): `mutual_fund_loader.py`, `ppf_loader.py`,
-    `scss_loader.py`, `sgb_holdings.py` + `sgb_tranches.py`,
-    `gold_loader.py`, `benchmark_loader.py`, `risk_free_loader.py`.
+  - Loaders (one per asset class) in the `loaders/` package: `mutual_fund.py`,
+    `ppf.py`, `scss.py`, `gold.py`, `benchmark.py`, `risk_free.py` — plus
+    `sgb_holdings.py` + `sgb_tranches.py` at the top level.
   - Math layer: `metrics.py` (pure-function CAGR / vol / Sharpe / Sortino /
-    drawdowns) plus `timeseries.py` / `timeseries_civ.py` /
-    `asset_timeseries.py` / `portfolio_timeseries.py` for the class surface.
+    drawdowns) plus the `timeseries/` package (`returns.py` / `civ.py` /
+    `asset.py` / `portfolio.py`) for the class surface.
   - Bookkeeping: `synthetic_civ.py`, `civ_to_returns.py`, `drawdowns_csv.py`,
     `fund_lifecycle.py`, `portfolio_calculator.py`, `bond_calculators.py`,
     `visualizer.py`, `data_loader.py` (legacy aggregator / re-exports).
@@ -233,17 +233,18 @@ _[5 ratios to measure risk and return](https://www.morningstar.in/posts/28205/5-
 ```
 .
 ├── main.py                  # CLI entry point + pipeline driver
-├── *_loader.py              # Per-asset loaders (mutual_fund, ppf, scss,
-│                            #   benchmark, risk_free, gold)
+├── loaders/                 # Per-asset loader package (mutual_fund, ppf, scss,
+│                            #   benchmark, risk_free, gold, data_update, vro)
 ├── sgb_holdings.py          # Per-tranche SGB valuation engine (gold spot + coupons)
 ├── sgb_tranches.py          # SGB tranche reference + lookup API
 ├── data_loader.py           # Legacy aggregator; re-exports loaders for back-compat
 ├── synthetic_civ.py         # Interest-rate series → daily-equivalent CIV
 ├── civ_to_returns.py        # CIV → returns
-├── timeseries.py            # TimeseriesReturn (alpha/beta + thin metrics delegates)
-├── timeseries_civ.py        # TimeseriesCIV (validated-NAV class)
-├── asset_timeseries.py      # AssetTimeseries dataclass (civ/ret/cumret views)
-├── portfolio_timeseries.py  # PortfolioTimeseries (weighted aggregation, effective window)
+├── timeseries/              # Timeseries class package:
+│   ├── returns.py           #   TimeseriesReturn (alpha/beta + thin metrics delegates)
+│   ├── civ.py               #   TimeseriesCIV (validated-NAV class)
+│   ├── asset.py             #   AssetTimeseries dataclass (civ/ret/cumret views)
+│   └── portfolio.py         #   PortfolioTimeseries (weighted aggregation, effective window)
 ├── metrics.py               # Pure-function math: CAGR / Vol / Sharpe / Sortino / drawdowns
 ├── portfolio_calculator.py  # Allocations + cumulative gains
 ├── bond_calculators.py      # Variable-rate bond cumulative gain (used by the SCSS path)

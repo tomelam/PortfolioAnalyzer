@@ -27,7 +27,7 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
                │  per-asset pd.Series (NAV / CIV) or DataFrame
                ▼
 ┌──────────────────────────────┐
-│  asset_timeseries.from_civ   │  NAV → (civ, ret, cumret) views
+│  timeseries.asset.from_civ   │  NAV → (civ, ret, cumret) views
 └──────────────┬───────────────┘
                ▼
 ┌──────────────────────────────┐
@@ -53,7 +53,7 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 | Module | Role |
 |---|---|
 | `main.py` | CLI orchestration: argparse, config merge, pipeline driver, reporting |
-| `*_loader.py` | One per asset class; ingest source data → standardized Series/DataFrame |
+| `loaders/*.py` | One per asset class; ingest source data → standardized Series/DataFrame |
 | `synthetic_civ.py` | PPF / SCSS interest-rate → daily-equivalent CIV |
 | `civ_to_returns.py` | CIV → daily/monthly returns (with `pct_change`) |
 | `timeseries/returns.py` | `TimeseriesReturn` class: the alpha/beta methods + thin delegates to `metrics.py` |
@@ -67,7 +67,7 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 | `drawdowns_csv.py` | Per-drawdown sibling CSV writer |
 | `sgb_holdings.py` | Per-tranche SGB valuation: `sgb_holding_civ(tranche, grams, gold)` |
 | `sgb_tranches.py` | SGB tranche reference data + lookup API |
-| `gold_loader.py` | Monthly INR/troy-ounce CSV → per-gram price series |
+| `loaders/gold.py` | Monthly INR/troy-ounce CSV → per-gram price series |
 | `visualizer.py` | Matplotlib plotting + drawdown printout; embeds PNG `tEXt` metadata + provenance footnote |
 | `output_metadata.py` | Pure formatters for the metrics block / provenance / PNG `tEXt` payload |
 | `utils.py` | `info` / `dbg` / `warn_if_stale` / `to_cutoff_date` |
