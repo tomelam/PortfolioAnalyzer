@@ -266,7 +266,9 @@ retrievability, not a price-vs-TRI gap. Payoff was thin anyway — VRO publishes
 Beta-only for the 2 HDFC hybrids and nothing for ICICI Corp Bond. We therefore
 treat these 3 funds' stated-benchmark Beta/Alpha as **out of scope (not freely
 sourceable)**, the same posture as Franklin below: `benchmark_index` stays empty
-for them in `data/vro_funds.csv`, so the parity test simply skips them.
+for them in `data/vro_funds.csv`, so the parity test simply skips them. For the
+reader-facing summary of *which metrics survive* without a benchmark (everything
+except Alpha/Beta), see [README.md → Metrics](../README.md#metrics).
 
 **Franklin US FoF is a deliberate Beta/Alpha omission, not a gap.** It is a
 USD-denominated feeder fund benchmarked to Russell 3000 Growth (a USD index),

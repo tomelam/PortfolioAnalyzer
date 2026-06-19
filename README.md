@@ -207,6 +207,33 @@ Each of the options (except for `--config`) can also be set in the config TOML, 
 
 ## Metrics
 
+### Metrics computed
+
+For every fund, PortfolioAnalyzer computes a set of *standalone* risk/return
+metrics from the fund's own NAV history: **Annualized Return (CAGR)**, the compound
+yearly growth rate; **Volatility**, the annualized Standard Deviation of returns;
+the **Sharpe ratio**, return earned per unit of total risk; the **Sortino ratio**,
+return per unit of *downside* risk only; and the **maximum-drawdown profile**, the
+largest peak-to-trough falls and their recoveries (surfaced as a recovered-drawdown
+table). Two further metrics are *benchmark-relative* and need the fund's stated
+benchmark as a free total-return (TR) series: **Beta**, the fund's systematic-risk
+sensitivity to its benchmark (how much it moves when the market moves), and
+**Alpha** (Jensen's), the annualized risk-adjusted excess return over what
+Beta-scaled benchmark exposure would predict.
+
+Of the funds modelled here, only **ICICI Bluechip** (benchmark NIFTY 100) has a
+freely available benchmark TR series, so it is the only one for which Alpha and Beta
+are reported. The rest have no free benchmark TR series — the hybrid/debt funds
+(benchmarked to NIFTY 50 Hybrid Composite Debt 65:35 / 15:85 and NIFTY Corporate
+Bond A-II) and the USD-benchmarked Franklin US Opportunities feeder (see
+[docs/ARCHITECTURE.md → External-metric parity](docs/ARCHITECTURE.md) for why).
+Without the benchmark you can still judge whether a fund paid you for the risk it
+took *in absolute terms*, but you cannot separate manager skill (alpha) from mere
+market exposure (beta), you have no measure of systematic vs idiosyncratic risk, and
+you get no benchmark-relative attribution. This is purely a data-sourcing limit, not
+a methodology one: supply a valid benchmark TR series and Alpha/Beta populate
+automatically.
+
 * A _peak_ is the highest value of an investment before the value began to decline. If the price goes from 80 to 100 to 70 to 95, 100 is the peak. There can be many peaks, but when calculating drawdowns, we typically focus on all-time highs — the highest value seen so far.
 * A _maximum drawdown with full recovery_ is the largest drop that the investment experiences from a peak, followed by a full recovery back to or beyond the original peak. It is measured as a percentage drop from the highest previous value.
 * A _trough date_ is the date of the lowest point after the peak.
