@@ -17,10 +17,16 @@ Two metric families, collected in one stealth session via
   (``metrics.*`` with ``periods_per_year=12``). Mean and Std Dev are
   risk-free-independent and the firmest targets; Sharpe / Sortino additionally
   depend on VRO's assumed risk-free (``VRO_RISK_FREE_ANNUAL``, back-solved from a
-  captured fragment), so they get a looser tolerance. **Beta / Alpha** are
-  published by VRO and fetched, but asserting ours needs each fund's *stated*
-  benchmark TRI, which the repo does not ship (only NIFTY TRI) — so they are
-  collected for the record but not yet asserted (see KANBAN).
+  captured fragment), so they get a looser tolerance.
+
+* **Beta / Alpha** (CAPM, vs the fund's *stated* benchmark) are asserted only for
+  funds whose benchmark TRI is sourceable from niftyindices — currently just
+  ICICI Bluechip (NIFTY 100); see ``VROFund.benchmark_index`` and the probe under
+  ``scripts/probe_niftyindices_*.py``. The benchmark TRI is fetched live (one
+  niftyindices hit, only for those funds) and fed to ``trailing_risk_ratios`` as
+  ``benchmark_nav``. The tiered/hybrid debt benchmarks aren't on niftyindices'
+  feed and the US FoF's Russell 3000 Growth is out of scope, so those funds'
+  Beta/Alpha are still only collected, not asserted (see KANBAN).
 
 Tolerances are starting points calibrated from the first live reconciliation;
 adjust here if a methodology detail shifts them.
@@ -33,6 +39,7 @@ import pytest
 from loaders.mutual_fund import fetch_navs
 from loaders.vro import (
     browser_extra_available,
+    fetch_benchmark_tri,
     fetch_vro_metrics,
     load_vro_fund_map,
     trailing_cagr_pct,
@@ -58,6 +65,15 @@ TOL_MEAN_PP = 0.4
 TOL_STD_PP = 0.4
 TOL_SHARPE = 0.10
 TOL_SORTINO = 0.20
+
+# Beta / Alpha tolerances (only ICICI Bluechip, vs NIFTY 100 TRI). Calibrated
+# from the first live reconciliation (2026-06-18 NAV): Beta Δ−0.011 (ours 0.909
+# vs VRO 0.92), Alpha Δ−0.010pp (ours 3.320 vs VRO 3.33) — agreement as tight as
+# the returns parity. VRO publishes both to 2 decimals (so ~0.005 is pure
+# rounding); the headroom over the observed Δ covers that plus month-boundary
+# window slides (cf. the risk-ratio note above). Beta unitless; Alpha in pp.
+TOL_BETA = 0.05
+TOL_ALPHA_PP = 0.40
 
 pytestmark = [
     pytest.mark.integration,
@@ -98,6 +114,16 @@ def test_our_metrics_match_vro(fund) -> None:
             f"(Δ{ours_risk[key] - vro.risk[key]:+.2f} ≥ {tol})"
         )
 
-    # Beta/Alpha are collected when VRO publishes them (only for funds with a
-    # comparable benchmark — a US-equity FoF / some debt funds have neither), but
-    # not asserted: parity needs each fund's stated benchmark TRI, not shipped yet.
+    # --- CAPM Beta / Alpha (vs the stated benchmark TRI) ------------------
+    # Asserted only where the benchmark is sourceable from niftyindices AND VRO
+    # publishes the figure. Fetch the benchmark TRI once, here, for those funds.
+    if fund.benchmark_index:
+        bench_tri = fetch_benchmark_tri(fund.benchmark_index)
+        ours_capm = trailing_risk_ratios(nav, years=3, benchmark_nav=bench_tri)
+        for key, tol in (("beta", TOL_BETA), ("alpha", TOL_ALPHA_PP)):
+            if key not in vro.risk:
+                continue  # VRO didn't publish it for this fund
+            assert abs(ours_capm[key] - vro.risk[key]) < tol, (
+                f"{fund.name} {key}: ours={ours_capm[key]:.2f} vs "
+                f"VRO={vro.risk[key]:.2f} (Δ{ours_capm[key] - vro.risk[key]:+.2f} ≥ {tol})"
+            )

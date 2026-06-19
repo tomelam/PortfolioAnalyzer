@@ -87,10 +87,31 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
       families), `VROMetrics`; fixture `tests/fixtures/vro_risk_ratios.html`;
       extended `tests/unit/test_vro.py` and `tests/integration/test_vro_parity.py`
       (asserts Mean/SD/Sharpe/Sortino) and `scripts/fetch_vro_metrics.py` snapshot.
-    - **Still deferred — Beta / Alpha parity:** both are *fetched* from VRO, but
-      asserting ours needs each fund's **stated benchmark TRI**, which the repo
-      doesn't ship (only NIFTY TRI) and `data/vro_funds.csv` has no benchmark
-      column. Collected-for-the-record only.
+    - **Beta / Alpha parity — ICICI Bluechip done (2026-06-19).** Reframed from
+      "VRO parity" to "our CAPM correctness": source each fund's **stated
+      benchmark TRI** and assert ours. Probe (`scripts/probe_niftyindices_*.py`)
+      established niftyindices' free feed serves an index iff it's in the
+      live-watch master (131 indices): **NIFTY 100 is fetchable** (TRI endpoint),
+      but the tiered/hybrid debt benchmarks (Hybrid Composite Debt 65:35 & 15:85,
+      Corporate Bond Index A-II) are **not on the feed at all** (endpoint-coverage
+      gap, confirmed via a GS-index control), and Russell 3000 Growth (Franklin US
+      FoF) is **out of scope by decision** (feeder fund, USD benchmark vs INR NAV,
+      no stable free Russell TR source, VRO publishes neither). So niftyindices
+      yields exactly 1 of 5 — and it's the only fund VRO publishes both Beta *and*
+      Alpha for, and the cleanest equity-vs-equity CAPM case.
+      - **Done:** `data/vro_funds.csv` gains a `benchmark_index` column (the
+        niftyindices name where fetchable; empty otherwise) → `VROFund.benchmark_index`;
+        `loaders.vro.fetch_benchmark_tri(index_name)` wraps the stealth
+        niftyindices TRI fetch as a Series; the parity test fetches the benchmark
+        TRI (one hit, only for funds with `benchmark_index`) and asserts Beta/Alpha
+        where VRO publishes them. **Live 2026-06-19** (NAV 2026-06-18): Beta ours
+        0.909 vs VRO 0.92 (Δ−0.011); Alpha ours 3.320 vs VRO 3.33 (Δ−0.010pp).
+        Tolerances `TOL_BETA=0.05`, `TOL_ALPHA_PP=0.40`. New unit tests: known-answer
+        β=1/α=0 (benchmark≡fund) and the `benchmark_index` column load.
+      - **Still deferred:** the 3 hybrid/debt funds (need an alternate benchmark
+        source — NSE factsheets, not niftyindices' live feed) and Franklin
+        (out of scope). VRO publishes Beta-only for the two HDFC hybrids and
+        nothing for ICICI Corp Bond, so the remaining upside is thin.
 
 - [x] **Stale NIFTY benchmark is a hard blocker — add a bypass flag**
   (2026-06-17, cycle 10). Added `--skip-age-check` CLI flag. When
