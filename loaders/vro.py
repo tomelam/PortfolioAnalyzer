@@ -15,7 +15,22 @@ own **annualised** trailing return (percent) is the ``returns`` entry whose
     GET /api/funds/peer-comparison-returns/?fund_id=15841&period=5Y
     -> {"returns": [{"plan_id": "15841", "returns": "14.08"}, ...peers], ...}
 
-The parse step is a pure function (offline-unit-tested against a fixture); only
+**Risk ratios** (Mean / Standard Deviation / Sharpe / Sortino / Beta / Alpha)
+are *not* on the overview page and *not* under ``/api/funds/*`` — the prior pass
+was right that the overview API lacks them. The fund-page bundle
+(``script-v2.../funds/29/...js``, function ``risk_ratio_tab_ajax``) loads them
+lazily, on opening the Risk tab, from a different route that returns an **HTML
+fragment** (a fund-vs-peers table), not JSON:
+
+    GET /funds/risk-ratios-tab-data/?fund_name=15841&fund_name1=..&..&fund_name4=..&lang=en
+    -> <table> fund + four peers, one row of ratios each </table>
+
+The four peers are exactly the cohort ``peer-comparison-returns`` already
+returns, so a single stealth session collects both families (see
+:func:`fetch_vro_metrics`). Both endpoints are Cloudflare-challenged, so both
+must be fetched from inside the cleared page.
+
+The parse steps are pure functions (offline-unit-tested against fixtures); only
 the fetch needs a browser + network.
 """
 
@@ -25,7 +40,8 @@ import csv
 import importlib.util
 import json
 import random
-from dataclasses import dataclass
+from contextlib import contextmanager, suppress
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import pandas as pd
@@ -42,6 +58,33 @@ VRO_UA = (
 
 # Periods VRO exposes that are directly comparable to an annualised CAGR.
 VRO_PERIODS: tuple[str, ...] = ("1Y", "3Y", "5Y")
+
+# VRO publishes its risk ratios on a trailing 3-year, monthly basis. Mean / Std
+# Dev / Sharpe / Sortino appear for every fund; Beta / Alpha only when the fund
+# has a comparable benchmark (absent for e.g. a US-equity FoF or some debt
+# funds), so they are optional.
+VRO_RISK_PERIOD_YEARS = 3
+VRO_RISK_REQUIRED_KEYS: tuple[str, ...] = ("mean", "std_dev", "sharpe", "sortino")
+VRO_RISK_KEYS: tuple[str, ...] = (*VRO_RISK_REQUIRED_KEYS, "beta", "alpha")
+
+# Annual risk-free rate VRO appears to assume in its Sharpe/Sortino. Back-solved
+# from a captured fragment (ICICI Pru Large Cap Dir 3Y): Sharpe 0.64 = (Mean
+# 14.51 - Rf) / Std 13.51 ⇒ Rf ≈ 5.9%. Used as the default for our matched
+# computation; refined during live reconciliation across the mapped funds.
+VRO_RISK_FREE_ANNUAL = 0.059
+
+# In-page fetch used inside the (Cloudflare-cleared) page so same-origin session
+# cookies ride along. Returns the raw response text; raises on non-2xx.
+_FETCH_JS = """async (url) => {
+    const r = await fetch(url, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+        },
+    });
+    if (!r.ok) throw new Error('VRO HTTP ' + r.status + ' for ' + url);
+    return await r.text();
+}"""
 
 _VRO_FUNDS_CSV = Path(__file__).resolve().parent.parent / "data" / "vro_funds.csv"
 
@@ -88,6 +131,25 @@ def vro_returns_api(plan_id: str, period: str) -> str:
     )
 
 
+def vro_risk_ratios_api(fund_name: str, peers: tuple[str, ...] = (), lang: str = "en") -> str:
+    """URL for VRO's risk-ratios tab fragment.
+
+    Discovered from the fund-page bundle (``risk_ratio_tab_ajax``): a GET to
+    ``/funds/risk-ratios-tab-data/`` whose ``fund_name`` is the fund's **short
+    name** (e.g. ``"ICICI Pru Large Cap Dir"``, read from the page's
+    ``#fund_name`` hidden input — *not* the numeric plan id), with up to four
+    peers as ``fund_name1..4``. Unlike the JSON return APIs it serves an **HTML
+    fragment**; with no peers it returns just the target fund's row, which is all
+    :func:`parse_risk_ratios` needs.
+    """
+    from urllib.parse import quote
+
+    params = [f"fund_name={quote(fund_name)}"]
+    params += [f"fund_name{i}={quote(p)}" for i, p in enumerate(peers[:4], start=1)]
+    params.append(f"lang={lang or 'en'}")
+    return "https://www.valueresearchonline.com/funds/risk-ratios-tab-data/?" + "&".join(params)
+
+
 def parse_peer_comparison_returns(json_text: str, plan_id: str) -> float:
     """Extract a fund's own annualised trailing return (percent) from a
     ``peer-comparison-returns`` payload.
@@ -112,6 +174,63 @@ def parse_peer_comparison_returns(json_text: str, plan_id: str) -> float:
         if str(row.get("plan_id")) == str(plan_id):
             return float(row["returns"])
     raise ValueError(f"plan_id {plan_id} not found in peer-comparison returns")
+
+
+# Maps the risk-ratios fragment's row labels (lower-cased, sans "(%)") to our
+# canonical metric keys.
+_RISK_LABEL_TO_KEY = {
+    "mean": "mean",
+    "std dev": "std_dev",
+    "sharpe": "sharpe",
+    "sortino": "sortino",
+    "beta": "beta",
+    "alpha": "alpha",
+}
+
+
+def parse_risk_ratios(html_text: str) -> dict[str, float]:
+    """Extract a fund's risk ratios from the ``risk-ratios-tab-data`` fragment.
+
+    The fragment is a small table — one row per measure, each with a label cell
+    (``.first-col-custom-width``: ``Mean (%)`` / ``Std Dev (%)`` / ``Sharpe`` /
+    ``Sortino`` / ``Beta`` / ``Alpha``) and a value cell (``.mono-font``). When
+    fetched with no peers it holds exactly the target fund's column. Beta / Alpha
+    rows are present only for funds with a comparable benchmark.
+
+    Returns:
+        ``{metric_key: value}`` covering at least :data:`VRO_RISK_REQUIRED_KEYS`,
+        plus ``beta`` / ``alpha`` when published. Mean / Std Dev / Alpha are
+        percent; Sharpe / Sortino / Beta are unitless.
+
+    Raises:
+        ValueError: If the fragment is unparseable or a *required* measure is
+            missing.
+    """
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html_text, "html.parser")
+    out: dict[str, float] = {}
+    for tr in soup.select("tr"):
+        label_el = tr.select_one(".first-col-custom-width")
+        value_el = tr.select_one(".mono-font")
+        if label_el is None or value_el is None:
+            continue
+        label = label_el.get_text(strip=True).lower().split("(")[0].strip()
+        key = _RISK_LABEL_TO_KEY.get(label)
+        if key is None:
+            continue
+        try:
+            out[key] = float(value_el.get_text(strip=True))
+        except ValueError:
+            continue
+
+    missing = [k for k in VRO_RISK_REQUIRED_KEYS if k not in out]
+    if missing:
+        raise ValueError(
+            f"risk-ratios fragment missing required {missing} (parsed {sorted(out)}); "
+            "the fragment shape may have changed"
+        )
+    return out
 
 
 def trailing_cagr_pct(
@@ -139,6 +258,75 @@ def trailing_cagr_pct(
     return metrics.cagr(window) * 100.0
 
 
+def _trailing_monthly_returns(
+    nav: pd.Series, years: int, as_of: pd.Timestamp | None = None
+) -> pd.Series:
+    """Month-end simple returns over the trailing ``years`` window.
+
+    VRO computes its risk ratios on a trailing-3-year, *monthly* basis and
+    publishes them *as of the last complete month-end* — so we anchor on that
+    month-end (stepping back from a mid-month latest NAV), resample the daily NAV
+    to each calendar month's last observation, and take period-over-period
+    returns (~36 points for a 3Y window). Anchoring to month-end rather than the
+    latest daily NAV matters: a mid-month anchor shifts the 36-month window and
+    biases Mean by a few tenths of a point.
+    """
+    anchor = as_of if as_of is not None else nav.index.max()
+    # Last complete month-end on or before the anchor.
+    month_end = anchor + pd.offsets.MonthEnd(0)
+    if month_end > anchor:
+        month_end = anchor - pd.offsets.MonthEnd(1)
+    start = month_end - DateOffset(years=years)
+    window = nav[(nav.index >= start) & (nav.index <= month_end)]
+    monthly = window.resample("ME").last().dropna()
+    return monthly.pct_change().dropna()
+
+
+def trailing_risk_ratios(
+    nav: pd.Series,
+    years: int = VRO_RISK_PERIOD_YEARS,
+    *,
+    risk_free_annual: float = VRO_RISK_FREE_ANNUAL,
+    benchmark_nav: pd.Series | None = None,
+    as_of: pd.Timestamp | None = None,
+) -> dict[str, float]:
+    """Our risk ratios on VRO's methodology (trailing 3Y, monthly), for parity.
+
+    Mirrors VRO's published Mean / Standard Deviation / Sharpe / Sortino (and,
+    when a benchmark series is supplied, CAPM Beta / Alpha) by delegating to the
+    pure ``metrics`` layer with ``periods_per_year=12``. Mean, Std Dev and Alpha
+    come back as **percent** (annualised); Sharpe / Sortino / Beta are unitless.
+
+    Args:
+        nav: Daily NAV series indexed by date.
+        years: Trailing window length (VRO uses 3).
+        risk_free_annual: Annual risk-free rate as a fraction (e.g. ``0.06``);
+            converted to a per-month rate for the excess-return measures. The
+            exact value VRO assumes is pinned during reconciliation.
+        benchmark_nav: Daily benchmark NAV/TRI; required only for Beta/Alpha.
+        as_of: Anchor date; defaults to the latest NAV date.
+    """
+    rets = _trailing_monthly_returns(nav, years, as_of)
+    if len(rets) < 12:
+        raise ValueError(f"too few monthly returns in the trailing {years}Y window")
+    rf_monthly = risk_free_annual / 12.0
+
+    out: dict[str, float] = {
+        "mean": float(rets.mean() * 12 * 100.0),
+        "std_dev": metrics.volatility(rets, periods_per_year=12) * 100.0,
+        "sharpe": metrics.sharpe(rets, risk_free_rate=rf_monthly, periods_per_year=12),
+        "sortino": metrics.sortino(rets, risk_free_rate=rf_monthly, periods_per_year=12),
+    }
+    if benchmark_nav is not None:
+        brets = _trailing_monthly_returns(benchmark_nav, years, as_of)
+        out["beta"] = metrics.beta_capm(rets, brets, risk_free_rate=rf_monthly)
+        out["alpha"] = (
+            metrics.alpha_capm(rets, brets, risk_free_rate=rf_monthly, periods_per_year=12)
+            * 100.0
+        )
+    return out
+
+
 def browser_extra_available() -> bool:
     """True if the optional ``browser`` extra (playwright + stealth) is installed."""
     return (
@@ -147,27 +335,49 @@ def browser_extra_available() -> bool:
     )
 
 
-def fetch_vro_trailing_returns(
-    plan_id: str,
-    slug: str,
-    periods: tuple[str, ...] = VRO_PERIODS,
-    *,
-    timeout: int = 45,
-    headless: bool = True,
-) -> dict[str, float]:  # pragma: no cover - requires a real browser + network
-    """Drive a stealth Chromium to collect VRO's annualised trailing returns.
+@dataclass(frozen=True)
+class VROMetrics:
+    """VRO's published parity-comparable metrics for one fund.
 
-    Navigates the fund page once to clear the Cloudflare challenge / mint
-    session cookies, pauses briefly, then fetches ``peer-comparison-returns``
-    for each period from inside the page (same-origin, cookies carried).
+    ``returns`` maps each period (``"3Y"``…) to the annualised trailing return
+    (percent); ``risk`` maps each :data:`VRO_RISK_KEYS` name to its value
+    (Mean / Std Dev / Alpha in percent, Sharpe / Sortino / Beta unitless).
+    """
 
-    Returns:
-        ``{period: annualised_return_pct}`` for each requested period.
+    plan_id: str
+    returns: dict[str, float] = field(default_factory=dict)
+    risk: dict[str, float] = field(default_factory=dict)
+
+
+# In-page XHR with a hard abort, used for the Cloudflare-sensitive /funds/ route
+# (a plain in-page fetch there can hang behind the challenge with no timeout).
+_RISK_XHR_JS = """async (url) => {
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), 20000);
+    try {
+        const r = await fetch(url, {
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            signal: c.signal,
+        });
+        if (!r.ok) throw new Error('VRO risk HTTP ' + r.status);
+        return await r.text();
+    } finally { clearTimeout(t); }
+}"""
+
+
+@contextmanager
+def _vro_session(
+    plan_id: str, slug: str, *, timeout: int = 45, headless: bool = True
+):  # pragma: no cover - requires a real browser + network
+    """Open one stealth Chromium session with the Cloudflare challenge cleared.
+
+    Yields the Playwright ``page`` sitting on the fund's overview page (cookies
+    minted). Clearing Cloudflare is the expensive step, so callers chain every
+    VRO request for a fund through a single session.
     """
     from playwright.sync_api import sync_playwright
     from playwright_stealth import Stealth
 
-    out: dict[str, float] = {}
     with Stealth().use_sync(sync_playwright()) as p:
         browser = p.chromium.launch(headless=headless)
         try:
@@ -184,21 +394,87 @@ def fetch_vro_trailing_returns(
                 timeout=timeout * 1000,
             )
             page.wait_for_timeout(random.randint(3000, 5000))  # let Cloudflare settle
-            for period in periods:
-                text = page.evaluate(
-                    """async (url) => {
-                        const r = await fetch(url, {
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'Accept': 'application/json, text/javascript, */*; q=0.01',
-                            },
-                        });
-                        if (!r.ok) throw new Error('VRO returns HTTP ' + r.status);
-                        return await r.text();
-                    }""",
-                    vro_returns_api(plan_id, period),
-                )
-                out[period] = parse_peer_comparison_returns(text, plan_id)
+            yield page
         finally:
             browser.close()
-    return out
+
+
+def _fetch_returns_texts(page, plan_id: str, periods: tuple[str, ...]) -> dict[str, str]:
+    # pragma: no cover - requires a real browser + network
+    """Raw ``peer-comparison-returns`` JSON per period via same-origin XHR (the
+    /api/ routes are Cloudflare-exempt, so a plain in-page fetch suffices)."""
+    return {period: page.evaluate(_FETCH_JS, vro_returns_api(plan_id, period)) for period in periods}
+
+
+def _fetch_risk_fragment(page, *, timeout: int = 45) -> str:
+    # pragma: no cover - requires a real browser + network
+    """Fetch the risk-ratios HTML fragment for the fund the page is showing.
+
+    The /funds/ route is fully Cloudflare-challenged and keys on the fund's short
+    name (read from ``#fund_name``). A bare navigation passes the challenge but
+    the route only returns real data to an XHR; an XHR straight from the fund
+    page hangs behind the challenge. So: read the name, navigate the risk URL
+    once to clear Cloudflare for that path, then issue the XHR (now cleared *and*
+    XHR-flagged).
+    """
+    info = page.evaluate(
+        """() => {
+            const v = id => (document.getElementById(id) || {}).value || '';
+            return {
+                fund: v('fund_name'),
+                peers: [1, 2, 3, 4].map(i => v('peer-fund-search' + i)).filter(Boolean),
+                lang: v('curr_lang') || 'en',
+            };
+        }"""
+    )
+    if not info["fund"]:
+        raise ValueError("could not read the fund short name (#fund_name) from the page")
+    url = vro_risk_ratios_api(info["fund"], tuple(info["peers"]), info["lang"])
+
+    # We only need Cloudflare cleared for this path; the XHR below carries the
+    # real request, so a navigation timeout on the (non-XHR) stub is harmless.
+    with suppress(Exception):
+        page.goto(url, wait_until="commit", timeout=timeout * 1000)
+    for _ in range(8):
+        page.wait_for_timeout(2000)
+        body = page.content()
+        if "Just a moment" not in body and "challenge" not in body.lower():
+            break
+    return page.evaluate(_RISK_XHR_JS, url)
+
+
+def fetch_vro_trailing_returns(
+    plan_id: str,
+    slug: str,
+    periods: tuple[str, ...] = VRO_PERIODS,
+    *,
+    timeout: int = 45,
+    headless: bool = True,
+) -> dict[str, float]:  # pragma: no cover - requires a real browser + network
+    """VRO's annualised trailing returns, ``{period: annualised_return_pct}``."""
+    with _vro_session(plan_id, slug, timeout=timeout, headless=headless) as page:
+        texts = _fetch_returns_texts(page, plan_id, periods)
+    return {p: parse_peer_comparison_returns(t, plan_id) for p, t in texts.items()}
+
+
+def fetch_vro_metrics(
+    plan_id: str,
+    slug: str,
+    periods: tuple[str, ...] = VRO_PERIODS,
+    *,
+    timeout: int = 45,
+    headless: bool = True,
+) -> VROMetrics:  # pragma: no cover - requires a real browser + network
+    """All of VRO's parity-comparable metrics for a fund, in one stealth session.
+
+    Clears Cloudflare once, then collects (1) ``peer-comparison-returns`` per
+    period and (2) the ``risk-ratios-tab-data`` fragment. Returns must be fetched
+    before the risk step, which navigates away from the fund page.
+    """
+    with _vro_session(plan_id, slug, timeout=timeout, headless=headless) as page:
+        return_texts = _fetch_returns_texts(page, plan_id, periods)
+        risk_html = _fetch_risk_fragment(page, timeout=timeout)
+
+    returns = {p: parse_peer_comparison_returns(t, plan_id) for p, t in return_texts.items()}
+    risk = parse_risk_ratios(risk_html)
+    return VROMetrics(plan_id=str(plan_id), returns=returns, risk=risk)

@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Collect Value Research Online (VRO) published trailing returns for the mapped
-funds, alongside our own point-to-point CAGR, and print + optionally snapshot
-them.
+"""Collect Value Research Online (VRO) published metrics for the mapped funds,
+alongside our own matched-methodology figures, and print + optionally snapshot.
 
 This is the data-collection utility behind the VRO-parity wire test
 (``tests/integration/test_vro_parity.py``). For each fund in
-``data/vro_funds.csv`` it shows, per period, VRO's published annualised return,
-our ``trailing_cagr_pct``, and the gap — so the agreement is auditable by eye.
+``data/vro_funds.csv`` it shows VRO's published values, ours, and the gap — so
+the agreement is auditable by eye — for two families:
+
+* trailing returns (point-to-point CAGR), and
+* risk ratios (Mean / Std Dev / Sharpe / Sortino, trailing 3Y monthly; plus
+  Beta / Alpha, which VRO publishes but we don't yet compute — no benchmark TRI).
 
 Run from anywhere with the ``browser`` extra installed::
 
@@ -28,10 +31,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from loaders.mutual_fund import fetch_navs  # noqa: E402
 from loaders.vro import (  # noqa: E402
     VRO_PERIODS,
+    VRO_RISK_FREE_ANNUAL,
+    VRO_RISK_PERIOD_YEARS,
     browser_extra_available,
-    fetch_vro_trailing_returns,
+    fetch_vro_metrics,
     load_vro_fund_map,
     trailing_cagr_pct,
+    trailing_risk_ratios,
 )
 
 
@@ -62,38 +68,73 @@ def main() -> None:
     snapshot: list[dict] = []
 
     for fund in load_vro_fund_map():
-        vro = fetch_vro_trailing_returns(fund.vro_plan_id, fund.vro_slug, periods=periods)
+        vro = fetch_vro_metrics(fund.vro_plan_id, fund.vro_slug, periods=periods)
         nav = fetch_navs(fund.mfapi_url)["nav"]
         anchor = nav.index.max()
         print(
             f"\n{fund.name}  "
             f"(mfapi {fund.mfapi_code} / VRO {fund.vro_plan_id}, latest NAV {anchor.date()})"
         )
-        rows: dict[str, dict] = {}
+
+        # --- trailing returns ---
+        return_rows: dict[str, dict] = {}
         for period in periods:
-            vro_val = vro.get(period)
+            vro_val = vro.returns.get(period)
             years = _years(period)
+            if vro_val is None:
+                continue
             if years is None:
-                print(f"  {period:>4}: VRO={vro_val:6.2f}%  (VRO-only)")
-                rows[period] = {"vro": vro_val}
+                print(f"  ret {period:>4}: VRO={vro_val:6.2f}%  (VRO-only)")
+                return_rows[period] = {"vro": vro_val}
                 continue
             ours = trailing_cagr_pct(nav, years)
             delta = ours - vro_val
-            print(f"  {period:>4}: VRO={vro_val:6.2f}%  ours={ours:6.2f}%  Δ{delta:+.2f}pp")
-            rows[period] = {"vro": vro_val, "ours": round(ours, 2), "delta_pp": round(delta, 2)}
+            print(f"  ret {period:>4}: VRO={vro_val:6.2f}%  ours={ours:6.2f}%  Δ{delta:+.2f}pp")
+            return_rows[period] = {"vro": vro_val, "ours": round(ours, 2), "delta_pp": round(delta, 2)}
+
+        # --- risk ratios (trailing 3Y monthly) ---
+        ours_risk = trailing_risk_ratios(nav, years=VRO_RISK_PERIOD_YEARS)
+        risk_rows: dict[str, dict] = {}
+        for key in ("mean", "std_dev", "sharpe", "sortino"):
+            vro_val = vro.risk.get(key)
+            our_val = ours_risk.get(key)
+            if vro_val is None or our_val is None:
+                continue
+            delta = our_val - vro_val
+            print(f"  {key:>8}: VRO={vro_val:7.2f}  ours={our_val:7.2f}  Δ{delta:+.2f}")
+            risk_rows[key] = {"vro": vro_val, "ours": round(our_val, 2), "delta": round(delta, 2)}
+        for key in ("beta", "alpha"):  # VRO-only (no benchmark TRI on our side yet)
+            vro_val = vro.risk.get(key)
+            if vro_val is not None:
+                print(f"  {key:>8}: VRO={vro_val:7.2f}  (VRO-only)")
+                risk_rows[key] = {"vro": vro_val}
+
         snapshot.append(
             {
                 "mfapi_code": fund.mfapi_code,
                 "vro_plan_id": fund.vro_plan_id,
                 "name": fund.name,
                 "latest_nav_date": str(anchor.date()),
-                "returns": rows,
+                "returns": return_rows,
+                "risk": risk_rows,
             }
         )
 
     if args.json:
         args.json.parent.mkdir(parents=True, exist_ok=True)
-        args.json.write_text(json.dumps(snapshot, indent=2))
+        args.json.write_text(
+            json.dumps(
+                {
+                    "basis": {
+                        "returns": "point-to-point daily NAV CAGR",
+                        "risk": f"trailing {VRO_RISK_PERIOD_YEARS}Y monthly; "
+                        f"risk_free_annual={VRO_RISK_FREE_ANNUAL}",
+                    },
+                    "funds": snapshot,
+                },
+                indent=2,
+            )
+        )
         print(f"\nSnapshot written to {args.json}")
 
 
