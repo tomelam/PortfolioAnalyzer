@@ -685,7 +685,28 @@ first, then big. Per-thread branch + full network-gated merge. Progress below.
     below.
   - **niftyindices steady-state** = observational (needs real runs over days);
     nothing to code — stays open for the user to confirm.
-- [ ] **Thread 4 — docs staleness sweep** (after code settles).
+- [x] **Thread 4 — docs staleness sweep** (2026-06-19). Reconciled the canonical
+  user-facing docs against current code:
+  - **README**: project-structure tree + Modular-Design bullet rewritten — flat
+    `timeseries*.py` → the `timeseries/` package (`returns`/`civ`/`asset`/
+    `portfolio`); top-level `*_loader.py` → the `loaders/` package.
+  - **ARCHITECTURE**: module-map + pipeline diagram names fixed (`*_loader.py` →
+    `loaders/*.py`, `gold_loader.py` → `loaders/gold.py`, `asset_timeseries.from_civ`
+    → `timeseries.asset.from_civ`).
+  - **TESTING**: coverage baseline refreshed (287→355 passed, TOTAL 87→89%,
+    returns.py 99→100%, main.py 1→14%).
+  - OUTPUTS / CONTRIBUTING / QUICKSTART: clean (no stale module refs).
+  - **Follow-up DONE (user, 2026-06-19):** archived the 8 orphaned pre-refactor
+    ChatGPT-era planning docs (STRUCTURE, TODO, Variables, Calculations,
+    Calculation_styles, Class_Roles_Summary, RefactorTable, full_global_todos) —
+    0 references from canonical docs, described a superseded design (TimeseriesFrame
+    / metrics_calculator) — to `attic/legacy-planning-docs/` (with a provenance
+    README). External reference material (CRISIL, RBI WSS, 5-ratios, etc.) stays in
+    `docs/`.
+  - **Follow-up DONE (user, 2026-06-19):** removed app-dead `utils.warn_if_stale`
+    (+ its only consumer `tests/test_staleness.py` + the now-unused `import datetime`)
+    — a thread-1 dead-code miss, superseded by the freshness invariant. README +
+    ARCHITECTURE `utils.py` role lines updated.
 - [ ] **Thread 5 (big) — benchmark TRI sourcing** (incl. the 3 hybrid/debt indices
   investigation deferred from Thread 3) | **Thread 6 (big) — reporting helpers**.
 

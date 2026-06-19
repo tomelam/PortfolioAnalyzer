@@ -149,9 +149,9 @@ hits in routine runs.
 CI gates at `--cov-fail-under=85` (`.github/workflows/ci.yml`, `pytest
 --cov=. --cov-report=term-missing`).
 
-### Baseline (2026-06-17, 287 passed)
+### Baseline (2026-06-19, 355 passed)
 
-**TOTAL: 87%**. Reproduce with:
+**TOTAL: 89%**. Reproduce with:
 
 ```bash
 ./venv/bin/python -m pytest --cov=. --cov-report=term-missing
@@ -162,13 +162,13 @@ Notable modules:
 | Module | Cover | Note |
 |---|---|---|
 | `data_loader.py` | 99% | validation/loader branches in `tests/unit/test_data_loader.py` |
-| `timeseries/returns.py` | 99% | dead helpers parked in `attic/`; live surface in `tests/unit/test_timeseries_returns.py` |
-| `loaders/data_update.py` | 93% | auto-update fetchers/refresh; mocked unit tests + live (network) |
-| `metrics.py` | 94% | core formulas, well covered |
-| `timeseries/` (civ, asset, classes) | 84–98% | |
-| `loaders/*` | 79–100% | parser layers unit-tested |
+| `timeseries/returns.py` | 100% | dead helpers parked in `attic/`; live surface in `tests/unit/test_timeseries_returns.py` |
+| `loaders/data_update.py` | 96% | auto-update fetchers/refresh; mocked unit tests + live (network) |
+| `metrics.py` | 95% | core formulas, well covered |
+| `timeseries/` (civ, asset, portfolio) | 84–100% | |
+| `loaders/*` | 80–100% | parser layers unit-tested |
 | `visualizer.py` | 71% | plotting smoke tests (Agg) in `tests/unit/test_visualizer.py` |
-| `main.py` | 1% | **measurement artifact**: exercised end-to-end by the golden + e2e tests, but those run main.py in a *subprocess*, so coverage isn't attributed here |
+| `main.py` | 14% | **measurement artifact**: exercised end-to-end by the golden + e2e tests, but those run main.py in a *subprocess*, so most lines aren't attributed here |
 
 `main.py`'s 1% is misleading (subprocess execution), not untested behavior —
 it's the only large remaining "gap". `attic/` (parked, unwired code,
