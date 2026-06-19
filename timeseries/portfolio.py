@@ -40,8 +40,6 @@ class PortfolioTimeseries:
         that explains why a portfolio with a defunct fund plots up to
         that fund's last reported NAV rather than today.
         """
-        if not self.assets:
-            raise ValueError("PortfolioTimeseries has no assets")
         starts = {n: a.civ.value_series().index.min() for n, a in self.assets.items()}
         ends = {n: a.civ.value_series().index.max() for n, a in self.assets.items()}
         start_name, start_date = max(starts.items(), key=lambda kv: kv[1])
@@ -69,9 +67,6 @@ class PortfolioTimeseries:
            monthly when gold or PPF is present — which then gets annualized
            by ``sqrt(252)`` downstream, inflating volatility 10×.
         """
-        if not self.assets:
-            return TimeseriesCIV(pd.Series(dtype=float))
-
         raw_series = {
             name: asset.civ.value_series().sort_index() for name, asset in self.assets.items()
         }
@@ -79,8 +74,8 @@ class PortfolioTimeseries:
         # Common window = latest start across assets, earliest end across assets.
         start = max(s.index.min() for s in raw_series.values())
         end = min(s.index.max() for s in raw_series.values())
-        if start > end:
-            return TimeseriesCIV(pd.Series(dtype=float))
+        if start > end:  # assets don't overlap in time → no joint window
+            return TimeseriesCIV(pd.Series(dtype=float, name="value"))
 
         calendar = pd.bdate_range(start, end)
 
@@ -89,7 +84,7 @@ class PortfolioTimeseries:
         ).dropna(how="any")
 
         if reindexed.empty:
-            return TimeseriesCIV(pd.Series(dtype=float))
+            return TimeseriesCIV(pd.Series(dtype=float, name="value"))
 
         normalized = reindexed.divide(reindexed.iloc[0])
         weights = pd.Series(self.weights).reindex(normalized.columns).fillna(0.0)

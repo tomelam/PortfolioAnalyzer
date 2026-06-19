@@ -13,9 +13,10 @@ that fund's last NAV — useful behavior, but only if the user is told.
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from timeseries.asset import from_civ
-from timeseries.portfolio import PortfolioTimeseries
+from timeseries.portfolio import PortfolioTimeseries, from_multiple_nav_series
 
 
 def _series(values: list[float], start: str) -> pd.Series:
@@ -90,3 +91,38 @@ def test_effective_window_matches_combined_civ_series_bounds() -> None:
 
     assert civ.index.min() == window["start"]
     assert civ.index.max() == window["end"]
+
+
+# --- guard branches --------------------------------------------------------
+
+def test_constructor_rejects_empty_assets() -> None:
+    """The empty-portfolio case is forbidden at construction, which is why
+    the downstream methods don't need their own empty-assets guards."""
+    with pytest.raises(ValueError, match="at least one asset"):
+        PortfolioTimeseries(assets={}, weights={})
+
+
+def test_combined_civ_series_non_overlapping_assets_is_empty() -> None:
+    """Assets whose date windows don't overlap (latest start > earliest end)
+    yield an empty, validly-named portfolio CIV rather than crashing the
+    TimeseriesCIV constructor (regression: the empty return used an unnamed
+    Series, which TimeseriesCIV rejects)."""
+    early = _series([100.0 + i for i in range(60)], "2020-01-01")
+    late = _series([100.0 + i for i in range(60)], "2024-01-01")
+    portfolio = PortfolioTimeseries(
+        assets={"early": from_civ(early), "late": from_civ(late)},
+        weights={"early": 0.5, "late": 0.5},
+    )
+    civ = portfolio.combined_civ_series()
+    assert civ.series.empty
+    assert civ.series.name == "value"
+
+
+def test_from_multiple_nav_series_skips_none_and_non_series() -> None:
+    """None entries and non-Series values are dropped, not turned into assets."""
+    good = _series([100.0, 101.0, 102.0], "2024-01-01")
+    portfolio = from_multiple_nav_series(
+        {"good": good, "missing": None, "garbage": [1, 2, 3]},
+        weights={"good": 1.0},
+    )
+    assert list(portfolio.assets) == ["good"]

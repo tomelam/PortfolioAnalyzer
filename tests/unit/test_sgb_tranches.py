@@ -20,6 +20,7 @@ import pytest
 
 from sgb_tranches import (
     PURCHASABLE_FROM,
+    describe_tranche,
     list_tranches,
     load_tranches,
     lookup_tranche,
@@ -123,3 +124,26 @@ def test_list_tranches_filters_by_status() -> None:
     assert "2023-24-IV" in set(locked["tranche_id"])
     # And the earliest tranche (Feb 2020) shouldn't be locked anymore.
     assert "2019-20-IX" not in set(locked["tranche_id"])
+
+
+def test_list_tranches_status_filter_requires_as_of() -> None:
+    with pytest.raises(ValueError, match="status filter requires as_of"):
+        list_tranches(status="LOCK")  # as_of omitted
+
+
+def test_describe_tranche_renders_key_fields() -> None:
+    """The human-readable summary surfaces the anchor tranche's core facts and
+    its status as of a given date."""
+    text = describe_tranche("2019-20-IX", as_of=dt.date(2026, 6, 16))
+    assert "Tranche 2019-20-IX" in text
+    assert "Series IX" in text
+    assert "₹4,070" in text  # offline issue price
+    assert "2.50% p.a." in text  # coupon
+    assert "as of 2026-06-16" in text
+    # Premature window opened 2025-02-11, before the as_of → eligible for redemption.
+    assert "Status:   PRE" in text
+
+
+def test_describe_tranche_defaults_as_of_to_today() -> None:
+    text = describe_tranche("2019-20-IX")
+    assert text.startswith("Tranche 2019-20-IX")
