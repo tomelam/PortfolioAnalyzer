@@ -215,21 +215,29 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   off-by-1% portfolios are still rejected. Suite went from 24/30 to 30/30
   rendered via `scripts/render-all.sh`.
 
-- [ ] **SGB premature-redemption pricing.** Currently every held SGB
-  tranche is marked to IBJA gold spot. When the holder actually
-  pre-redeems, RBI announces a price ~3 business days before each
-  coupon-payment date past the 5-year window — that price is the real
-  exit value. Extend `data/sgb_tranches.csv` with a sibling
-  `data/sgb_redemptions.csv` (tranche_id, redemption_date,
-  inr_per_gram, redemption_kind ∈ {PRE, MAT}); update `sgb_holding_civ`
-  to use the actual redemption price on those dates instead of the
-  IBJA-spot proxy. Reference: 4 confirmed redemptions are already noted
-  in `~/Downloads/sgb-master-ledger.md` (2017-18 Series IV ₹12,704,
-  Series XI ₹12,801, Series XIV ₹13,486, 2019-20 Series VII ₹15,275).
+- [ ] **SGB premature-redemption pricing — BACK BURNER (user, 2026-06-19).**
+  **Decision: value all SGBs hold-to-maturity (HTM) for now** — i.e. keep the
+  current IBJA-gold-spot-plus-coupons valuation everywhere SGBs appear (plots,
+  charts, metric tables). Premature-redemption pricing is **not a big win right
+  now**, so it is deferred. (Recorded in `docs/ARCHITECTURE.md` → *SGB valuation:
+  hold-to-maturity by default*.) For our two held tranches the gold-spot proxy
+  *is* the HTM value within the current window (neither has reached the 8-year
+  maturity pin), so no code change is needed to honour this decision today.
+  - *When revived:* every held SGB tranche is marked to IBJA gold spot; a real
+    pre-redemption uses the RBI price announced ~3 business days before each
+    coupon date past the 5-year window. Extend `data/sgb_tranches.csv` with a
+    sibling `data/sgb_redemptions.csv` (tranche_id, redemption_date, inr_per_gram,
+    redemption_kind ∈ {PRE, MAT}); update `sgb_holding_civ` to use the actual
+    redemption price on those dates instead of the IBJA-spot proxy. Reference:
+    4 confirmed redemptions noted in `~/Downloads/sgb-master-ledger.md` (2017-18
+    Series IV ₹12,704, Series XI ₹12,801, Series XIV ₹13,486, 2019-20 Series VII
+    ₹15,275).
 
-- [ ] **SGB hold-to-maturity vs redeemable subtypes** (user-raised 2026-06-18).
-  Split the SGB asset type into two valuation subtypes so a portfolio can model
-  a holder's actual intent per tranche:
+- [ ] **SGB hold-to-maturity vs redeemable subtypes — BACK BURNER** (user-raised
+  2026-06-18; deferred 2026-06-19 with the redemption-pricing item it depends on).
+  HTM is the default valuation in the meantime (above). Split the SGB asset type
+  into two valuation subtypes so a portfolio can model a holder's actual intent
+  per tranche:
   - **hold-to-maturity (HTM)** — valued through to the 8-year maturity, with the
     terminal value pinned to RBI's maturity redemption price (the average of the
     last week's gold) rather than the single-day IBJA-spot proxy.
@@ -618,10 +626,41 @@ are unaware of each other.
 
 ## In Progress
 
-_Nothing active. Phase F (the last salvage track) closed 2026-06-17 — see
-Done. Everything remaining is optional backlog (type hints, coverage→85%,
-naming/`outputs/` decisions, money-vault integration) or the separate
-user-owned Data-freshness work._
+_Nothing actively coding. **Staging a big new round of cleanup / audits /
+improvements** (user, 2026-06-19) — see the candidate slate below; scope to be
+confirmed before work starts._
+
+### Next big round — candidate slate (staged 2026-06-19, unprioritized)
+
+A fresh sweep after the VRO-parity tracks closed. Grouped; the user will pick the
+order and what's in/out. Sequence small tidy items first, big open-ended ones last.
+
+- **Audits (read-then-fix).**
+  - *Dead/duplicated code sweep* across the live modules now that the salvage
+    churn has settled (loaders, timeseries, main.py glue).
+  - *Coverage gaps* — biggest genuine hole is `timeseries/returns.py` (44% at last
+    baseline); confirm what's untested vs. measurement artifact (`main.py` 1%).
+  - *Docs staleness sweep* — README / QUICKSTART / ARCHITECTURE / DATA_REFRESH /
+    OUTPUTS / TESTING / CONTRIBUTING vs. current code (several touched this round).
+  - *Test-suite hygiene* — marker correctness, network-tier cost/runtime, any
+    flakiness; the live VRO/niftyindices tier now takes ~2.5 min.
+- **Under-watched data sources** (existing backlog item): add freshness/registry
+  handling for `ppf_interest_rates.csv`, the REC coupon table, and
+  `data/gold_monthly_inr.csv` if stable feeds exist; else document the manual cadence.
+- **niftyindices steady-state confirmation** (existing open item): verify the
+  ≤once/day on-run refresh advances `NIFTY ... CSV` + `.last_fetched.json` over
+  several real runs — one verified hit is not proof of unattended reliability.
+- **Reporting helpers from `attic/`** (existing backlog): port `info_summary`,
+  `describe_as_report`, `to_csv_report`, `to_latex_table`, `compare_to`,
+  `as_rolling` (+ alignment helpers) to today's `TimeseriesReturn` if CSV/LaTeX
+  export is wanted.
+- **Typing decision** (deferred): whether to adopt `pandas-stubs` +
+  `ignore_missing_imports=off` to verify Series/DataFrame contracts, vs. the
+  current light-touch mypy config.
+- **Deferred / gated, not part of this round unless the user says so:** SGB
+  premature-redemption + HTM-vs-redeemable (back burner); money-vault integration
+  (needs explicit go-ahead); the 3 hybrid/debt + Franklin Beta/Alpha (no benchmark
+  source).
 
 ## Done
 

@@ -182,3 +182,65 @@ cadence-gated refresh) and `main.py` (the block/allow-stale gate + provenance
 line). Operational details — the `browser` extra for the
 niftyindices stealth fetch, manual refresh — are in
 [`DATA_REFRESH.md`](DATA_REFRESH.md).
+
+### External-metric parity (Value Research Online)
+
+We validate our own metrics against an external authority (Value Research
+Online) so a methodology drift can't pass silently. `loaders/vro.py` fetches
+VRO's published figures for the mapped funds (`data/vro_funds.csv`) and the
+live wire test (`tests/integration/test_vro_parity.py`) asserts ours match.
+Reconciled methodology:
+
+- **Trailing returns** — VRO uses **point-to-point daily** NAVs (not month-end),
+  so the analog is `metrics.cagr` over the trailing window (`trailing_cagr_pct`).
+- **Risk ratios (Mean / Std Dev / Sharpe / Sortino)** — trailing-3Y, **monthly**;
+  mirrored by `trailing_risk_ratios` (`metrics.*` with `periods_per_year=12`).
+- **CAPM Beta / Alpha** — measured against each fund's **stated benchmark**, so
+  they need that benchmark's own return series. The framing is *our* correctness,
+  not parity for its own sake: where we can source the benchmark we compute
+  correct Beta/Alpha for the fund, and VRO parity is a free cross-check on top.
+
+**niftyindices benchmark-feed coverage (probe finding, 2026-06-19).** Sourcing
+those benchmark TRIs runs into a hard limit. The niftyindices free historical
+endpoint serves an index **iff it is in the live-watch master**
+(`iislliveblob.niftyindices.com/jsonfiles/LiveIndicesWatch_new.json`, ~131
+indices). Two endpoint shapes: equity indices answer on
+`getTotalReturnIndexString` (a real TRI), plain debt/gilt indices answer on
+`getHistoricaldatatabletoString` (OHLC, `CLOSE` column) — confirmed with
+`NIFTY GS 10YR`/`NIFTY GS COMPSITE` controls. Consequence for our five funds:
+
+| Fund benchmark | On the feed? |
+|---|---|
+| NIFTY 100 (ICICI Bluechip) | **yes** — TRI endpoint |
+| NIFTY 50 Hybrid Composite Debt 65:35 / 15:85 | no — absent from the master |
+| NIFTY Corporate Bond Index A-II | no — absent from the master |
+| Russell 3000 Growth (Franklin US FoF) | n/a — not a NIFTY index |
+
+So niftyindices yields exactly **one** benchmark, NIFTY 100, which is also the
+only fund VRO publishes both Beta *and* Alpha for. `VROFund.benchmark_index`
+records the fetchable niftyindices name (empty where none); `fetch_benchmark_tri`
+pulls it via the same stealth path; only funds with a `benchmark_index` get
+Beta/Alpha asserted. The reusable probe spikes that established this live under
+`scripts/probe_niftyindices_*.py` (see [scripts/README.md](../scripts/README.md)).
+
+**Franklin US FoF is a deliberate Beta/Alpha omission, not a gap.** It is a
+USD-denominated feeder fund benchmarked to Russell 3000 Growth (a USD index),
+while its NAV is INR — so a CAPM regression would conflate equity beta with
+USD/INR currency moves. There is no single correct convention, no stable free
+Russell TR source, and VRO itself publishes neither Beta nor Alpha for it. We
+omit them rather than manufacture false precision; revisiting would mean an
+explicitly currency-adjusted variant, a deliberate modelling choice.
+
+### SGB valuation: hold-to-maturity by default
+
+Sovereign Gold Bonds are modelled per tranche (each tranche is a distinct
+investment) as `units × gold_per_gram(t) + Σ(coupons paid ≤ t)` — i.e. marked to
+IBJA gold spot plus accrued coupons (`sgb_holdings.sgb_holding_civ`). For the
+holdings and analysis windows we care about, this **is** the hold-to-maturity
+(HTM) valuation, and HTM is the default everywhere SGBs appear (plots, charts,
+metric tables). Premature-redemption pricing — substituting RBI's announced
+pre-redemption price on the redemption date for the gold-spot proxy — is
+**intentionally deferred** (low current value); until it lands, SGBs are always
+valued HTM. The terminal maturity pin (RBI's last-week-average maturity price)
+only bites at the 8-year mark, which none of the modelled tranches has reached,
+so the gold-spot proxy and the HTM value coincide within the current window.
