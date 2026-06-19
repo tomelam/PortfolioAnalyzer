@@ -248,6 +248,26 @@ pulls it via the same stealth path; only funds with a `benchmark_index` get
 Beta/Alpha asserted. The reusable probe spikes that established this live under
 `scripts/probe_niftyindices_*.py` (see [scripts/README.md](../scripts/README.md)).
 
+**The 3 hybrid/debt benchmark series are not freely sourceable — out of scope
+(Thread 5, 2026-06-19).** We exhaustively checked every free avenue for the
+stated benchmarks of HDFC Balanced Advantage (65:35), HDFC Hybrid Debt (15:85),
+and ICICI Corporate Bond (A-II); none yields a usable time series:
+
+| Avenue | Result |
+|---|---|
+| niftyindices `getTotalReturnIndexString` (TRI) + `getHistoricaldatatabletoString` (HIST) | 0 rows for all 3 with **exact** registered names + variants; NIFTY 100 control returns 136 rows on both. Definitive endpoint-coverage gap (`probe_niftyindices_hybrid_exact.py`). |
+| niftyindices index **product pages** | No chart-data/time-series XHR — only factsheet metadata (`probe_niftyindices_productpage.py`). |
+| niftyindices **factsheets** (monthly PDF) | One monthly snapshot (level + trailing returns); overwritten each month, not archived ⇒ no backfillable series. |
+| Morningstar / MoneyControl fund pages | Risk ratios computed vs Morningstar **category/standard indices** ("Nifty 50 TR INR" for the hybrids), not the stated benchmark; β clusters ~1 regardless of asset mix (fund-vs-category). **No stated-benchmark series exposed.** |
+
+These indices are total-return-by-construction (the 65:35/15:85 blends NIFTY 50
+*TR* with a debt TR index; A-II is a bond TR index), so the problem is purely
+retrievability, not a price-vs-TRI gap. Payoff was thin anyway — VRO publishes
+Beta-only for the 2 HDFC hybrids and nothing for ICICI Corp Bond. We therefore
+treat these 3 funds' stated-benchmark Beta/Alpha as **out of scope (not freely
+sourceable)**, the same posture as Franklin below: `benchmark_index` stays empty
+for them in `data/vro_funds.csv`, so the parity test simply skips them.
+
 **Franklin US FoF is a deliberate Beta/Alpha omission, not a gap.** It is a
 USD-denominated feeder fund benchmarked to Russell 3000 Growth (a USD index),
 while its NAV is INR — so a CAPM regression would conflate equity beta with

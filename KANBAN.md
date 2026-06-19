@@ -108,10 +108,12 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
         0.909 vs VRO 0.92 (Δ−0.011); Alpha ours 3.320 vs VRO 3.33 (Δ−0.010pp).
         Tolerances `TOL_BETA=0.05`, `TOL_ALPHA_PP=0.40`. New unit tests: known-answer
         β=1/α=0 (benchmark≡fund) and the `benchmark_index` column load.
-      - **Still deferred:** the 3 hybrid/debt funds (need an alternate benchmark
-        source — NSE factsheets, not niftyindices' live feed) and Franklin
+      - **Resolved (Thread 5, 2026-06-19):** the 3 hybrid/debt funds' stated
+        benchmarks are **not freely sourceable** (niftyindices feed, product pages,
+        factsheets-as-series, Morningstar, MoneyControl all checked — see the Thread 5
+        record below) → **closed as out of scope**, same posture as Franklin
         (out of scope). VRO publishes Beta-only for the two HDFC hybrids and
-        nothing for ICICI Corp Bond, so the remaining upside is thin.
+        nothing for ICICI Corp Bond, so the remaining upside was thin anyway.
 
 - [x] **Stale NIFTY benchmark is a hard blocker — add a bypass flag**
   (2026-06-17, cycle 10). Added `--skip-age-check` CLI flag. When
@@ -723,8 +725,29 @@ first, then big. Per-thread branch + full network-gated merge. Progress below.
   - 14 new tests in `tests/unit/test_reporting_helpers.py`; parked copies removed
     from the attic (alignment helpers `align_with`/`clip_to_overlap`/`aligned_to`/
     `interpolated` stay parked). Full unit suite green; ruff + mypy clean.
-- [ ] **Thread 5 (big) — benchmark TRI sourcing** (incl. the 3 hybrid/debt indices
-  investigation deferred from Thread 3).
+- [x] **Thread 5 (big) — benchmark TRI sourcing** (2026-06-19). Investigated every
+  free source for the 3 hybrid/debt funds' stated benchmarks (HDFC Balanced Advantage
+  → 65:35, HDFC Hybrid Debt → 15:85, ICICI Corp Bond → A-II); **none yields a usable
+  time series → closed as out of scope (not freely sourceable)**, same posture as
+  Franklin. Evidence (all reproducible):
+  - **niftyindices Backpage endpoints — definitive dead end.** New
+    `probe_niftyindices_hybrid_exact.py` POSTs the *exact* registered names (+ variants)
+    to **both** `getTotalReturnIndexString` (TRI) and `getHistoricaldatatabletoString`
+    (HIST) in one session with a NIFTY 100 control: all 3 → **0 rows on both**, control
+    → 136 rows on both. Upgrades the earlier live-watch-master finding to airtight (not
+    a naming/session issue — true endpoint-coverage gap).
+  - **niftyindices product pages** (`probe_niftyindices_productpage.py`) — no chart/
+    time-series XHR, only factsheet metadata. **Factsheets** give a monthly snapshot,
+    overwritten each month (no backfillable series).
+  - **Morningstar & MoneyControl** (user-requested) — risk ratios computed vs
+    Morningstar **category/standard indices** ("Nifty 50 TR INR" for the hybrids), not
+    the stated benchmark; β clusters ~1 regardless of asset mix (fund-vs-category); **no
+    stated-benchmark series exposed**. MoneyControl's risk JSON is curl-scrapeable but
+    benchmark-mismatched, so not a clean cross-check.
+  - **No production-code change** — `data/vro_funds.csv` already leaves `benchmark_index`
+    empty for these 3, so `loaders/vro.fetch_benchmark_tri` + the parity test correctly
+    skip them. Documented in `docs/ARCHITECTURE.md` (External-metric parity) and
+    `scripts/README.md` (2 new probes). **Big round complete** — all of Threads 1–6 done.
 
 ### Remaining candidate detail (unprioritized)
 
@@ -748,8 +771,8 @@ first, then big. Per-thread branch + full network-gated merge. Progress below.
   current light-touch mypy config.
 - **Deferred / gated, not part of this round unless the user says so:** SGB
   premature-redemption + HTM-vs-redeemable (back burner); money-vault integration
-  (needs explicit go-ahead); the 3 hybrid/debt + Franklin Beta/Alpha (no benchmark
-  source).
+  (needs explicit go-ahead). *(The 3 hybrid/debt + Franklin Beta/Alpha are now
+  CLOSED as out of scope — no free benchmark source; see Thread 5.)*
 
 ## Done
 
