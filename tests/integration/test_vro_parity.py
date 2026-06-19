@@ -43,11 +43,21 @@ from loaders.vro import (
 TOL_RET_PP = 0.5
 RETURN_PERIODS = (("3Y", 3), ("5Y", 5))
 
-# Risk-ratio tolerances. Mean/Std Dev are pure return-series stats (pp); Sharpe/
-# Sortino additionally carry the risk-free assumption, hence looser (ratio units).
-TOL_MEAN_PP = 1.0
-TOL_STD_PP = 1.0
-TOL_RATIO = 0.2
+# Risk-ratio tolerances, calibrated from the live snapshot across all 5 funds
+# (2026-06-19, month-end-anchored). Observed worst |Δ|: Mean 0.00, Std Dev 0.00,
+# Sharpe 0.03 — so Mean/Std/Sharpe are tightened well below the old 1.0/1.0/0.2;
+# the residual headroom covers month-boundary window slides (when VRO's monthly
+# risk update and our last-complete-month anchor land in different months).
+#
+# Sortino is held at 0.20, NOT tightened: Franklin (the high-volatility FoF) sits
+# at Δ0.14 because VRO's downside-deviation differs from every standard formula
+# there (its Sharpe matches exactly, so it's a downside-dev convention quirk, not
+# a risk-free mismatch). The other four funds agree to ≤0.03. 0.20 leaves ~0.06
+# for run-day noise on top of that systematic, stable gap.
+TOL_MEAN_PP = 0.4
+TOL_STD_PP = 0.4
+TOL_SHARPE = 0.10
+TOL_SORTINO = 0.20
 
 pytestmark = [
     pytest.mark.integration,
@@ -80,8 +90,8 @@ def test_our_metrics_match_vro(fund) -> None:
     for key, tol in (
         ("mean", TOL_MEAN_PP),
         ("std_dev", TOL_STD_PP),
-        ("sharpe", TOL_RATIO),
-        ("sortino", TOL_RATIO),
+        ("sharpe", TOL_SHARPE),
+        ("sortino", TOL_SORTINO),
     ):
         assert abs(ours_risk[key] - vro.risk[key]) < tol, (
             f"{fund.name} {key}: ours={ours_risk[key]:.2f} vs VRO={vro.risk[key]:.2f} "

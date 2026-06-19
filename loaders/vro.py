@@ -98,6 +98,10 @@ class VROFund:
     vro_slug: str
     isin: str
     name: str
+    # The fund's stated benchmark (TRI). Scaffolding for the deferred Beta/Alpha
+    # parity — those need the benchmark's own return series, which the repo does
+    # not yet ship. Empty when unmapped.
+    benchmark: str = ""
 
     @property
     def mfapi_url(self) -> str:
@@ -115,6 +119,7 @@ def load_vro_fund_map(path: Path | None = None) -> list[VROFund]:
                 vro_slug=row["vro_slug"].strip(),
                 isin=row["isin"].strip(),
                 name=row["name"].strip(),
+                benchmark=(row.get("benchmark") or "").strip(),
             )
             for row in csv.DictReader(f)
         ]
