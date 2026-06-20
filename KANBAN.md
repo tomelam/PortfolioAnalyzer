@@ -749,6 +749,39 @@ first, then big. Per-thread branch + full network-gated merge. Progress below.
     skip them. Documented in `docs/ARCHITECTURE.md` (External-metric parity) and
     `scripts/README.md` (2 new probes). **Big round complete** — all of Threads 1–6 done.
 
+### Fund-benchmark catalog (post-big-round, 2026-06-20)
+
+Goal: catalog popular/prominent funds of different kinds, tracking each fund's
+stated benchmark and whether that benchmark has a **free data source** — to (a) add
+per-fund α/β validation cases where sourceable and (b) build realistic test
+portfolios. Catalog lives at **`data/fund_catalog.csv`** (superset of
+`data/vro_funds.csv`); integrity guarded by `tests/unit/test_fund_catalog.py`.
+
+- [x] **Catalog built — 19 funds across 14 categories** (2026-06-20). Fetchability
+  determined authoritatively against the niftyindices live-watch master
+  (`LiveIndicesWatch_new.json`, 131 indices); exact TRI-fetch spellings confirmed in
+  one stealth session (`scripts/probe_niftyindices_catalog_names.py`).
+  - **10 fetchable** (stated benchmark on niftyindices' free feed) — all equity
+    broad/sectoral: large-cap (NIFTY 100), flexi/ELSS (NIFTY 500), large&mid
+    (NIFTY LargeMidcap 250), mid (NIFTY Midcap 150), small (NIFTY Smallcap 250),
+    index (NIFTY 50), IT (NIFTY IT), pharma (NIFTY Pharma).
+  - **9 not free** — every non-equity-broad kind: balanced-advantage & hybrid-debt
+    (NIFTY hybrid composite debt 65:35 / 15:85), corporate-bond (A-II), short-duration
+    debt, gilt (NIFTY All Duration G-Sec), aggressive-hybrid (CRISIL), gold FoF
+    (priced separately), and 2 international FoFs (Russell 3000 Growth, NASDAQ 100 —
+    USD benchmarks). Confirms the Thread-5 pattern: only mainstream NIFTY equity
+    benchmarks are on the free feed.
+- **Conceptual finding recorded** (ARCHITECTURE → External-metric parity): portfolio
+  α/β is computed vs **one global benchmark**, not aggregated from per-asset α/β
+  (which is only meaningful when all assets share one benchmark). So a portfolio's
+  α/β is lost only when the *global* benchmark is absent — not when an individual
+  fund's own benchmark is unsourceable.
+- [ ] **Follow-on A (gated — ASK):** add the 10 fetchable equity funds to
+  `data/vro_funds.csv` (need VRO plan ids) so `tests/integration/test_vro_parity.py`
+  validates their Beta/Alpha against VRO.
+- [ ] **Follow-on B (gated — ASK):** build new `port/*.toml` test portfolios from
+  catalogued funds (portfolio α/β needs only mfapi NAVs + the shipped NIFTY TRI).
+
 ### Remaining candidate detail (unprioritized)
 
 - **Audits (read-then-fix).**
