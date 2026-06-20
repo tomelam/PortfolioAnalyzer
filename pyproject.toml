@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "portfolio-analyzer"
-version = "0.1.0+salvage"
+version = "0.2.0"
 description = "Indian portfolio analysis: backtests, metrics, stress tests across mutual funds, gold (SGB), PPF, SCSS, NIFTY benchmark, FRED risk-free rates."
 requires-python = ">=3.12,<3.13"
 authors = [{ name = "Tom Elam" }]
