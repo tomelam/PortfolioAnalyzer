@@ -21,7 +21,7 @@ never to silently shrink.
    needs to be regenerated against the same TOML set.
 
 3. **`make clean`** — removes only the sweep-summary file
-   `portfolio_metrics.csv`. **Does not touch `outputs/`.**
+   `reports/portfolio_metrics.csv`. **Does not touch `outputs/`.**
 
 4. **`make distclean`** — the only target that removes `outputs/`
    wholesale. Asks for `y` confirmation before doing so. Use when

@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "portfolio-analyzer"
@@ -53,10 +53,11 @@ browser = [
     "playwright-stealth",
 ]
 
-[tool.setuptools]
-# Stage-2 reorg (2026-06-20): all formerly top-level modules + the loaders/ and
-# timeseries/ subpackages now live under one flat package, portfolioanalyzer/.
-packages = ["portfolioanalyzer", "portfolioanalyzer.loaders", "portfolioanalyzer.timeseries"]
+[tool.hatch.build.targets.wheel]
+# Stage-3 (2026-06-20): migrated setuptools -> hatchling to drop the visible
+# *.egg-info/ dir from the project root. The flat package (incl. its loaders/
+# and timeseries/ subpackages) is included whole.
+packages = ["portfolioanalyzer"]
 
 [tool.ruff]
 line-length = 100

@@ -175,7 +175,7 @@ Run any script with `--help` (or read the first few lines) for usage.
 make all                  # incremental render of every examples/port/*.toml
 make rerender             # force-rebuild every PNG + CSV
 make outputs/port-1.png   # render just port-1
-make clean                # remove only portfolio_metrics.csv (outputs/ preserved)
+make clean                # remove only reports/portfolio_metrics.csv (outputs/ preserved)
 make distclean            # rm -rf outputs/ (asks for confirmation)
 ```
 
