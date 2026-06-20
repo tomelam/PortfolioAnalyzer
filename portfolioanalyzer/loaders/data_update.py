@@ -480,6 +480,14 @@ def assess_freshness(source: DataSource, *, today=None) -> dict:
     fetch already happened today (the latter covers exchange holidays / feed
     lag, where a fetch returns the latest the source offers even though the
     calendar frontier is technically ahead of it).
+
+    The ``fetched_today`` shortcut is honoured only when the file on disk
+    actually reflects that fetch — i.e. its real last date reaches the stamp's
+    recorded ``last_date``. A reorg/restore can revert the CSV to an older copy
+    while the stamp keeps its success record; trusting the stamp alone then
+    certifies a stale file as current. ``stamp_honoured`` is False in that
+    desync, so the source falls back to its on-disk cadence assessment and is
+    re-fetched.
     """
     today = (
         pd.Timestamp(today).normalize() if today is not None else pd.Timestamp.today().normalize()
@@ -490,13 +498,20 @@ def assess_freshness(source: DataSource, *, today=None) -> dict:
     stamp = read_stamp(source.name)
     fetched_today = _is_today(stamp.get("fetched_at"), today)
     attempted_today = _is_today(stamp.get("attempted_at"), today)
+
+    # File-vs-stamp consistency: the stamp's success claim is only credible if
+    # the file reaches the date the stamp says was written.
+    stamp_last = stamp.get("last_date")
+    stamp_last_ts = pd.Timestamp(stamp_last).normalize() if stamp_last else None
+    stamp_honoured = stamp_last_ts is None or (last is not None and last >= stamp_last_ts)
     return {
         "last_date": last,
         "frontier": frontier,
         "behind": behind,
         "fetched_today": fetched_today,
         "attempted_today": attempted_today,
-        "current": (not behind) or fetched_today,
+        "stamp_honoured": stamp_honoured,
+        "current": (not behind) or (fetched_today and stamp_honoured),
     }
 
 

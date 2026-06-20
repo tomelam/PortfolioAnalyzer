@@ -97,6 +97,24 @@ def test_plot_embeds_png_metadata_and_footnote(tmp_path):
     assert "NIFTY 50 TRI" in text["reference_data"]
 
 
+def test_benchmark_cutoff_note_flags_stale_benchmark():
+    """A benchmark ending well before the portfolio yields a failure-framed note."""
+    note = visualizer.benchmark_cutoff_note(
+        pd.Timestamp("2025-05-02"), pd.Timestamp("2026-06-19"), "NIFTY TRI"
+    )
+    assert note is not None
+    assert "stale/failed" in note
+    assert "2025-05-02" in note and "2026-06-19" in note
+
+
+def test_benchmark_cutoff_note_silent_within_lag_band():
+    """Ordinary feed lag (a day or two) is not flagged."""
+    assert visualizer.benchmark_cutoff_note(
+        pd.Timestamp("2026-06-18"), pd.Timestamp("2026-06-19"), "NIFTY TRI"
+    ) is None
+    assert visualizer.benchmark_cutoff_note(None, pd.Timestamp("2026-06-19"), "NIFTY TRI") is None
+
+
 def test_plot_cumulative_returns_without_benchmark(tmp_path):
     out = tmp_path / "plot_nobench.png"
     visualizer.plot_cumulative_returns(
