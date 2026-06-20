@@ -601,7 +601,7 @@ are unaware of each other.
   - Risk-free now FRED `INDIRLTLT01STM` (auto-fetched); benchmark NIFTY 50 TRI auto-scraped from niftyindices.
   - Procedure documented in `docs/DATA_REFRESH.md`; on-run force-refresh + cron-able `portfolio-analyzer-update`; staleness gate is now early-warning, not a hard blocker.
   - Goldens re-captured against the FRED risk-free (pinned via `--as-of`/`--replay-from`, so they stay deterministic regardless of live data).
-- [ ] **Audit the remaining under-watched data sources** not yet auto-updated: `ppf_interest_rates.csv`, REC bond coupon table, gold (`data/reference/gold_monthly_inr.csv`). SCSS is already fetched live. These change rarely; add registry entries if/when stable feeds are identified.
+- [ ] **Audit the remaining under-watched data sources** not yet auto-updated: `ppf_interest_rates.csv`, gold (`data/reference/gold_monthly_inr.csv`). SCSS is already fetched live. These change rarely; add registry entries if/when stable feeds are identified.
 
 ### Hygiene / tech debt
 - [x] **Plot ↔ metrics consistency** (Phase F follow-up). `main.py` fed the plot with `cumprod(1 + combined_daily_returns)` while the metrics box used `combined_civ_series`. For mixed-frequency portfolios (daily MFs + monthly gold), the two diverged because weighted-sum-of-asset-returns ≠ return-of-weighted-sum, and the legacy `combined_daily_returns` inner-joined to the monthly intersection. Fixed `main.py` to feed `portfolio_civ_series.series` directly to the plotter. Three TDD tests pin the contract (`tests/unit/test_plot_metric_consistency.py`); the third test documents the *reason* the old path was wrong and will fail loudly if `combined_daily_returns` is ever independently re-aligned.
