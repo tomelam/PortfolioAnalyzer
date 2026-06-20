@@ -12,7 +12,7 @@ readme = "README.md"
 
 dependencies = [
     "pandas==2.2.3",
-    "numpy==1.26.3",
+    "numpy==2.4.6",
     "requests==2.32.3",
     "toml==0.10.2",
     "urllib3==2.1.0",
