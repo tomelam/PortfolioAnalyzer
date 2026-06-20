@@ -601,7 +601,31 @@ are unaware of each other.
   - Risk-free now FRED `INDIRLTLT01STM` (auto-fetched); benchmark NIFTY 50 TRI auto-scraped from niftyindices.
   - Procedure documented in `docs/DATA_REFRESH.md`; on-run force-refresh + cron-able `portfolio-analyzer-update`; staleness gate is now early-warning, not a hard blocker.
   - Goldens re-captured against the FRED risk-free (pinned via `--as-of`/`--replay-from`, so they stay deterministic regardless of live data).
-- [ ] **Audit the remaining under-watched data sources** not yet auto-updated: `ppf_interest_rates.csv`, gold (`data/reference/gold_monthly_inr.csv`). SCSS is already fetched live. These change rarely; add registry entries if/when stable feeds are identified.
+- [ ] **Audit the remaining under-watched data sources** not yet auto-updated: `ppf_interest_rates.csv`. SCSS is already fetched live; gold is being migrated (below). These change rarely; add registry entries if/when stable feeds are identified.
+- [ ] **Gold source migration — Part A (PLANNED, not built; approved plan).** The WGC
+  `gold_monthly_inr.csv` feed is **DEAD** (discontinued Mar 2025 when ICE pulled LBMA Gold
+  Price history — CSV ends 2025-03-31 because the source stopped). Decision: switch to
+  **stooq XAU/USD spot, daily, in USD, no FX→INR conversion** (normalized returns make
+  currency-scale irrelevant; time-varying FX would inject rupee/RBI noise — measure gold at
+  the freest market). Block-by-default + `--allow-stale`, only for gold/SGB portfolios.
+  Plan: `/Users/tom/.claude/plans/i-notice-that-lots-gleaming-haven.md`. **Step 0: verify the
+  stooq endpoint + history (≥2008) — unverified in plan mode; fail-loud to a named
+  alternative if it doesn't hold.** New `fetch_stooq_xauusd`/`parse_stooq_csv` + `gold_xauusd`
+  REGISTRY entry; repoint `loaders/gold.py` (unit INR→USD); config-driven `gold_prices_file`;
+  gate-wire via `portfolio_dict`; freeze golden + re-capture gold/SGB goldens; docs.
+- [ ] **Gold Part B (deferred, own thread):** second gold price = **SGB premature-redemption
+  price** (RBI/IBJA 999-gold, INR — user accepts the Indian source as the contractual cash
+  value), kept as a **co-equal view alongside HTM** (neither default). Activates the deferred
+  design at `docs/ARCHITECTURE.md:311`; hooks: `sgb_tranches.csv` `rbi_prid`/`premature_first_date`.
+- [x] **NIFTY TRI cut-off plots FIXED + pushed (2026-06-20).** Root cause: a stamp/file
+  desync (`.last_fetched.json` claimed a fetch the reverted CSV didn't reflect) let the gate
+  certify a year-stale TRI as current. Fixed `assess_freshness` (added `stamp_honoured`: file
+  must reach the stamp's `last_date`); installed the `browser` extra; refreshed TRI to current;
+  added a firebrick `benchmark_cutoff_note` footnote. Merged `5b1895b`, pushed.
+- [x] **REC bond references fully removed + pushed (2026-06-20).** Cleared the last tree/code
+  references (toml comment, this backlog list, orphan `outputs/`/`.pyc`); README carries the
+  user-facing tombstone (no further use for a REC bond); historical KANBAN entries kept as
+  audit trail. Merged `130ecd7`, pushed.
 
 ### Hygiene / tech debt
 - [x] **Plot ↔ metrics consistency** (Phase F follow-up). `main.py` fed the plot with `cumprod(1 + combined_daily_returns)` while the metrics box used `combined_civ_series`. For mixed-frequency portfolios (daily MFs + monthly gold), the two diverged because weighted-sum-of-asset-returns ≠ return-of-weighted-sum, and the legacy `combined_daily_returns` inner-joined to the monthly intersection. Fixed `main.py` to feed `portfolio_civ_series.series` directly to the plotter. Three TDD tests pin the contract (`tests/unit/test_plot_metric_consistency.py`); the third test documents the *reason* the old path was wrong and will fail loudly if `combined_daily_returns` is ever independently re-aligned.
