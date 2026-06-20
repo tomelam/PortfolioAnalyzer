@@ -88,11 +88,13 @@ This repository contains the Portfolio Analyzer application. It fetches historic
 If the portfolio described by the TOML file includes PPF as a component, ensure that the file detailing historical PPF interest rates, `ppf_interest_rates.csv`, is up to date before running the program.
 
 If the portfolio described by the TOML file includes gold as a component, download the CSV file of the gold prices from https://www.investing.com/commodities/gold-historical-data before running the program. Currently, both offshore vaulted gold and gold held in India are priced using the same CSV data.
-After `pip install -e .`, the console entry point `portfolio-analyzer` is on `PATH` inside the venv. `python main.py …` continues to work for back-compat.
+Run the analyzer with the bundled-venv wrapper `./pa` — no venv activation, no
+`PATH` changes (see [`./pa`](#pa--run-without-activating-the-venv) below). Inside
+an activated venv the equivalent console command is `portfolio-analyzer …`.
 ```bash
-portfolio-analyzer --help
-portfolio-analyzer <path_to_portfolio_toml_file> [options]
-portfolio-analyzer port/port-1.toml --max-drawdown-threshold 10 --allow-stale
+./pa --help
+./pa <path_to_portfolio_toml_file> [options]
+./pa port/port-1.toml --max-drawdown-threshold 10 --allow-stale
 ```
 
 ### `./pa` — run without activating the venv
@@ -105,15 +107,14 @@ works from anywhere and in-repo paths resolve:
 ./pa port/port-1.toml --max-drawdown-threshold 10 --allow-stale
 ./pa --help
 ```
-It just `exec`s `venv/bin/python main.py "$@"`, so it's exactly equivalent to
-the longer forms above and editing the code takes effect immediately. Paths
-you pass are resolved from the project root; use an absolute path for a
-portfolio/config file that lives elsewhere.
+It just `exec`s `venv/bin/python main.py "$@"`, so editing the code takes effect
+immediately. Paths you pass are resolved from the project root; use an absolute
+path for a portfolio/config file that lives elsewhere.
 The `--max-drawdown-threshold` option (shortcut `-dt`) sets the percentage drawdown that is considered significant to count in the "Drawdowns" statistic. By default, the threshold is set to `5` (5%).
 
 The benchmark name and benchmark/risk-free CSV paths live in the config TOML
 (see `config/example_config.toml`); no CLI shortcuts exist for those. Run
-`portfolio-analyzer --help` for the authoritative flag list.
+`./pa --help` for the authoritative flag list.
 
 ⚠️ NOTE: Files downloaded from Investing.com sometimes use different date formats (e.g., %d-%m-%Y vs %m/%d/%Y). Always check the format of the first few rows and set `benchmark_date_format` in your config TOML accordingly — there is no CLI flag for it (see [Benchmark Indices](#benchmark-indices-config-file-only-not-in-command-line-options) below).
 
