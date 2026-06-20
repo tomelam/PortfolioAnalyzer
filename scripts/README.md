@@ -37,6 +37,7 @@ re-discover it from scratch. Each carries its own conclusion in its docstring.
 | `probe_niftyindices_indexmaster.py` | *Why* — niftyindices' free endpoint serves an index iff it's in the live-watch master (`LiveIndicesWatch_new.json`); the hybrid/debt benchmarks are absent from it (endpoint-coverage gap, not a naming problem). |
 | `probe_niftyindices_hybrid_exact.py` | *Definitive proof* — POSTs the 3 hybrid/debt benchmarks' **exact** registered names (+ spelling variants) to **both** Backpage endpoints (`getTotalReturnIndexString` TRI **and** `getHistoricaldatatabletoString` HIST) in one session with a NIFTY 100 control. All 3 → 0 rows on both; control → 136 rows on both. Rules out a naming/session cause: it's a true endpoint-coverage gap. |
 | `probe_niftyindices_productpage.py` | Whether the index **product pages** expose a historical series. They don't — only `gethistoricaltypedata1` (factsheet metadata) + `getResearchPaper` fire; no chart-data/time-series XHR. |
+| `probe_niftyindices_catalog_names.py` | Confirmed the exact TRI-endpoint spelling for the fund-catalog equity benchmarks (`data/fund_catalog.csv`). One stealth session; the endpoint accepts both abbreviated (`NIFTY SMLCAP 250`) and full (`NIFTY SMALLCAP 250`) names — all 10 fetchable equity indices returned rows. |
 
 See `docs/ARCHITECTURE.md` → *External-metric parity (Value Research Online)*
 for the distilled conclusions these spikes produced.

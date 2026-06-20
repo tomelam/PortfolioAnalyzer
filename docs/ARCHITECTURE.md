@@ -278,6 +278,24 @@ Russell TR source, and VRO itself publishes neither Beta nor Alpha for it. We
 omit them rather than manufacture false precision; revisiting would mean an
 explicitly currency-adjusted variant, a deliberate modelling choice.
 
+**Portfolio Alpha/Beta is measured against one global benchmark — not aggregated
+from per-asset benchmarks.** The portfolio's Beta/Alpha (`main.py`) is computed by
+regressing the *aggregate* portfolio return series on a **single** benchmark
+(the configured NIFTY TRI) via `metrics.beta_capm` / `metrics.alpha_capm`. It does
+not use each fund's own stated benchmark and does not combine per-asset α/β. So a
+portfolio's α/β is unavailable only when the *global* benchmark itself is absent
+(`use_benchmark=false`, or too few aligned points) — never because an individual
+asset's own benchmark can't be sourced. Why not aggregate per-asset α/β? It is
+exact (β_p = Σ wᵢβᵢ, α_p = Σ wᵢαᵢ) **only when every asset shares one benchmark,
+window, and risk-free** — and in that case it is *identical* to the aggregate
+regression we already run (the per-asset form is just an attribution of it). With
+*different* per-asset benchmarks (equity vs NIFTY, debt vs a bond index, gold/PPF
+vs none) the betas measure sensitivity to different market factors and cannot be
+summed. Per-fund benchmarks (`data/vro_funds.csv`, `data/fund_catalog.csv`) are
+therefore used only for **per-fund CAPM validation** against external authorities,
+not for the portfolio number. See the fund catalog in `data/fund_catalog.csv`
+(which benchmarks are freely sourceable) and the KANBAN fund-catalog thread.
+
 ### SGB valuation: hold-to-maturity by default
 
 Sovereign Gold Bonds are modelled per tranche (each tranche is a distinct

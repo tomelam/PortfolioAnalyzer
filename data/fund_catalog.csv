@@ -1,0 +1,20 @@
+category,fund_name,mfapi_code,isin,stated_benchmark,niftyindices_name,benchmark_free_source,fetchable,notes
+large_cap,ICICI Prudential Bluechip Fund - Direct - Growth,120586,INF109K016L0,NIFTY 100 TRI,NIFTY 100,niftyindices,yes,already a VRO parity case (Beta/Alpha validated)
+large_cap,Nippon India Large Cap Fund - Direct - Growth,118632,,NIFTY 100 TRI,NIFTY 100,niftyindices,yes,
+flexi_cap,Parag Parikh Flexi Cap Fund - Direct - Growth,122639,,NIFTY 500 TRI,NIFTY 500,niftyindices,yes,
+large_and_midcap,Mirae Asset Large & Midcap Fund - Direct - Growth,118834,,NIFTY LargeMidcap 250 TRI,NIFTY LARGEMIDCAP 250,niftyindices,yes,
+mid_cap_index,HDFC NIFTY Midcap 150 Index Fund - Direct - Growth,151724,,NIFTY Midcap 150 TRI,NIFTY MIDCAP 150,niftyindices,yes,passive index fund
+small_cap,Nippon India Small Cap Fund - Direct - Growth,118778,,NIFTY Smallcap 250 TRI,NIFTY SMALLCAP 250,niftyindices,yes,
+elss,Mirae Asset ELSS Tax Saver Fund - Direct - Growth,135781,,NIFTY 500 TRI,NIFTY 500,niftyindices,yes,
+index,UTI Nifty 50 Index Fund - Direct - Growth,120716,,NIFTY 50 TRI,NIFTY 50,niftyindices,yes,passive index fund
+sectoral_it,ICICI Prudential Technology Fund - Direct - Growth,120594,,NIFTY IT TRI,NIFTY IT,niftyindices,yes,
+sectoral_pharma,Nippon India Pharma Fund - Direct - Growth,118759,,NIFTY Pharma TRI,NIFTY PHARMA,niftyindices,yes,
+balanced_advantage,HDFC Balanced Advantage Fund - Direct - Growth,118968,INF179K01WA6,NIFTY 50 Hybrid Composite Debt 65:35 Index,,none,no,blended hybrid index not on niftyindices free feed (Thread 5)
+aggressive_hybrid,SBI Equity Hybrid Fund - Direct - Growth,119609,,CRISIL Hybrid 35+65 Aggressive Index,,none,no,CRISIL index (not niftyindices)
+hybrid_debt,HDFC Hybrid Debt Fund - Direct - Growth,119118,INF179K01XE6,NIFTY 50 Hybrid Composite Debt 15:85 Index,,none,no,blended hybrid index not on niftyindices free feed (Thread 5)
+corporate_bond,ICICI Prudential Corporate Bond Fund - Direct - Growth,120692,INF109K016B1,NIFTY Corporate Bond Index A-II,,none,no,debt tier index not on niftyindices free feed (Thread 5)
+short_duration_debt,HDFC Short Term Debt Fund - Direct - Growth,119016,,NIFTY Short Duration Debt Index A-II,,none,no,debt tier index not on niftyindices free feed
+gilt,SBI Magnum Gilt Fund - Direct - Growth,119707,,NIFTY All Duration G-Sec Index,,none,no,G-Sec index not on the free live-watch master
+gold_fof,Nippon India Gold Savings Fund - Direct - Growth,118663,,Domestic Price of Gold,,none,no,gold priced separately by the analyzer (IBJA spot)
+international,Franklin U.S. Opportunities Equity Active FoF - Direct - Growth,118551,INF090I01JR0,Russell 3000 Growth Index,,none,no,USD benchmark vs INR NAV; out of scope (Thread 5)
+international,Motilal Oswal Nasdaq 100 Fund of Fund - Direct - Growth,145552,,NASDAQ 100 TRI,,none,no,USD benchmark vs INR NAV; no free INR-comparable TR source
