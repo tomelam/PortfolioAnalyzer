@@ -15,7 +15,7 @@ from __future__ import annotations
 import random
 import sys
 
-from loaders.data_update import _NIFTY_UA
+from portfolioanalyzer.loaders.data_update import _NIFTY_UA
 
 PRODUCT_URL = (
     "https://www.niftyindices.com/indices/multi-asset/hybrid-indices/"

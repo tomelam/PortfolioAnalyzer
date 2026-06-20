@@ -2,9 +2,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import metrics
-from timeseries.asset import AssetTimeseries, from_civ
-from timeseries.returns import TimeseriesReturn
+from portfolioanalyzer import metrics
+from portfolioanalyzer.timeseries.asset import AssetTimeseries, from_civ
+from portfolioanalyzer.timeseries.returns import TimeseriesReturn
 
 
 @pytest.mark.order(10)

@@ -11,4 +11,4 @@
 # a portfolio/config file that lives elsewhere.)
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$here" || exit 1
-exec "$here/venv/bin/python" "$here/main.py" "$@"
+exec "$here/venv/bin/python" -m portfolioanalyzer.main "$@"

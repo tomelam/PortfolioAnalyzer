@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import data_update_cli
+from portfolioanalyzer import data_update_cli
 
 
 def test_cli_reports_and_exits_zero_on_success(capsys, monkeypatch):

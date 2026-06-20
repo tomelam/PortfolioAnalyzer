@@ -19,7 +19,7 @@ import pandas as pd
 import pytest
 import requests
 
-from loaders.scss import (
+from portfolioanalyzer.loaders.scss import (
     fetch_scss_html,
     load_scss_interest_rates,
     parse_scss_html,

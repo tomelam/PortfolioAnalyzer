@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import pytest
 
-from data_loader import extract_weights, load_portfolio_details
+from portfolioanalyzer.data_loader import extract_weights, load_portfolio_details
 
 
 def _write_toml(tmp_path, content):

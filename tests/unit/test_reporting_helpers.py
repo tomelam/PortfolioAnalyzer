@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from timeseries.returns import TimeseriesReturn
+from portfolioanalyzer.timeseries.returns import TimeseriesReturn
 
 
 def _prices(n=400, seed=0, start="2020-01-01"):

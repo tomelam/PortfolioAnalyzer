@@ -5,7 +5,7 @@ import pandas as pd
 """
 # DEBUG is injected by main.py when the ‑d/‑‑debug flag is used; the fallback is `False` for unit tests
 try:
-    from main import DEBUG          # noqa: E402
+    from portfolioanalyzer.main import DEBUG          # noqa: E402
 except ImportError:
 """
 DEBUG = False
@@ -19,7 +19,7 @@ def dbg(msg):
     """Print only if DEBUG is enabled (stderr, like info())."""
     """
     try:
-        from main import DEBUG        # Import lazily to avoid circular refs
+        from portfolioanalyzer.main import DEBUG        # Import lazily to avoid circular refs
     except ImportError:
         DEBUG = False
     else:

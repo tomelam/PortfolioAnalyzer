@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from drawdowns_csv import write_drawdowns_csv
+from portfolioanalyzer.drawdowns_csv import write_drawdowns_csv
 
 
 def _sample_drawdowns() -> list[dict]:

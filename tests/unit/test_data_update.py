@@ -14,8 +14,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from loaders import data_update as du
-from loaders.benchmark import load_timeseries_csv
+from portfolioanalyzer.loaders import data_update as du
+from portfolioanalyzer.loaders.benchmark import load_timeseries_csv
 
 FRED_SAMPLE = (
     "observation_date,INDIRLTLT01STM\n"

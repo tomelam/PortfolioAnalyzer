@@ -15,7 +15,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from loaders.risk_free import (
+from portfolioanalyzer.loaders.risk_free import (
     align_dynamic_risk_free_rates,
     fetch_and_standardize_risk_free_rates,
 )

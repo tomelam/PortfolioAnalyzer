@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import output_metadata as om
+from portfolioanalyzer import output_metadata as om
 
 PROV = [
     {

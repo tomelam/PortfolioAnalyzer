@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from loaders.benchmark import load_timeseries_csv
-from utils import dbg, info
+from portfolioanalyzer.loaders.benchmark import load_timeseries_csv
+from portfolioanalyzer.utils import dbg, info
 
 
 def fetch_and_standardize_risk_free_rates(

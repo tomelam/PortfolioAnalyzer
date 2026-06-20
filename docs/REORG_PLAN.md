@@ -1,5 +1,11 @@
 # Directory-tree reorganization — execution plan (for a fresh session)
 
+> **STATUS — EXECUTED.** Stage 1 (data/ + config/ tidy) merged 2026-06-20. Stage 2
+> (package move) executed 2026-06-20 on branch `reorg-package`: all code collapsed
+> into one **flat** `portfolioanalyzer/` package (the flat layout was chosen over
+> the subpackage grouping floated below in "Open"). This plan is retained as the
+> historical move-map.
+
 **Why:** the repo root is hard to scan — 15 flat top-level `.py` modules (+ the
 `loaders/` and `timeseries/` packages), loose stray files, and a `data/` dir that
 mixes live inputs, fund metadata, and ~13 orphaned index dumps. Goal: a tree a

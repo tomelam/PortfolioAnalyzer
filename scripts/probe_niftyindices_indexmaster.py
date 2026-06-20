@@ -14,7 +14,7 @@ import random
 import re
 import sys
 
-from loaders.data_update import _NIFTY_UA, NIFTY_HIST_PAGE
+from portfolioanalyzer.loaders.data_update import _NIFTY_UA, NIFTY_HIST_PAGE
 
 NEEDLES = re.compile(r"hybrid|composite debt|corporate bond|nifty 100|15:85|65:35|a-ii", re.I)
 

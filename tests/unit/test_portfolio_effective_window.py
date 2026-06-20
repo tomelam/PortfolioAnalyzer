@@ -15,8 +15,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from timeseries.asset import from_civ
-from timeseries.portfolio import PortfolioTimeseries, from_multiple_nav_series
+from portfolioanalyzer.timeseries.asset import from_civ
+from portfolioanalyzer.timeseries.portfolio import PortfolioTimeseries, from_multiple_nav_series
 
 
 def _series(values: list[float], start: str) -> pd.Series:

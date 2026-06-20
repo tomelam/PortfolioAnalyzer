@@ -1,9 +1,9 @@
 
 import pandas as pd
 
-from timeseries.asset import AssetTimeseries, from_civ
-from timeseries.civ import TimeseriesCIV
-from utils import dbg
+from portfolioanalyzer.timeseries.asset import AssetTimeseries, from_civ
+from portfolioanalyzer.timeseries.civ import TimeseriesCIV
+from portfolioanalyzer.utils import dbg
 
 
 class PortfolioTimeseries:

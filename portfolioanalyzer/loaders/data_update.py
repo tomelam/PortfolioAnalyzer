@@ -45,7 +45,7 @@ from dataclasses import dataclass
 import pandas as pd
 import requests
 
-from loaders.benchmark import load_timeseries_csv
+from portfolioanalyzer.loaders.benchmark import load_timeseries_csv
 
 DATA_DIR = "data"
 STAMP_FILE = os.path.join(DATA_DIR, ".last_fetched.json")

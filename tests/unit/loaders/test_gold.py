@@ -14,7 +14,11 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from loaders.gold import GRAMS_PER_TROY_OUNCE, load_gold_prices, load_gold_prices_per_gram
+from portfolioanalyzer.loaders.gold import (
+    GRAMS_PER_TROY_OUNCE,
+    load_gold_prices,
+    load_gold_prices_per_gram,
+)
 
 FIXTURES = Path(__file__).resolve().parent.parent.parent / "fixtures" / "data"
 

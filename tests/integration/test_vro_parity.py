@@ -36,8 +36,8 @@ from __future__ import annotations
 
 import pytest
 
-from loaders.mutual_fund import fetch_navs
-from loaders.vro import (
+from portfolioanalyzer.loaders.mutual_fund import fetch_navs
+from portfolioanalyzer.loaders.vro import (
     browser_extra_available,
     fetch_benchmark_tri,
     fetch_vro_metrics,

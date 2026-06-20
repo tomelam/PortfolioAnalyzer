@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from loaders.vro import (
+from portfolioanalyzer.loaders.vro import (
     VRO_RISK_KEYS,
     load_vro_fund_map,
     parse_peer_comparison_returns,

@@ -20,7 +20,7 @@ import random
 import re
 import sys
 
-from loaders.data_update import (
+from portfolioanalyzer.loaders.data_update import (
     _NIFTY_UA,
     NIFTY_HIST_PAGE,
     NIFTY_TRI_ENDPOINT,

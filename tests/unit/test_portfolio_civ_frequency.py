@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from timeseries.asset import from_civ
-from timeseries.portfolio import PortfolioTimeseries
+from portfolioanalyzer.timeseries.asset import from_civ
+from portfolioanalyzer.timeseries.portfolio import PortfolioTimeseries
 
 
 def test_combined_civ_is_daily_even_when_one_asset_is_monthly() -> None:

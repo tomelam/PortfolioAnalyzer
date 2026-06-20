@@ -17,8 +17,8 @@ import types
 import pandas as pd
 import pytest
 
-import main
-from data_loader import load_config_toml
+from portfolioanalyzer import main
+from portfolioanalyzer.data_loader import load_config_toml
 
 # Built-in defaults build_settings falls back to when neither CLI nor config
 # supplies a value — pinned here so a silent change to a default is caught.

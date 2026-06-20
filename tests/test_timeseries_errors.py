@@ -1,8 +1,8 @@
 import pandas as pd
 import pytest
 
-import metrics
-from timeseries.returns import TimeseriesReturn
+from portfolioanalyzer import metrics
+from portfolioanalyzer.timeseries.returns import TimeseriesReturn
 
 # === Edge Case Extensions ===
 

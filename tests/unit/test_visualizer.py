@@ -16,7 +16,7 @@ from pathlib import Path  # noqa: E402
 
 import pandas as pd  # noqa: E402
 
-import visualizer  # noqa: E402
+from portfolioanalyzer import visualizer  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TOML = str(REPO_ROOT / "port" / "port-1.toml")

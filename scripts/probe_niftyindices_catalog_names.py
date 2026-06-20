@@ -18,7 +18,7 @@ import json
 import random
 import sys
 
-from loaders.data_update import _NIFTY_UA, NIFTY_HIST_PAGE, NIFTY_TRI_ENDPOINT
+from portfolioanalyzer.loaders.data_update import _NIFTY_UA, NIFTY_HIST_PAGE, NIFTY_TRI_ENDPOINT
 
 CANDIDATES = [
     "NIFTY 100",          # control (known good)

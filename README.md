@@ -30,13 +30,14 @@ This repository contains the Portfolio Analyzer application. It fetches historic
   - Plots historical cumulative returns for the portfolio.
   - Overlays benchmark data and highlights significant drawdown periods.
 
-- **Modular Design:**
-  - Loaders (one per asset class) in the `loaders/` package: `mutual_fund.py`,
-    `ppf.py`, `scss.py`, `gold.py`, `benchmark.py`, `risk_free.py` — plus
-    `sgb_holdings.py` + `sgb_tranches.py` at the top level.
+- **Modular Design:** all application code lives in one flat package,
+  `portfolioanalyzer/`.
+  - Loaders (one per asset class) in the `portfolioanalyzer/loaders/` package:
+    `mutual_fund.py`, `ppf.py`, `scss.py`, `gold.py`, `benchmark.py`,
+    `risk_free.py` — plus `sgb_holdings.py` + `sgb_tranches.py` in the package root.
   - Math layer: `metrics.py` (pure-function CAGR / vol / Sharpe / Sortino /
-    drawdowns) plus the `timeseries/` package (`returns.py` / `civ.py` /
-    `asset.py` / `portfolio.py`) for the class surface.
+    drawdowns) plus the `portfolioanalyzer/timeseries/` package (`returns.py` /
+    `civ.py` / `asset.py` / `portfolio.py`) for the class surface.
   - Bookkeeping: `synthetic_civ.py`, `civ_to_returns.py`, `drawdowns_csv.py`,
     `fund_lifecycle.py`, `portfolio_calculator.py`, `bond_calculators.py`,
     `visualizer.py`, `data_loader.py` (legacy aggregator / re-exports).
@@ -107,7 +108,7 @@ works from anywhere and in-repo paths resolve:
 ./pa port/port-1.toml --max-drawdown-threshold 10 --allow-stale
 ./pa --help
 ```
-It just `exec`s `venv/bin/python main.py "$@"`, so editing the code takes effect
+It just `exec`s `venv/bin/python -m portfolioanalyzer.main "$@"`, so editing the code takes effect
 immediately. Paths you pass are resolved from the project root; use an absolute
 path for a portfolio/config file that lives elsewhere.
 The `--max-drawdown-threshold` option (shortcut `-dt`) sets the percentage drawdown that is considered significant to count in the "Drawdowns" statistic. By default, the threshold is set to `5` (5%).
@@ -193,7 +194,7 @@ Each of the options (except for `--config`) can also be set in the config TOML, 
   calculated, letting you compare the results directly with sites such as
   ValueResearchOnline (which publish 1 M, 3 M, … numbers). Example:
 
-      python main.py -lb 6M -d portfolio.toml
+      ./pa -lb 6M -d portfolio.toml
 
 - `--metrics-method <daily|monthly>` → `metrics_method = "daily"`:  
   Sampling frequency for return/risk calculations (Volatility, Sharpe, Sortino).
@@ -286,28 +287,32 @@ _[5 ratios to measure risk and return](https://www.morningstar.in/posts/28205/5-
 
 ```
 .
-├── main.py                  # CLI entry point + pipeline driver
-├── loaders/                 # Per-asset loader package (mutual_fund, ppf, scss,
-│                            #   benchmark, risk_free, gold, data_update, vro)
-├── sgb_holdings.py          # Per-tranche SGB valuation engine (gold spot + coupons)
-├── sgb_tranches.py          # SGB tranche reference + lookup API
-├── data_loader.py           # Legacy aggregator; re-exports loaders for back-compat
-├── synthetic_civ.py         # Interest-rate series → daily-equivalent CIV
-├── civ_to_returns.py        # CIV → returns
-├── timeseries/              # Timeseries class package:
-│   ├── returns.py           #   TimeseriesReturn (alpha/beta + thin metrics delegates + reporting helpers)
-│   ├── civ.py               #   TimeseriesCIV (validated-NAV class)
-│   ├── asset.py             #   AssetTimeseries dataclass (civ/ret/cumret views)
-│   └── portfolio.py         #   PortfolioTimeseries (weighted aggregation, effective window)
-├── metrics.py               # Pure-function math: CAGR / Vol / Sharpe / Sortino / drawdowns
-├── portfolio_calculator.py  # Allocations + cumulative gains
-├── bond_calculators.py      # Variable-rate bond cumulative gain (used by the SCSS path)
-├── fund_lifecycle.py        # Inauguration + DEFUNCT status + assets-CSV writer
-├── drawdowns_csv.py         # Per-drawdown sibling CSV writer
-├── visualizer.py            # Matplotlib plotting + drawdown printout
-├── utils.py                 # info / dbg / to_cutoff_date
-├── pyproject.toml           # Package + dev-tool config (ruff, pytest, etc.)
-└── README.md                # This file
+├── pa                           # Bundled-venv launcher (the one entry point)
+├── portfolioanalyzer/           # The package — all application code lives here
+│   ├── main.py                  # CLI entry point + pipeline driver
+│   ├── loaders/                 # Per-asset loader package (mutual_fund, ppf, scss,
+│   │                            #   benchmark, risk_free, gold, data_update, vro)
+│   ├── sgb_holdings.py          # Per-tranche SGB valuation engine (gold spot + coupons)
+│   ├── sgb_tranches.py          # SGB tranche reference + lookup API
+│   ├── data_loader.py           # Legacy aggregator; re-exports loaders for back-compat
+│   ├── synthetic_civ.py         # Interest-rate series → daily-equivalent CIV
+│   ├── civ_to_returns.py        # CIV → returns
+│   ├── timeseries/              # Timeseries class package:
+│   │   ├── returns.py           #   TimeseriesReturn (alpha/beta + thin metrics delegates + reporting helpers)
+│   │   ├── civ.py               #   TimeseriesCIV (validated-NAV class)
+│   │   ├── asset.py             #   AssetTimeseries dataclass (civ/ret/cumret views)
+│   │   └── portfolio.py         #   PortfolioTimeseries (weighted aggregation, effective window)
+│   ├── metrics.py               # Pure-function math: CAGR / Vol / Sharpe / Sortino / drawdowns
+│   ├── portfolio_calculator.py  # Allocations + cumulative gains
+│   ├── bond_calculators.py      # Variable-rate bond cumulative gain (used by the SCSS path)
+│   ├── fund_lifecycle.py        # Inauguration + DEFUNCT status + assets-CSV writer
+│   ├── drawdowns_csv.py         # Per-drawdown sibling CSV writer
+│   ├── visualizer.py            # Matplotlib plotting + drawdown printout
+│   ├── output_metadata.py       # Pure formatters for the metrics block / provenance / PNG tEXt
+│   ├── data_update_cli.py       # Entry point for the data auto-update (portfolio-analyzer-update)
+│   └── utils.py                 # info / dbg / to_cutoff_date
+├── pyproject.toml               # Package + dev-tool config (ruff, pytest, etc.)
+└── README.md                    # This file
 ```
 ---
 

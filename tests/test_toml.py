@@ -1,6 +1,6 @@
 import pytest
 
-from data_loader import load_portfolio_details
+from portfolioanalyzer.data_loader import load_portfolio_details
 
 mock_valid_toml = {
     "label": "Portfolio X: 60% NIFTY50 + 40% Bluechip",

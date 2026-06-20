@@ -27,8 +27,8 @@ dependencies = [
 ]
 
 [project.scripts]
-portfolio-analyzer = "main:cli"
-portfolio-analyzer-update = "data_update_cli:main"
+portfolio-analyzer = "portfolioanalyzer.main:cli"
+portfolio-analyzer-update = "portfolioanalyzer.data_update_cli:main"
 
 [project.optional-dependencies]
 dev = [
@@ -54,34 +54,9 @@ browser = [
 ]
 
 [tool.setuptools]
-py-modules = [
-    "main",
-    "data_loader",
-    "portfolio_calculator",
-    "synthetic_civ",
-    "civ_to_returns",
-    "bond_calculators",
-    "ppf_calculator",
-    "extract_gold_inr_from_excel",
-    "utils",
-    "visualizer",
-    # Pure-function math layer.
-    "metrics",
-    # Post-v0.1: SGB tranche reference + lookup API.
-    "sgb_tranches",
-    # Phase 1 of the SGB modeling refactor: per-tranche valuation engine.
-    "sgb_holdings",
-    # Per-drawdown CSV companion to the single-row metrics CSV.
-    "drawdowns_csv",
-    # Inauguration / defunct-status helpers (per-asset metadata).
-    "fund_lifecycle",
-    # Cron entrypoint for the data auto-update (portfolio-analyzer-update).
-    "data_update_cli",
-]
-# Cycle 14: all *_loader.py files consolidated into the loaders/ package.
-# Cycle 15: timeseries.py + timeseries_civ.py + asset_timeseries.py +
-# portfolio_timeseries.py consolidated into the timeseries/ package.
-packages = ["loaders", "timeseries"]
+# Stage-2 reorg (2026-06-20): all formerly top-level modules + the loaders/ and
+# timeseries/ subpackages now live under one flat package, portfolioanalyzer/.
+packages = ["portfolioanalyzer", "portfolioanalyzer.loaders", "portfolioanalyzer.timeseries"]
 
 [tool.ruff]
 line-length = 100

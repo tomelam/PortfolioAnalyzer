@@ -20,7 +20,7 @@ import datetime as dt
 import pandas as pd
 import pytest
 
-from sgb_holdings import (
+from portfolioanalyzer.sgb_holdings import (
     coupon_amount_per_payment,
     coupon_schedule,
     sgb_holding_civ,

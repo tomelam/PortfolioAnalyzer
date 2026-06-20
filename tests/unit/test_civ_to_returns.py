@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from civ_to_returns import civ_to_returns
+from portfolioanalyzer.civ_to_returns import civ_to_returns
 
 
 def _daily_civ(values: list[float], start: str = "2024-01-01") -> pd.Series:
