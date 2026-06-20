@@ -17,8 +17,8 @@ from loaders import data_update as du
 def _settings(**over):
     s = {
         "use_benchmark": True,
-        "benchmark_file": "data/NIFTY Total Returns Historical Data.csv",
-        "risk_free_rates_file": "data/INDIRLTLT01STM.csv",
+        "benchmark_file": "data/reference/NIFTY Total Returns Historical Data.csv",
+        "risk_free_rates_file": "data/reference/INDIRLTLT01STM.csv",
         "allow_stale": False,
     }
     s.update(over)
@@ -98,4 +98,4 @@ def test_benchmark_path_omitted_when_use_benchmark_false(monkeypatch):
 
     monkeypatch.setattr(du, "ensure_reference_data_fresh", _capture)
     main._enforce_reference_freshness(_settings(use_benchmark=False))
-    assert seen["paths"] == ["data/INDIRLTLT01STM.csv"]  # no benchmark path
+    assert seen["paths"] == ["data/reference/INDIRLTLT01STM.csv"]  # no benchmark path

@@ -31,8 +31,8 @@ Notes:
 - Re-capture the goldens, the replay fixtures, and the frozen reference
   inputs together:
     1. Copy the current live reference CSVs into the freeze:
-       `cp "data/NIFTY Total Returns Historical Data.csv" \
-           "data/INDIRLTLT01STM.csv" tests/golden/replay/reference/`
+       `cp "data/reference/NIFTY Total Returns Historical Data.csv" \
+           "data/reference/INDIRLTLT01STM.csv" tests/golden/replay/reference/`
     2. Run main.py for each (portfolio, method) with the same `--config`,
        `--lookback 5Y`, and `--as-of` used here, plus `--save-replay
        tests/golden/replay` once (any portfolio covering all funds + SCSS,

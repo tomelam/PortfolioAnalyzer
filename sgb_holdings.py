@@ -21,7 +21,7 @@ Coupon rules (from the user's RBI certificates and the master ledger):
 
 Note on the 2015 Series I outlier: that single tranche had a 2.75%
 coupon. It's not modeled here because it predates the user's window
-(Feb 2020+) and isn't in ``data/sgb_tranches.csv``.
+(Feb 2020+) and isn't in ``data/funds/sgb_tranches.csv``.
 """
 
 from __future__ import annotations

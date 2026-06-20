@@ -16,8 +16,8 @@ reference feeds are:
 
 | Data | Local file | Upstream | Cadence |
 |---|---|---|---|
-| Risk-free rate | `data/INDIRLTLT01STM.csv` | FRED `INDIRLTLT01STM` (India 10Y govt bond rate) | monthly |
-| Benchmark (NIFTY 50 TRI) | `data/NIFTY Total Returns Historical Data.csv` | niftyindices.com Total-Returns API | business day |
+| Risk-free rate | `data/reference/INDIRLTLT01STM.csv` | FRED `INDIRLTLT01STM` (India 10Y govt bond rate) | monthly |
+| Benchmark (NIFTY 50 TRI) | `data/reference/NIFTY Total Returns Historical Data.csv` | niftyindices.com Total-Returns API | business day |
 
 Both are no-auth feeds. FRED serves a clean CSV. niftyindices is aggressively
 anti-scrape and holds blocks against the source IP, so it is fetched **only**
@@ -90,7 +90,7 @@ enforced like the benchmark/risk-free reference data — the program can only
 *warn*, never block or fetch (see `docs/ARCHITECTURE.md` → *Data freshness as a
 correctness invariant*). You maintain these by hand.
 
-- **Gold — `data/gold_monthly_inr.csv`** (monthly INR/troy-ounce spot). A true
+- **Gold — `data/reference/gold_monthly_inr.csv`** (monthly INR/troy-ounce spot). A true
   monthly price series, so a gap is real staleness: it drives both the **gold
   asset** and **SGB** valuation, and a stale file silently freezes those at the
   last price (and clips the portfolio's effective window). Every non-deterministic
@@ -100,7 +100,7 @@ correctness invariant*). You maintain these by hand.
   rows and re-run. (`--as-of`/`--replay-from` runs skip the check — data is
   pinned as of that date.) yfinance was rejected as a feed (unstable scrape); if
   a stable public gold API appears, register it then.
-- **PPF — `data/ppf_interest_rates.csv`** (declared rate by effective date).
+- **PPF — `data/funds/ppf_interest_rates.csv`** (declared rate by effective date).
   **Sparse by design**: one row per rate *change*, not per month. The loader
   carries the latest rate forward, so a months-old last row usually just means
   the rate is unchanged (7.1% since 2019) — **not** staleness, which is why PPF

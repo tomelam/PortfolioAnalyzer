@@ -18,13 +18,13 @@
 # -------- Data files --------
 # You may omit either of the following two keys. If you do,
 # PortfolioAnalyzer uses the built‑in defaults defined in main.py:
-#   benchmark_returns_file → data/NIFTY Total Returns Historical Data.csv
-#   risk_free_rates_file   → data/INDIRLTLT01STM.csv
+#   benchmark_returns_file → data/reference/NIFTY Total Returns Historical Data.csv
+#   risk_free_rates_file   → data/reference/INDIRLTLT01STM.csv
 #
 # Benchmark (total‑return) CSV
-benchmark_returns_file = "data/NIFTY Total Returns Historical Data.csv"
+benchmark_returns_file = "data/reference/NIFTY Total Returns Historical Data.csv"
 # Risk‑free rate CSV (default: FRED India 10‑Year govt bond rate)
-risk_free_rates_file  = "data/INDIRLTLT01STM.csv"
+risk_free_rates_file  = "data/reference/INDIRLTLT01STM.csv"
 #
 # You may omit either of the following two keys. If you do,
 # PortfolioAnalyzer uses the built‑in defaults defined in main.py:

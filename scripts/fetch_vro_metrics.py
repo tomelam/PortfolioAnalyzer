@@ -4,7 +4,7 @@ alongside our own matched-methodology figures, and print + optionally snapshot.
 
 This is the data-collection utility behind the VRO-parity wire test
 (``tests/integration/test_vro_parity.py``). For each fund in
-``data/vro_funds.csv`` it shows VRO's published values, ours, and the gap — so
+``data/funds/vro_funds.csv`` it shows VRO's published values, ours, and the gap — so
 the agreement is auditable by eye — for two families:
 
 * trailing returns (point-to-point CAGR), and

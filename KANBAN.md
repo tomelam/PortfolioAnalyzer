@@ -50,7 +50,7 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
     entry whose `plan_id == fund_id`.
   - **Deliverables:** `loaders/vro.py` (pure `parse_peer_comparison_returns` +
     stealth `fetch_vro_trailing_returns` + `trailing_cagr_pct` + `load_vro_fund_map`);
-    `data/vro_funds.csv` (mfapi↔VRO map, ISIN-verified; **all 5 port-1 funds** —
+    `data/funds/vro_funds.csv` (mfapi↔VRO map, ISIN-verified; **all 5 port-1 funds** —
     ICICI Bluechip 120586↔15841, Franklin US Opp FoF 118551↔16027, HDFC Balanced
     Advantage 118968↔16055, ICICI Corp Bond 120692↔15568, HDFC Hybrid Debt
     119118↔16453); `scripts/fetch_vro_metrics.py` (collector CLI: VRO vs ours vs
@@ -99,7 +99,7 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
       no stable free Russell TR source, VRO publishes neither). So niftyindices
       yields exactly 1 of 5 — and it's the only fund VRO publishes both Beta *and*
       Alpha for, and the cleanest equity-vs-equity CAPM case.
-      - **Done:** `data/vro_funds.csv` gains a `benchmark_index` column (the
+      - **Done:** `data/funds/vro_funds.csv` gains a `benchmark_index` column (the
         niftyindices name where fetchable; empty otherwise) → `VROFund.benchmark_index`;
         `loaders.vro.fetch_benchmark_tri(index_name)` wraps the stealth
         niftyindices TRI fetch as a Series; the parity test fetches the benchmark
@@ -130,7 +130,7 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   upstream feeds to the loader schema, write last-fetched stamps, and isolate
   per-source failures.
   - Risk-free: FRED `INDIRLTLT01STM` (no-auth CSV) — live-verified; now the
-    default risk-free source (`data/INDIRLTLT01STM.csv`).
+    default risk-free source (`data/reference/INDIRLTLT01STM.csv`).
   - Benchmark: NIFTY 50 TRI from niftyindices.com via a **stealth Chromium
     browser** (the only fetch path — no raw `requests`, which risks flagging
     the IP). Defeats the anti-scrape wall; live-verified (single stealth hit
@@ -177,7 +177,7 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   fetch raises a clear install-guiding error.
   - **Still open — verify in steady state:** let a few normal runs (or the
     optional `portfolio-analyzer-update` one-shot) execute over several days
-    and confirm `data/NIFTY Total Returns Historical Data.csv` +
+    and confirm `data/reference/NIFTY Total Returns Historical Data.csv` +
     `.last_fetched.json` actually advance via the on-run refresh. One verified
     hit is not proof of unattended reliability; the user (2026-06-17) is right
     that the earlier "it's just burst throttling" diagnosis could have been
@@ -239,7 +239,7 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   maturity pin), so no code change is needed to honour this decision today.
   - *When revived:* every held SGB tranche is marked to IBJA gold spot; a real
     pre-redemption uses the RBI price announced ~3 business days before each
-    coupon date past the 5-year window. Extend `data/sgb_tranches.csv` with a
+    coupon date past the 5-year window. Extend `data/funds/sgb_tranches.csv` with a
     sibling `data/sgb_redemptions.csv` (tranche_id, redemption_date, inr_per_gram,
     redemption_kind ∈ {PRE, MAT}); update `sgb_holding_civ` to use the actual
     redemption price on those dates instead of the IBJA-spot proxy. Reference:
@@ -578,7 +578,7 @@ are unaware of each other.
   the dead `--max-drawdown-threshold` flag (hardcoded 0.05 in `main.py`).
 
 ### Phase E — Salvage from old checkpoints
-- [x] **Live-gold via yfinance: DROPPED.** User: "yfinance probably cannot be depended upon by a stable program." yfinance scrapes an undocumented Yahoo endpoint that breaks without warning. Keep the static monthly `data/gold_monthly_inr.csv` path; document the manual refresh procedure in `docs/DATA_REFRESH.md` (see Data freshness section). If a stable public gold-price API surfaces later, port it then — but not yfinance.
+- [x] **Live-gold via yfinance: DROPPED.** User: "yfinance probably cannot be depended upon by a stable program." yfinance scrapes an undocumented Yahoo endpoint that breaks without warning. Keep the static monthly `data/reference/gold_monthly_inr.csv` path; document the manual refresh procedure in `docs/DATA_REFRESH.md` (see Data freshness section). If a stable public gold-price API surfaces later, port it then — but not yfinance.
 - [x] **Audit of `attic/tmp4-apr2025` complete.** `TimeseriesFrame` in tmp4 ≈ current `TimeseriesReturn` (the rename happened during the OOP rewrite). Substantively additional surface in tmp4 is *reporting utilities*, not math: `info_summary`, `describe_as_report`, `to_csv_report`, `to_latex_table`, `compare_to`, `as_rolling`, `align_with`, `clip_to_overlap`, `aligned_to`, `interpolated`, `plot_with`. The math (cagr/vol/sharpe/sortino/max_drawdown/alpha/beta) is equivalent to current `metrics.py`. One semantic difference in tmp4: it divides annual `risk_free_rate` by `periods_per_year` internally; current pipeline does the conversion correctly upstream in `main.py` (geometric per-period rate), so no port needed. **Nothing blocks v0.1-salvage.** Reporting utilities backlogged below.
 - [x] **Audit of `attic/tmp4-apr2025/bonus/` complete.** 4 shell helpers (`plot_all.sh`, `run_all_configs.sh`, `run_all_metrics_to_csv.sh`, `single-asset-type.sh`) and one diagnostic script (`ppf_annualized_interest_rate.py`). Useful as references but non-blocking; backlogged for post-v0.1.
 
@@ -601,12 +601,12 @@ are unaware of each other.
   - Risk-free now FRED `INDIRLTLT01STM` (auto-fetched); benchmark NIFTY 50 TRI auto-scraped from niftyindices.
   - Procedure documented in `docs/DATA_REFRESH.md`; on-run force-refresh + cron-able `portfolio-analyzer-update`; staleness gate is now early-warning, not a hard blocker.
   - Goldens re-captured against the FRED risk-free (pinned via `--as-of`/`--replay-from`, so they stay deterministic regardless of live data).
-- [ ] **Audit the remaining under-watched data sources** not yet auto-updated: `ppf_interest_rates.csv`, REC bond coupon table, gold (`data/gold_monthly_inr.csv`). SCSS is already fetched live. These change rarely; add registry entries if/when stable feeds are identified.
+- [ ] **Audit the remaining under-watched data sources** not yet auto-updated: `ppf_interest_rates.csv`, REC bond coupon table, gold (`data/reference/gold_monthly_inr.csv`). SCSS is already fetched live. These change rarely; add registry entries if/when stable feeds are identified.
 
 ### Hygiene / tech debt
 - [x] **Plot ↔ metrics consistency** (Phase F follow-up). `main.py` fed the plot with `cumprod(1 + combined_daily_returns)` while the metrics box used `combined_civ_series`. For mixed-frequency portfolios (daily MFs + monthly gold), the two diverged because weighted-sum-of-asset-returns ≠ return-of-weighted-sum, and the legacy `combined_daily_returns` inner-joined to the monthly intersection. Fixed `main.py` to feed `portfolio_civ_series.series` directly to the plotter. Three TDD tests pin the contract (`tests/unit/test_plot_metric_consistency.py`); the third test documents the *reason* the old path was wrong and will fail loudly if `combined_daily_returns` is ever independently re-aligned.
 - [x] **Portfolio CIV truncates at the earliest-ending asset's last date** — surfaced 2026-06-16 while verifying the plot fix. `port-everything` ended 2024-02-21 because the old SGB data stopped at the final tranche issue date (scheme discontinued). **Fixed indirectly by Phase 2 of the SGB modeling refactor:** SGB is now modeled per-tranche driven by IBJA gold spot, so the SGB CIV extends as long as the gold data does, and the portfolio CIV is no longer dragged backward by the SGB end-date.
-- [x] **SGB tranche reference + lookup API** (2026-06-16). `data/sgb_tranches.csv` covers all 33 tranches purchasable from Feb 2020 onward (the user's window); `sgb_tranches.py` exposes `load_tranches()`, `lookup_tranche(id)`, `tranche_status(id, as_of)`, `list_tranches(fiscal_year=, status=, as_of=)`, and `describe_tranche(id)` for the CLI/REPL. Two of the user's actual holdings are anchor-pinned to their RBI certificates: FY 2019-20-IX (11 Feb 2020 @ ₹4,070, Hutoxi 12g) and FY 2020-21-VII (20 Oct 2020 @ ₹5,051, Tom 6g across 2 certs). 11 unit tests.
+- [x] **SGB tranche reference + lookup API** (2026-06-16). `data/funds/sgb_tranches.csv` covers all 33 tranches purchasable from Feb 2020 onward (the user's window); `sgb_tranches.py` exposes `load_tranches()`, `lookup_tranche(id)`, `tranche_status(id, as_of)`, `list_tranches(fiscal_year=, status=, as_of=)`, and `describe_tranche(id)` for the CLI/REPL. Two of the user's actual holdings are anchor-pinned to their RBI certificates: FY 2019-20-IX (11 Feb 2020 @ ₹4,070, Hutoxi 12g) and FY 2020-21-VII (20 Oct 2020 @ ₹5,051, Tom 6g across 2 certs). 11 unit tests.
 - [x] **SGB modeling refactor — Phase 2: integration** (2026-06-16). Portfolio TOML schema migrated from `[sgb]` dict to `[[sgb]]` list per the "different tranches → different investments" rule. `main.py` iterates the list, calls `sgb_holding_civ` per entry with `load_gold_prices_per_gram()`, registers each tranche as its own asset in `PortfolioTimeseries`. Old `sgb_loader.create_sgb_daily_returns` deleted along with `data/sgb_data.csv`, `tests/unit/loaders/test_sgb.py`, and the test fixture. `visualizer.py` updated to render per-tranche rows in the asset table ("SGB 2019-20-IX (1 g)" etc.). 7 new schema-validation tests including legacy-form rejection with a helpful migration message. Goldens re-captured for all 3 portfolios × 2 methods. Plot consequence: `port-everything` now extends through 2025-06 (no longer truncated at 2024-02) because the SGB CIV is a function of gold (which has data to today), not bonded to a stale-issue-date series.
 - [x] **Enormous `alpha_capm` on mixed-frequency portfolios — fixed (2026-06-16).** Root cause was *not* alpha_capm itself — the function correctly annualizes daily returns with `^252`. The bug was upstream in `main.py`: `portfolio_daily_ret` was built from `combined_daily_returns()`, which inner-joins per-asset return series down to the *monthly* intersection when any monthly asset (gold) is present. Feeding ~51 monthly returns into a function that ^252-annualizes them inflated the mean by ~21×, yielding Alpha = 139.15% on port-everything. Fixed by deriving the daily returns from `combined_civ_series.series.pct_change()` (which is properly business-day cadence thanks to Phase D's frequency fix). Same fix already applied to the plot; now applied to the alpha/beta computation too. Results across portfolios: port-1 Alpha 4.13%→3.21%; port-mf-ppf-gold 68.09%→2.29%; port-everything 139.15%→3.48%. New TDD test (`test_alpha_capm_is_sensible_for_mixed_frequency_portfolio`) pins the contract.
 - [x] **SGB modeling refactor — Phase 1: pure-function valuation engine** (2026-06-16). `sgb_holdings.sgb_holding_civ(tranche_id, units_grams, gold_prices)` → daily CIV series. CIV = `units × gold_per_gram(t) + Σ(coupons paid ≤ t)`. Coupon schedule: 16 semi-annual payments over the 8-year tenor, computed with `relativedelta` for correct month-end rollover. 13 unit tests against synthetic gold; verified end-to-end on user's real holdings (Hutoxi 12g of 2019-20-IX → ₹42,910 → ₹105,678, CAGR 19.19%; Tom 6g of 2020-21-VII → ₹27,258 → ₹52,817, CAGR 16.05%). The earlier ambiguous gold CSV (column header "Spot Price"; actually INR per troy ounce) now has an explicit `load_gold_prices_per_gram()` helper.
@@ -659,13 +659,13 @@ first, then big. Per-thread branch + full network-gated merge. Progress below.
 - [x] **Thread 3 — data-source freshness & quality** (2026-06-19). Scoped to the
   bounded data-quality work; the open-ended hybrid/debt benchmark-TRI *sourcing*
   was deferred into Thread 5 (big) per tidy-first. Delivered:
-  - **Gold staleness now surfaced.** `data/gold_monthly_inr.csv` was ~15 months
+  - **Gold staleness now surfaced.** `data/reference/gold_monthly_inr.csv` was ~15 months
     stale (ended 2025-03-31) with nothing catching it. New
     `data_update.manual_staleness_warning` (reuses `cadence_frontier`); main.py's
     `_warn_manual_sources` prints a one-line stderr warning naming the file +
     affected metrics (gold/SGB) on non-deterministic runs. Warn-only (feedless →
     can't block/auto-fetch, per ARCHITECTURE).
-  - **PPF data bug fixed:** `data/ppf_interest_rates.csv` had `2025=01-01` (typo)
+  - **PPF data bug fixed:** `data/funds/ppf_interest_rates.csv` had `2025=01-01` (typo)
     → the row was silently dropped → PPF stopped accruing at 2024-10 instead of
     2025-01. Fixed the date; made `load_ppf_interest_rates` **fail-fast** on
     unparseable dates / non-numeric rates (was silent-drop). Re-captured the 4
@@ -744,7 +744,7 @@ first, then big. Per-thread branch + full network-gated merge. Progress below.
     the stated benchmark; β clusters ~1 regardless of asset mix (fund-vs-category); **no
     stated-benchmark series exposed**. MoneyControl's risk JSON is curl-scrapeable but
     benchmark-mismatched, so not a clean cross-check.
-  - **No production-code change** — `data/vro_funds.csv` already leaves `benchmark_index`
+  - **No production-code change** — `data/funds/vro_funds.csv` already leaves `benchmark_index`
     empty for these 3, so `loaders/vro.fetch_benchmark_tri` + the parity test correctly
     skip them. Documented in `docs/ARCHITECTURE.md` (External-metric parity) and
     `scripts/README.md` (2 new probes). **Big round complete** — all of Threads 1–6 done.
@@ -754,8 +754,8 @@ first, then big. Per-thread branch + full network-gated merge. Progress below.
 Goal: catalog popular/prominent funds of different kinds, tracking each fund's
 stated benchmark and whether that benchmark has a **free data source** — to (a) add
 per-fund α/β validation cases where sourceable and (b) build realistic test
-portfolios. Catalog lives at **`data/fund_catalog.csv`** (superset of
-`data/vro_funds.csv`); integrity guarded by `tests/unit/test_fund_catalog.py`.
+portfolios. Catalog lives at **`data/funds/fund_catalog.csv`** (superset of
+`data/funds/vro_funds.csv`); integrity guarded by `tests/unit/test_fund_catalog.py`.
 
 - [x] **Catalog built — 19 funds across 14 categories** (2026-06-20). Fetchability
   determined authoritatively against the niftyindices live-watch master
@@ -777,7 +777,7 @@ portfolios. Catalog lives at **`data/fund_catalog.csv`** (superset of
   α/β is lost only when the *global* benchmark is absent — not when an individual
   fund's own benchmark is unsourceable.
 - [ ] **Follow-on A (gated — ASK):** add the 10 fetchable equity funds to
-  `data/vro_funds.csv` (need VRO plan ids) so `tests/integration/test_vro_parity.py`
+  `data/funds/vro_funds.csv` (need VRO plan ids) so `tests/integration/test_vro_parity.py`
   validates their Beta/Alpha against VRO.
 - [ ] **Follow-on B (gated — ASK):** build new `port/*.toml` test portfolios from
   catalogued funds (portfolio α/β needs only mfapi NAVs + the shipped NIFTY TRI).
@@ -791,7 +791,7 @@ portfolios. Catalog lives at **`data/fund_catalog.csv`** (superset of
     flakiness; the live VRO/niftyindices tier now takes ~2.5 min.
 - **Under-watched data sources** (existing backlog item): add freshness/registry
   handling for `ppf_interest_rates.csv`, the REC coupon table, and
-  `data/gold_monthly_inr.csv` if stable feeds exist; else document the manual cadence.
+  `data/reference/gold_monthly_inr.csv` if stable feeds exist; else document the manual cadence.
 - **niftyindices steady-state confirmation** (existing open item): verify the
   ≤once/day on-run refresh advances `NIFTY ... CSV` + `.last_fetched.json` over
   several real runs — one verified hit is not proof of unattended reliability.

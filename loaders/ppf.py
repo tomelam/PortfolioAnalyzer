@@ -12,14 +12,14 @@ from __future__ import annotations
 import pandas as pd
 
 
-def load_ppf_interest_rates(csv_file_path: str = "data/ppf_interest_rates.csv") -> pd.DataFrame:
+def load_ppf_interest_rates(csv_file_path: str = "data/funds/ppf_interest_rates.csv") -> pd.DataFrame:
     """Read a CSV of declared PPF rates indexed by effective date.
 
     The CSV must have ``date`` and ``rate`` columns (date is parsed as
     ``YYYY-MM-DD``; rate as float percent).
     """
     if csv_file_path is None:
-        csv_file_path = "data/ppf_interest_rates.csv"
+        csv_file_path = "data/funds/ppf_interest_rates.csv"
 
     try:
         ppf_data = pd.read_csv(csv_file_path)

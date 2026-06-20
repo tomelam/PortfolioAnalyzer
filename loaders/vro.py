@@ -86,12 +86,12 @@ _FETCH_JS = """async (url) => {
     return await r.text();
 }"""
 
-_VRO_FUNDS_CSV = Path(__file__).resolve().parent.parent / "data" / "vro_funds.csv"
+_VRO_FUNDS_CSV = Path(__file__).resolve().parent.parent / "data" / "funds" / "vro_funds.csv"
 
 
 @dataclass(frozen=True)
 class VROFund:
-    """One row of the mfapi ↔ VRO fund mapping (``data/vro_funds.csv``)."""
+    """One row of the mfapi ↔ VRO fund mapping (``data/funds/vro_funds.csv``)."""
 
     mfapi_code: str
     vro_plan_id: str
@@ -114,7 +114,7 @@ class VROFund:
 
 
 def load_vro_fund_map(path: Path | None = None) -> list[VROFund]:
-    """Load the mfapi ↔ VRO fund mapping from ``data/vro_funds.csv``."""
+    """Load the mfapi ↔ VRO fund mapping from ``data/funds/vro_funds.csv``."""
     path = path or _VRO_FUNDS_CSV
     with path.open(newline="") as f:
         return [

@@ -1,9 +1,9 @@
-"""Integrity checks for data/fund_catalog.csv.
+"""Integrity checks for data/funds/fund_catalog.csv.
 
 The catalog maps popular mutual funds (across categories) to their stated
 benchmark and whether that benchmark has a free data source — the input for
 adding per-fund α/β parity cases and building test portfolios. These offline
-checks keep it internally consistent and in sync with data/vro_funds.csv.
+checks keep it internally consistent and in sync with data/funds/vro_funds.csv.
 
 Fetchability of the `niftyindices_name` spellings was confirmed live via
 `scripts/probe_niftyindices_catalog_names.py` (kept as documented diagnostics);
@@ -16,8 +16,8 @@ import csv
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-CATALOG = ROOT / "data" / "fund_catalog.csv"
-VRO_FUNDS = ROOT / "data" / "vro_funds.csv"
+CATALOG = ROOT / "data" / "funds" / "fund_catalog.csv"
+VRO_FUNDS = ROOT / "data" / "funds" / "vro_funds.csv"
 
 REQUIRED_COLUMNS = {
     "category", "fund_name", "mfapi_code", "isin", "stated_benchmark",

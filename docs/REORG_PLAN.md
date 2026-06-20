@@ -65,8 +65,8 @@ each merge.
   already corrected to `./pa` in a small pre-reorg fix.)
 
 ## After the reorg (separate, gated)
-- **Wire the 10 fetchable funds into VRO parity** (`data/fund_catalog.csv` →
-  `data/vro_funds.csv`, needs VRO plan ids) so `test_vro_parity.py` validates their
+- **Wire the 10 fetchable funds into VRO parity** (`data/funds/fund_catalog.csv` →
+  `data/funds/vro_funds.csv`, needs VRO plan ids) so `test_vro_parity.py` validates their
   Beta/Alpha.
 - **Build new `port/*.toml` test portfolios** from catalogued funds.
 
