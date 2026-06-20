@@ -8,6 +8,26 @@ import pandas as pd
 import toml
 
 
+def benchmark_cutoff_note(benchmark_end, portfolio_end, benchmark_name, *, tol_days=7):
+    """Failure-framed warning when the benchmark series ends materially before
+    the portfolio.
+
+    A truncated benchmark line is the visible symptom of a stale/failed
+    benchmark refresh — only reachable under ``--allow-stale``, since the
+    freshness gate otherwise blocks the run. Returns a warning string in that
+    case, else ``None``. The ``tol_days`` band ignores ordinary feed lag (a
+    benchmark legitimately trailing the portfolio by a day or two).
+    """
+    if benchmark_end is None or portfolio_end is None:
+        return None
+    if benchmark_end < portfolio_end - pd.Timedelta(days=tol_days):
+        return (
+            f"⚠ Benchmark truncated: {benchmark_name} refresh stale/failed — "
+            f"series ends {benchmark_end.date()} vs portfolio {portfolio_end.date()}."
+        )
+    return None
+
+
 def display_toml_below_figure(ax_table, toml_file, assets_meta=None):
     """
     Reads a TOML file, extracts relevant portfolio data, and displays it
@@ -246,8 +266,12 @@ def plot_cumulative_returns(
     )
 
     # Plot the rebased benchmark returns, if available
+    cutoff_note = None
     if rebased_benchmark is not None and not rebased_benchmark.empty:
         ax.plot(rebased_benchmark.index, rebased_benchmark, label=benchmark_name, color="green")
+        cutoff_note = benchmark_cutoff_note(
+            rebased_benchmark.index.max(), rebased_historical.index.max(), benchmark_name
+        )
 
     # Draw a vertical line at the rebase date (using the portfolio's rebase date)
     ax.axvline(rebase_date_portfolio, color="gray", linestyle=":", label="Rebase Date")
@@ -302,10 +326,15 @@ def plot_cumulative_returns(
 
     # Reference-data provenance footnote — the *visible* copy of the freshness
     # stamp (the machine-readable copy rides in the PNG tEXt metadata below).
-    if footnote:
+    # A benchmark-cutoff warning, when present, is prepended so a degraded chart
+    # states that it is degraded and why.
+    footnote_text = "\n".join(part for part in (cutoff_note, footnote) if part)
+    if footnote_text:
         fig.text(
-            0.5, 0.002, footnote, ha="center", va="bottom",
-            fontsize=5, color="dimgray", wrap=True,
+            0.5, 0.002, footnote_text, ha="center", va="bottom",
+            fontsize=5,
+            color="firebrick" if cutoff_note else "dimgray",
+            wrap=True,
         )
 
     # Show plot

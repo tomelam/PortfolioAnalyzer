@@ -379,6 +379,41 @@ def test_fetched_today_is_current_even_if_cadence_behind(tmp_path, monkeypatch):
     assert called["n"] == 0
 
 
+def test_fetched_today_stamp_ignored_when_file_reverted(tmp_path, monkeypatch):
+    """Regression for the TRI desync incident: the stamp records a successful
+    fetch today through a recent date, but the CSV on disk was reverted to an
+    older copy (e.g. by a data/ reorg). The stamp must not certify the stale
+    file as current — the source is re-fetched instead of trusted."""
+    monkeypatch.setattr(du, "STAMP_FILE", str(tmp_path / ".s.json"))
+    target = tmp_path / "NIFTY Total Returns Historical Data.csv"
+    target.write_text("Date,Price\n05/02/2025,100\n")  # file stuck a year back
+    # Stamp claims a fresh fetch today through 2026-06-19 — but the file disagrees.
+    (tmp_path / ".s.json").write_text(
+        json.dumps({"bench": {
+            "fetched_at": "2026-06-19T03:00:00+00:00",
+            "last_date": "2026-06-19",
+            "rows": 4822,
+        }})
+    )
+
+    src = _bench_source(tmp_path, lambda session=None: None)
+    a = du.assess_freshness(src, today="2026-06-19")
+    assert a["stamp_honoured"] is False
+    assert a["behind"] is True
+    assert a["current"] is False  # stale file is not masked by the stamp
+
+    called = {"n": 0}
+
+    def _fetch(session=None):
+        called["n"] += 1
+        return du.parse_niftyindices_tri_json(NIFTY_TRI_FIXTURE)
+
+    monkeypatch.setattr(du, "REGISTRY", {"bench": _bench_source(tmp_path, _fetch)})
+    res = du.ensure_source_current("bench", today="2026-06-19")
+    assert res["status"] == "refreshed"  # desync triggers a real refresh
+    assert called["n"] == 1
+
+
 def test_benchmark_once_per_day_suppresses_second_attempt(tmp_path, monkeypatch):
     """niftyindices is day-gated: a failed attempt earlier today blocks any
     retry the same day (ban-avoidance), leaving the source stale."""
