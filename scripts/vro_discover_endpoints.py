@@ -38,7 +38,7 @@ from pathlib import Path
 # Allow running as a plain script from any directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from loaders.vro import (  # noqa: E402
+from portfolioanalyzer.loaders.vro import (  # noqa: E402
     VRO_UA,
     browser_extra_available,
     vro_page_url,

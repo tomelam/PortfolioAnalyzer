@@ -22,9 +22,9 @@ from pathlib import Path
 
 import pytest
 
-import main
-from loaders.benchmark import load_timeseries_csv
-from loaders.risk_free import fetch_and_standardize_risk_free_rates
+from portfolioanalyzer import main
+from portfolioanalyzer.loaders.benchmark import load_timeseries_csv
+from portfolioanalyzer.loaders.risk_free import fetch_and_standardize_risk_free_rates
 
 ROOT = Path(__file__).resolve().parents[2]
 DOC_FILES = [ROOT / "README.md", ROOT / "QUICKSTART.md"]
@@ -105,7 +105,7 @@ def _documented_config_keys() -> set[str]:
 
 
 def _real_config_keys() -> set[str]:
-    return set(_CONFIG_GET_RE.findall(_read(ROOT / "main.py")))
+    return set(_CONFIG_GET_RE.findall(_read(ROOT / "portfolioanalyzer" / "main.py")))
 
 
 def _console_script_names() -> set[str]:

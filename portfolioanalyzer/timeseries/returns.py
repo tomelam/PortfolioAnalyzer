@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-import metrics
-from utils import info
+from portfolioanalyzer import metrics
+from portfolioanalyzer.utils import info
 
 
 def _summary_metrics(ts, risk_free_rate=0.0, frequency="daily"):

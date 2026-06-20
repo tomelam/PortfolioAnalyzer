@@ -12,9 +12,9 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from timeseries.asset import from_civ
-from timeseries.civ import TimeseriesCIV
-from timeseries.portfolio import PortfolioTimeseries
+from portfolioanalyzer.timeseries.asset import from_civ
+from portfolioanalyzer.timeseries.civ import TimeseriesCIV
+from portfolioanalyzer.timeseries.portfolio import PortfolioTimeseries
 
 
 def _values_series(values: list[float], start: str = "2024-01-01") -> pd.Series:

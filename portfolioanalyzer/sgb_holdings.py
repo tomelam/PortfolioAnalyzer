@@ -31,7 +31,7 @@ import datetime as dt
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 
-from sgb_tranches import lookup_tranche
+from portfolioanalyzer.sgb_tranches import lookup_tranche
 
 _MONTHS_BETWEEN_COUPONS = 6
 

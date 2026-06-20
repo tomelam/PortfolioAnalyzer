@@ -18,8 +18,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from timeseries.asset import from_civ
-from timeseries.portfolio import PortfolioTimeseries
+from portfolioanalyzer.timeseries.asset import from_civ
+from portfolioanalyzer.timeseries.portfolio import PortfolioTimeseries
 
 
 def _series(name, values, start="2024-01-01"):

@@ -21,9 +21,9 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from fund_lifecycle import fund_dates
-from loaders.benchmark import load_timeseries_csv
-from utils import to_cutoff_date
+from portfolioanalyzer.fund_lifecycle import fund_dates
+from portfolioanalyzer.loaders.benchmark import load_timeseries_csv
+from portfolioanalyzer.utils import to_cutoff_date
 
 FIXTURES = Path(__file__).parent / "loaders" / "fixtures"
 

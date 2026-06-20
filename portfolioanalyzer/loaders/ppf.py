@@ -57,7 +57,7 @@ def load_ppf_civ() -> pd.Series:
     forward — PPF rates change quarterly at most, so this matches how
     PPF balances actually accrue between rate-change announcements.
     """
-    from synthetic_civ import calculate_ppf_relative_civ
+    from portfolioanalyzer.synthetic_civ import calculate_ppf_relative_civ
 
     monthly = calculate_ppf_relative_civ(load_ppf_interest_rates())["civ"]
     end = max(monthly.index.max(), pd.Timestamp.today().normalize())

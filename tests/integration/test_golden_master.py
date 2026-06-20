@@ -97,7 +97,7 @@ def _run_main(toml: str, method: str, out_dir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
         str(VENV_PYTHON),
-        "main.py",
+        "-m", "portfolioanalyzer.main",
         "--config",
         str(GOLDEN_CONFIG),
         "--quiet",

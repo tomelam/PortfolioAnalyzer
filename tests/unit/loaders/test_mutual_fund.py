@@ -19,7 +19,7 @@ import pandas as pd
 import pytest
 import requests
 
-from loaders.mutual_fund import fetch_navs
+from portfolioanalyzer.loaders.mutual_fund import fetch_navs
 
 SAMPLE_RESPONSE = {
     "status": "SUCCESS",

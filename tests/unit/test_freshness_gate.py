@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-import main
-from loaders import data_update as du
+from portfolioanalyzer import main
+from portfolioanalyzer.loaders import data_update as du
 
 
 def _settings(**over):

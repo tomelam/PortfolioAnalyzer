@@ -13,8 +13,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from loaders.benchmark import load_timeseries_csv
-from timeseries.returns import TimeseriesReturn
+from portfolioanalyzer.loaders.benchmark import load_timeseries_csv
+from portfolioanalyzer.timeseries.returns import TimeseriesReturn
 
 FIXTURES = Path(__file__).resolve().parent.parent.parent / "fixtures" / "data"
 

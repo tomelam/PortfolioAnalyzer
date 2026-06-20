@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from data_loader import fetch_navs_of_mutual_fund
+from portfolioanalyzer.data_loader import fetch_navs_of_mutual_fund
 
 
 @pytest.mark.order(5)  # test_fetch_navs_of_mutual_funds

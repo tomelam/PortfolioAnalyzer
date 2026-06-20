@@ -11,7 +11,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from loaders import data_update as du
+from portfolioanalyzer.loaders import data_update as du
 
 
 @pytest.mark.network

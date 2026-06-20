@@ -47,7 +47,7 @@ from pathlib import Path
 import pandas as pd
 from pandas.tseries.offsets import DateOffset
 
-import metrics
+from portfolioanalyzer import metrics
 
 # Real desktop-Chrome User-Agent presented by the stealth context (mirrors the
 # niftyindices fetcher's authentic-fingerprint approach).
@@ -86,7 +86,9 @@ _FETCH_JS = """async (url) => {
     return await r.text();
 }"""
 
-_VRO_FUNDS_CSV = Path(__file__).resolve().parent.parent / "data" / "funds" / "vro_funds.csv"
+# __file__ is .../portfolioanalyzer/loaders/vro.py; data/ is at the repo root, two
+# levels above the package dir, i.e. parents[2] from here.
+_VRO_FUNDS_CSV = Path(__file__).resolve().parents[2] / "data" / "funds" / "vro_funds.csv"
 
 
 @dataclass(frozen=True)
@@ -349,7 +351,7 @@ def fetch_benchmark_tri(
     ``benchmark_nav`` expects. Used to source Beta/Alpha for funds whose stated
     benchmark is on niftyindices' feed (currently only NIFTY 100).
     """
-    from loaders.data_update import fetch_niftyindices_tri
+    from portfolioanalyzer.loaders.data_update import fetch_niftyindices_tri
 
     frame = fetch_niftyindices_tri(index_name=index_name, start=start, end=end)
     return frame["value"].rename(index_name)

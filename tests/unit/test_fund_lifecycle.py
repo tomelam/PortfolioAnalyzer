@@ -18,7 +18,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from fund_lifecycle import build_assets_meta, fund_dates, write_assets_csv
+from portfolioanalyzer.fund_lifecycle import build_assets_meta, fund_dates, write_assets_csv
 
 
 def _navs(dates: list[str], values: list[float] | None = None) -> pd.DataFrame:

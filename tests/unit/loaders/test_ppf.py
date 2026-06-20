@@ -14,8 +14,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-import loaders.ppf as ppf_loader
-from loaders.ppf import load_ppf_civ
+import portfolioanalyzer.loaders.ppf as ppf_loader
+from portfolioanalyzer.loaders.ppf import load_ppf_civ
 
 FIXTURES = Path(__file__).resolve().parent.parent.parent / "fixtures" / "data"
 
@@ -69,7 +69,7 @@ def test_starts_near_unity(patch_ppf_rates_path) -> None:
 
 
 def test_rates_loader_returns_dataframe() -> None:
-    from loaders.ppf import load_ppf_interest_rates
+    from portfolioanalyzer.loaders.ppf import load_ppf_interest_rates
 
     df = load_ppf_interest_rates(str(FIXTURES / "ppf_rates_tiny.csv"))
     assert isinstance(df, pd.DataFrame)
@@ -77,7 +77,7 @@ def test_rates_loader_returns_dataframe() -> None:
 
 
 def test_rates_loader_indexed_by_datetime() -> None:
-    from loaders.ppf import load_ppf_interest_rates
+    from portfolioanalyzer.loaders.ppf import load_ppf_interest_rates
 
     df = load_ppf_interest_rates(str(FIXTURES / "ppf_rates_tiny.csv"))
     assert isinstance(df.index, pd.DatetimeIndex)
@@ -85,7 +85,7 @@ def test_rates_loader_indexed_by_datetime() -> None:
 
 
 def test_rates_loader_missing_file_raises() -> None:
-    from loaders.ppf import load_ppf_interest_rates
+    from portfolioanalyzer.loaders.ppf import load_ppf_interest_rates
 
     with pytest.raises(FileNotFoundError):
         load_ppf_interest_rates("/nonexistent/ppf.csv")
@@ -95,7 +95,7 @@ def test_rates_loader_unparseable_date_fails_fast(tmp_path) -> None:
     """A malformed date must raise (naming the bad value), not be silently
     dropped — a dropped rate change would corrupt the CIV invisibly. Regression
     for the real `2025=01-01` typo found in data/funds/ppf_interest_rates.csv."""
-    from loaders.ppf import load_ppf_interest_rates
+    from portfolioanalyzer.loaders.ppf import load_ppf_interest_rates
 
     bad = tmp_path / "ppf.csv"
     bad.write_text("date,rate\n2024-10-01,7.1\n2025=01-01,7.1\n")

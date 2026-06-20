@@ -10,7 +10,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from synthetic_civ import calculate_ppf_relative_civ
+from portfolioanalyzer.synthetic_civ import calculate_ppf_relative_civ
 
 
 def _rates(rates_by_date: dict[str, float]) -> pd.DataFrame:

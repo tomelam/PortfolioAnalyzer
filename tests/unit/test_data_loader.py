@@ -13,7 +13,7 @@ import pandas as pd
 import pytest
 import toml
 
-from data_loader import (
+from portfolioanalyzer.data_loader import (
     _fund_slug,
     extract_weights,
     fetch_portfolio_civs,
@@ -23,7 +23,7 @@ from data_loader import (
     load_portfolio_toml,
     validate_allocations,
 )
-from timeseries.returns import TimeseriesReturn
+from portfolioanalyzer.timeseries.returns import TimeseriesReturn
 
 
 def _load(mocker, d):
@@ -227,7 +227,7 @@ def test_fetch_portfolio_civs_save_replay(tmp_path, mocker):
         {"nav": [1.0, 2.0]},
         index=pd.DatetimeIndex(["2020-01-01", "2020-01-02"], name="date"),
     )
-    mocker.patch("data_loader.fetch_navs_of_mutual_fund", return_value=df)
+    mocker.patch("portfolioanalyzer.data_loader.fetch_navs_of_mutual_fund", return_value=df)
     fetch_portfolio_civs({"funds": [{"name": "Fund A", "url": "x"}]}, save_replay=str(tmp_path))
     assert (tmp_path / "navs" / "fund-a.csv").exists()
 

@@ -28,8 +28,8 @@ from pathlib import Path
 # Allow running as a plain script from any directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from loaders.mutual_fund import fetch_navs  # noqa: E402
-from loaders.vro import (  # noqa: E402
+from portfolioanalyzer.loaders.mutual_fund import fetch_navs  # noqa: E402
+from portfolioanalyzer.loaders.vro import (  # noqa: E402
     VRO_PERIODS,
     VRO_RISK_FREE_ANNUAL,
     VRO_RISK_PERIOD_YEARS,

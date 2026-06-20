@@ -18,7 +18,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from data_loader import align_portfolio_civs
+from portfolioanalyzer.data_loader import align_portfolio_civs
 
 
 def _nav_df(dates: list[str], values: list[float]) -> pd.DataFrame:

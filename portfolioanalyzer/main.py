@@ -1,7 +1,7 @@
 import pandas as pd
 
-import utils
-from data_loader import (
+from portfolioanalyzer import utils
+from portfolioanalyzer.data_loader import (
     align_dynamic_risk_free_rates,
     align_portfolio_civs,
     extract_weights,
@@ -13,18 +13,18 @@ from data_loader import (
     load_ppf_civ,
     load_timeseries_csv,
 )
-from portfolio_calculator import (
+from portfolioanalyzer.portfolio_calculator import (
     calculate_gains_cumulative,
     calculate_portfolio_allocations,
 )
-from timeseries.portfolio import from_multiple_nav_series
-from timeseries.returns import TimeseriesReturn
-from utils import (
+from portfolioanalyzer.timeseries.portfolio import from_multiple_nav_series
+from portfolioanalyzer.timeseries.returns import TimeseriesReturn
+from portfolioanalyzer.utils import (
     dbg,
     info,
     to_cutoff_date,
 )
-from visualizer import plot_cumulative_returns, print_major_drawdowns
+from portfolioanalyzer.visualizer import plot_cumulative_returns, print_major_drawdowns
 
 
 def _reference_paths(settings):
@@ -46,7 +46,7 @@ def _enforce_reference_freshness(settings):
     separately by :func:`_report_reference_provenance` so it also rides every
     deterministic run and the PNG output.
     """
-    from loaders.data_update import ensure_reference_data_fresh
+    from portfolioanalyzer.loaders.data_update import ensure_reference_data_fresh
 
     results = ensure_reference_data_fresh(_reference_paths(settings))
     for r in results:
@@ -76,11 +76,11 @@ def _enforce_reference_freshness(settings):
 def _report_reference_provenance(settings):
     """Read the reference-feed provenance (all run modes), echo it to stderr for
     the run log, and return it for embedding in the PNG snapshot."""
-    from loaders.data_update import reference_provenance
+    from portfolioanalyzer.loaders.data_update import reference_provenance
 
     provenance = reference_provenance(_reference_paths(settings))
     if provenance:
-        import output_metadata as om
+        from portfolioanalyzer import output_metadata as om
 
         info("📊 Reference-data provenance:")
         for line in om.format_provenance(provenance).splitlines():
@@ -100,8 +100,8 @@ def _warn_manual_sources(portfolio_dict):
     """
     if not ("gold" in portfolio_dict or "sgb" in portfolio_dict):
         return  # portfolio doesn't touch gold-priced assets
-    from loaders.data_update import manual_staleness_warning
-    from loaders.gold import load_gold_prices
+    from portfolioanalyzer.loaders.data_update import manual_staleness_warning
+    from portfolioanalyzer.loaders.gold import load_gold_prices
 
     last = load_gold_prices().index.max()
     warning = manual_staleness_warning(
@@ -193,8 +193,8 @@ def main(settings):
         aligned_portfolio_civs["PPF"] = load_ppf_civ()
 
     if "scss" in portfolio_dict:
-        from bond_calculators import calculate_variable_bond_cumulative_gain
-        from data_loader import load_scss_interest_rates
+        from portfolioanalyzer.bond_calculators import calculate_variable_bond_cumulative_gain
+        from portfolioanalyzer.data_loader import load_scss_interest_rates
 
         scss_rates = load_scss_interest_rates(
             replay_from=settings.get("replay_from"),
@@ -206,8 +206,8 @@ def main(settings):
         # Phase 2: each [[sgb]] entry is a distinct holding. Per-tranche
         # CIV is built from per-gram gold spot plus accrued coupons by
         # the sgb_holdings engine (Phase 1 work).
-        from loaders.gold import load_gold_prices_per_gram
-        from sgb_holdings import sgb_holding_civ
+        from portfolioanalyzer.loaders.gold import load_gold_prices_per_gram
+        from portfolioanalyzer.sgb_holdings import sgb_holding_civ
 
         gold_per_gram = load_gold_prices_per_gram()
         for entry in portfolio_dict["sgb"]:
@@ -219,7 +219,7 @@ def main(settings):
             )
 
     if "gold" in portfolio_dict:
-        from loaders.gold import load_gold_prices
+        from portfolioanalyzer.loaders.gold import load_gold_prices
 
         gold_series = load_gold_prices()
 
@@ -475,7 +475,7 @@ def main(settings):
 
     # Per-asset metadata: inauguration date + defunct-status check.
     # Reuses the already-fetched per-fund NAV DataFrames; no extra network.
-    from fund_lifecycle import build_assets_meta
+    from portfolioanalyzer.fund_lifecycle import build_assets_meta
     as_of_for_meta = (
         settings["as_of"].date() if settings.get("as_of") is not None else None
     )
@@ -500,13 +500,13 @@ def main(settings):
             print(f"📄 CSV written to {csv_path}")
             # Sibling per-drawdown CSV: one row per recovered drawdown,
             # plus the final unrecovered drawdown if any.
-            from drawdowns_csv import write_drawdowns_csv
+            from portfolioanalyzer.drawdowns_csv import write_drawdowns_csv
             dd_path = os.path.join(settings["output_dir"], stem + ".drawdowns.csv")
             write_drawdowns_csv(max_drawdowns, dd_path)
             print(f"📄 Drawdown table written to {dd_path}")
             # Sibling per-asset CSV: one row per asset with inauguration /
             # last-NAV / status (LIVE / DEFUNCT / N/A).
-            from fund_lifecycle import write_assets_csv
+            from portfolioanalyzer.fund_lifecycle import write_assets_csv
             assets_path = os.path.join(settings["output_dir"], stem + ".assets.csv")
             write_assets_csv(assets_meta, assets_path)
             print(f"📄 Assets table written to {assets_path}")
@@ -543,7 +543,7 @@ def main(settings):
     # human-readable metrics block + reference-data provenance embedded in the
     # PNG tEXt metadata (machine-recoverable, far more usable than the
     # positional CSV row), plus a visible provenance footnote on the plot.
-    import output_metadata as om
+    from portfolioanalyzer import output_metadata as om
 
     if settings.get("as_of") is not None:
         run_label = f"as-of {settings['as_of'].date()}"

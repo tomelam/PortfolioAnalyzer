@@ -30,7 +30,11 @@ import pandas as pd
 # can document the scope decision.
 PURCHASABLE_FROM = dt.date(2020, 2, 1)
 
-_DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "funds", "sgb_tranches.csv")
+# __file__ is .../portfolioanalyzer/sgb_tranches.py; data/ lives at the repo root,
+# one level above the package, so step up two directories.
+_DATA_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "data", "funds", "sgb_tranches.csv"
+)
 
 _Status = Literal["LOCK", "PRE", "MAT"]
 

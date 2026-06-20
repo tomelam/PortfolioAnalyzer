@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from timeseries.returns import TimeseriesReturn
+from portfolioanalyzer.timeseries.returns import TimeseriesReturn
 
 
 def _prices(n=400, seed=0, start="2020-01-01"):
@@ -130,7 +130,7 @@ def test_alpha_and_beta_happy_paths():
 def test_alpha_capm_fallback_to_regression_beta(monkeypatch):
     # fallback path: if beta_capm raises, fall back to beta_regression.
     # alpha_capm delegates to the pure metrics layer, so patch it there.
-    import metrics
+    from portfolioanalyzer import metrics
     bench = TimeseriesReturn(_returns(300, seed=3))
     port = TimeseriesReturn(pd.Series(_returns(300, seed=4).values, index=bench.index, name="value"))
     monkeypatch.setattr(

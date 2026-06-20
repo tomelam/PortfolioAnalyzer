@@ -16,8 +16,8 @@ import math
 import pandas as pd
 import pytest
 
-import metrics
-from metrics import (
+from portfolioanalyzer import metrics
+from portfolioanalyzer.metrics import (
     alpha_capm,
     alpha_regression,
     beta_capm,

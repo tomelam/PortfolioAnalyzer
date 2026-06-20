@@ -50,6 +50,11 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 
 ## Module map
 
+All application code lives in one flat package, `portfolioanalyzer/`; the module
+names below are relative to it (e.g. `main.py` → `portfolioanalyzer/main.py`,
+`loaders/gold.py` → `portfolioanalyzer/loaders/gold.py`). The canonical entry
+points are `./pa` and `python -m portfolioanalyzer.main`.
+
 | Module | Role |
 |---|---|
 | `main.py` | CLI orchestration: argparse, config merge, pipeline driver, reporting |

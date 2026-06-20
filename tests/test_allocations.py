@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from portfolio_calculator import (
+from portfolioanalyzer.portfolio_calculator import (
     calculate_gains_cumulative,
     calculate_portfolio_allocations,
 )

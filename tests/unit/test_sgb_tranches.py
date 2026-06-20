@@ -18,7 +18,7 @@ import datetime as dt
 import pandas as pd
 import pytest
 
-from sgb_tranches import (
+from portfolioanalyzer.sgb_tranches import (
     PURCHASABLE_FROM,
     describe_tranche,
     list_tranches,

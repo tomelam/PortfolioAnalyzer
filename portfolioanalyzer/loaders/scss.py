@@ -21,7 +21,7 @@ import requests
 import urllib3
 from bs4 import BeautifulSoup
 
-from utils import info
+from portfolioanalyzer.utils import info
 
 SCSS_URL = (
     "https://www.nsiindia.gov.in/(S(2xgxs555qwdlfb2p4ub03n3n))/"

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import sys
 
-from loaders.data_update import update_all
+from portfolioanalyzer.loaders.data_update import update_all
 
 
 def main(argv: list[str] | None = None) -> int:

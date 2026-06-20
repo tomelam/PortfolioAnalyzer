@@ -35,7 +35,7 @@ def load_portfolio_toml(portfolio_path: str) -> dict:
 
 
 # Backward-compatibility re-export. Implementation lives in benchmark_loader.
-from loaders.benchmark import load_timeseries_csv  # noqa: E402, F401
+from portfolioanalyzer.loaders.benchmark import load_timeseries_csv  # noqa: E402, F401
 
 
 def _fund_slug(name: str) -> str:
@@ -118,7 +118,7 @@ def get_benchmark_gain_daily(benchmark_data):
 
 
 # Backward-compatibility re-export. Implementation lives in scss_loader.
-from loaders.scss import load_scss_interest_rates  # noqa: E402, F401
+from portfolioanalyzer.loaders.scss import load_scss_interest_rates  # noqa: E402, F401
 
 
 # Load the TOML file
@@ -327,17 +327,17 @@ def fetch_navs_of_mutual_fund(url, retries=10, timeout=20):
 
     The implementation lives in ``mutual_fund_loader.fetch_navs``.
     """
-    from loaders.mutual_fund import fetch_navs
+    from portfolioanalyzer.loaders.mutual_fund import fetch_navs
 
     return fetch_navs(url, retries=retries, timeout=timeout)
 
 
 # Backward-compatibility re-exports. Implementation lives in ppf_loader.
-from loaders.ppf import load_ppf_civ, load_ppf_interest_rates  # noqa: E402, F401
+from portfolioanalyzer.loaders.ppf import load_ppf_civ, load_ppf_interest_rates  # noqa: E402, F401
 
 # Load risk-free rate data
 # Backward-compatibility re-exports. Implementations live in risk_free_loader.
-from loaders.risk_free import (  # noqa: E402, F401
+from portfolioanalyzer.loaders.risk_free import (  # noqa: E402, F401
     align_dynamic_risk_free_rates,
     fetch_and_standardize_risk_free_rates,
 )

@@ -15,8 +15,8 @@ import os
 
 import pandas as pd
 
-from timeseries.returns import TimeseriesReturn
-from utils import dbg, info
+from portfolioanalyzer.timeseries.returns import TimeseriesReturn
+from portfolioanalyzer.utils import dbg, info
 
 
 def load_timeseries_csv(

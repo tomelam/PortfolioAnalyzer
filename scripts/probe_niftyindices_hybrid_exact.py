@@ -23,7 +23,7 @@ import json
 import random
 import sys
 
-from loaders.data_update import _NIFTY_UA, NIFTY_HIST_PAGE, NIFTY_TRI_ENDPOINT
+from portfolioanalyzer.loaders.data_update import _NIFTY_UA, NIFTY_HIST_PAGE, NIFTY_TRI_ENDPOINT
 
 HIST_ENDPOINT = "https://www.niftyindices.com/Backpage.aspx/getHistoricaldatatabletoString"
 

@@ -33,7 +33,7 @@ AS_OF = "2026-06-13"
 def test_help_exits_clean() -> None:
     """``python main.py --help`` should exit 0 and emit usage text."""
     result = subprocess.run(
-        [PYTHON, "main.py", "--help"],
+        [PYTHON, "-m", "portfolioanalyzer.main", "--help"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -50,7 +50,7 @@ def test_missing_portfolio_file_exits_nonzero(tmp_path: Path) -> None:
     result = subprocess.run(
         [
             PYTHON,
-            "main.py",
+            "-m", "portfolioanalyzer.main",
             "--config",
             str(GOLDEN_CONFIG),
             "--quiet",
@@ -73,7 +73,7 @@ def test_help_lists_allow_stale_flag() -> None:
     """``--allow-stale`` must surface in ``--help`` — it is the single
     documented escape from the block-by-default freshness invariant."""
     result = subprocess.run(
-        [PYTHON, "main.py", "--help"],
+        [PYTHON, "-m", "portfolioanalyzer.main", "--help"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -92,7 +92,7 @@ def test_removed_freshness_flags_error_with_pointer(removed_flag: str) -> None:
     """The retired freshness knobs are hard-removed: passing one fails fast
     with a one-line error pointing at ``--allow-stale`` (no silent aliasing)."""
     result = subprocess.run(
-        [PYTHON, "main.py", removed_flag, "port/port-1.toml"],
+        [PYTHON, "-m", "portfolioanalyzer.main", removed_flag, "port/port-1.toml"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -109,7 +109,7 @@ def _run_offline(config_path: Path, tmp_path: Path) -> subprocess.CompletedProce
     out_dir.mkdir(exist_ok=True)
     return subprocess.run(
         [
-            PYTHON, "main.py",
+            PYTHON, "-m", "portfolioanalyzer.main",
             "--config", str(config_path),
             "--quiet", "--disable-plot-display",
             "--output-dir", str(out_dir), "--output-csv",
@@ -155,7 +155,7 @@ def _run_port1_offline(
     out_dir.mkdir(parents=True, exist_ok=True)
     result = subprocess.run(
         [
-            PYTHON, "main.py",
+            PYTHON, "-m", "portfolioanalyzer.main",
             "--config", str(GOLDEN_CONFIG),
             "--quiet", "--disable-plot-display",
             "--output-dir", str(out_dir), "--output-csv",
@@ -253,7 +253,7 @@ def test_full_run_produces_csv(tmp_path: Path) -> None:
     result = subprocess.run(
         [
             PYTHON,
-            "main.py",
+            "-m", "portfolioanalyzer.main",
             "--config",
             str(GOLDEN_CONFIG),
             "--quiet",
