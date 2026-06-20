@@ -92,7 +92,7 @@ def test_removed_freshness_flags_error_with_pointer(removed_flag: str) -> None:
     """The retired freshness knobs are hard-removed: passing one fails fast
     with a one-line error pointing at ``--allow-stale`` (no silent aliasing)."""
     result = subprocess.run(
-        [PYTHON, "-m", "portfolioanalyzer.main", removed_flag, "port/port-1.toml"],
+        [PYTHON, "-m", "portfolioanalyzer.main", removed_flag, "examples/port/port-1.toml"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -115,7 +115,7 @@ def _run_offline(config_path: Path, tmp_path: Path) -> subprocess.CompletedProce
             "--output-dir", str(out_dir), "--output-csv",
             "--as-of", AS_OF,
             "--replay-from", str(REPLAY_DIR),
-            "port/port-1.toml",
+            "examples/port/port-1.toml",
         ],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=180,
     )
@@ -162,7 +162,7 @@ def _run_port1_offline(
             "--as-of", AS_OF,
             "--replay-from", str(REPLAY_DIR),
             *extra_args,
-            "port/port-1.toml",
+            "examples/port/port-1.toml",
         ],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=180,
     )
@@ -267,7 +267,7 @@ def test_full_run_produces_csv(tmp_path: Path) -> None:
             "monthly",
             "--lookback",
             "5Y",
-            "port/port-1.toml",
+            "examples/port/port-1.toml",
         ],
         cwd=REPO_ROOT,
         capture_output=True,

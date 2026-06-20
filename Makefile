@@ -18,7 +18,7 @@
 #
 # Knobs:
 #   PA       — portfolio-analyzer console entry point (default ./venv/bin/portfolio-analyzer)
-#   PORT_DIR — portfolio TOMLs to sweep (default port)
+#   PORT_DIR — portfolio TOMLs to sweep (default examples/port)
 #   ARGS     — extra args passed through to portfolio-analyzer
 #              e.g. ARGS="--metrics-method monthly --lookback 5Y"
 #
@@ -28,7 +28,7 @@
 #   make outputs/port-everything.png       # just one portfolio
 
 PA       ?= ./venv/bin/portfolio-analyzer
-PORT_DIR ?= port
+PORT_DIR ?= examples/port
 CONFIG   ?= tests/fixtures/golden_master_config.toml
 ARGS     ?=
 

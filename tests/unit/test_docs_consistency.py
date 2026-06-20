@@ -27,8 +27,8 @@ from portfolioanalyzer.loaders.benchmark import load_timeseries_csv
 from portfolioanalyzer.loaders.risk_free import fetch_and_standardize_risk_free_rates
 
 ROOT = Path(__file__).resolve().parents[2]
-DOC_FILES = [ROOT / "README.md", ROOT / "QUICKSTART.md"]
-CONFIG_FILES = sorted((ROOT / "config").glob("*.toml"))
+DOC_FILES = [ROOT / "README.md", ROOT / "docs" / "QUICKSTART.md"]
+CONFIG_FILES = sorted((ROOT / "examples" / "config").glob("*.toml"))
 
 # Third-party flags that legitimately appear in install/run snippets and are not
 # the analyzer's to define: pip (-e), python/pytest (-m), rm (-rf), make (-j).
@@ -177,7 +177,7 @@ def test_config_toml_files_use_real_keys():
     }
     offenders = {name: bad for name, bad in offenders.items() if bad}
     assert not offenders, (
-        f"config/*.toml set keys build_settings() never reads: {offenders}."
+        f"examples/config/*.toml set keys build_settings() never reads: {offenders}."
     )
 
 

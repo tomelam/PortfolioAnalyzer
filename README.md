@@ -1,6 +1,6 @@
 # Portfolio Analyzer
 
-> **In a hurry?** See [`QUICKSTART.md`](QUICKSTART.md) for the most common
+> **In a hurry?** See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the most common
 > invocations, the full CLI flag table, and `make all` / `scripts/render-all.sh`
 > for batch sweeps. The outputs directory is preserved by default —
 > see [`docs/OUTPUTS.md`](docs/OUTPUTS.md) for the policy.
@@ -95,7 +95,7 @@ an activated venv the equivalent console command is `portfolio-analyzer …`.
 ```bash
 ./pa --help
 ./pa <path_to_portfolio_toml_file> [options]
-./pa port/port-1.toml --max-drawdown-threshold 10 --allow-stale
+./pa examples/port/port-1.toml --max-drawdown-threshold 10 --allow-stale
 ```
 
 ### `./pa` — run without activating the venv
@@ -105,7 +105,7 @@ venv — no `source venv/bin/activate`, no `PATH` changes, nothing touched
 outside the project directory. It `cd`s into the project root itself, so it
 works from anywhere and in-repo paths resolve:
 ```bash
-./pa port/port-1.toml --max-drawdown-threshold 10 --allow-stale
+./pa examples/port/port-1.toml --max-drawdown-threshold 10 --allow-stale
 ./pa --help
 ```
 It just `exec`s `venv/bin/python -m portfolioanalyzer.main "$@"`, so editing the code takes effect
@@ -114,7 +114,7 @@ path for a portfolio/config file that lives elsewhere.
 The `--max-drawdown-threshold` option (shortcut `-dt`) sets the percentage drawdown that is considered significant to count in the "Drawdowns" statistic. By default, the threshold is set to `5` (5%).
 
 The benchmark name and benchmark/risk-free CSV paths live in the config TOML
-(see `config/example_config.toml`); no CLI shortcuts exist for those. Run
+(see `examples/config/example_config.toml`); no CLI shortcuts exist for those. Run
 `./pa --help` for the authoritative flag list.
 
 ⚠️ NOTE: Files downloaded from Investing.com sometimes use different date formats (e.g., %d-%m-%Y vs %m/%d/%Y). Always check the format of the first few rows and set `benchmark_date_format` in your config TOML accordingly — there is no CLI flag for it (see [Benchmark Indices](#benchmark-indices-config-file-only-not-in-command-line-options) below).

@@ -11,7 +11,7 @@ never to silently shrink.
 
 1. **`make all`** — incremental. Rebuilds `outputs/<name>.png` and the
    sibling `outputs/<name>.csv` only when the target is missing or
-   older than its `port/<name>.toml`. Files already present are
+   older than its `examples/port/<name>.toml`. Files already present are
    touched only if their TOML changed. No deletions ever happen as a
    side-effect of `make all`.
 
@@ -28,7 +28,7 @@ never to silently shrink.
    you're sure no historical render is worth keeping.
 
 5. **`scripts/render-all.sh`** — equivalent to `make rerender` but
-   pure bash (no Makefile dependency). Iterates every `port/*.toml`
+   pure bash (no Makefile dependency). Iterates every `examples/port/*.toml`
    and writes into `outputs/<name>/<name>.{png,csv,assets.csv,drawdowns.csv}`.
    Existing renders are overwritten in place; nothing else under
    `outputs/` is touched.

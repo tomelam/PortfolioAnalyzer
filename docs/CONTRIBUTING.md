@@ -36,7 +36,7 @@ pre-commit run --all-files
 
 ## KANBAN
 
-`KANBAN.md` at repo root is the single source of truth for project maturity.
+`docs/KANBAN.md` is the single source of truth for project maturity.
 **Update it in the same commit as the code/test change**, not after the fact.
 Move items between Backlog / In Progress / Done; don't delete history.
 
@@ -70,9 +70,9 @@ before the `v0.1-salvage` tag.
   --config tests/fixtures/golden_master_config.toml \
   --metrics-method monthly \
   --lookback 5Y \
-  port/port-1.toml
+  examples/port/port-1.toml
 ```
 
 `tests/fixtures/golden_master_config.toml` is the test-runner config (skips
 age checks against the stale data files); for real interactive runs use
-`config/example_config.toml` and supply fresh data.
+`examples/config/example_config.toml` and supply fresh data.

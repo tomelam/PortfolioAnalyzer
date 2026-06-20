@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# Render every portfolio in port/ to a PNG + CSV under outputs/<name>/.
+# Render every portfolio in examples/port/ to a PNG + CSV under outputs/<name>/.
 #
 # Usage:
-#   scripts/render-all.sh                       # render every port/*.toml
-#   scripts/render-all.sh port/port-1.toml ...  # render only the named ones
+#   scripts/render-all.sh                               # render every examples/port/*.toml
+#   scripts/render-all.sh examples/port/port-1.toml ... # render only the named ones
 #
 # Skips any TOML that fails to load (e.g. legacy schema) and continues.
 # Exit code = number of failed portfolios.
@@ -23,7 +23,7 @@ fi
 if [[ $# -gt 0 ]]; then
     portfolios=("$@")
 else
-    portfolios=(port/*.toml)
+    portfolios=(examples/port/*.toml)
 fi
 
 failures=0
