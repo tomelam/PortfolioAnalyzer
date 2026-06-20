@@ -3,7 +3,7 @@
 Phase C safety net captured 2026-06-14. Covers three portfolios:
 
 - port-1: 5 mutual funds + NIFTY benchmark (simplest path)
-- port-mf-ppf-gold: 5 MFs + PPF (synthetic CIV) + physical gold (monthly)
+- port-mf-ppf-gold: 5 MFs + PPF (synthetic CIV) + physical gold (LBMA USD/oz daily)
 - port-everything: 5 MFs + PPF + Gold + SGB + SCSS
   (exercises every loader)
 
@@ -32,7 +32,8 @@ Notes:
   inputs together:
     1. Copy the current live reference CSVs into the freeze:
        `cp "data/reference/NIFTY Total Returns Historical Data.csv" \
-           "data/reference/INDIRLTLT01STM.csv" tests/golden/replay/reference/`
+           "data/reference/INDIRLTLT01STM.csv" \
+           "data/reference/gold_lbma_usd_daily.csv" tests/golden/replay/reference/`
     2. Run main.py for each (portfolio, method) with the same `--config`,
        `--lookback 5Y`, and `--as-of` used here, plus `--save-replay
        tests/golden/replay` once (any portfolio covering all funds + SCSS,
@@ -124,7 +125,7 @@ def _run_main(toml: str, method: str, out_dir: Path) -> None:
 @pytest.mark.golden
 def test_golden_config_does_not_read_live_data_dir() -> None:
     """Guard: the golden config must pin its reference inputs (benchmark +
-    risk-free) to the FROZEN copies under tests/golden/replay/, never the
+    risk-free + gold) to the FROZEN copies under tests/golden/replay/, never the
     live data/ dir.
 
     The on-run freshness refresh (loaders.data_update) rewrites the live
@@ -137,10 +138,14 @@ def test_golden_config_does_not_read_live_data_dir() -> None:
     with GOLDEN_CONFIG.open("rb") as f:
         cfg = tomllib.load(f)
 
-    ref_paths = [cfg.get("benchmark_returns_file"), cfg.get("risk_free_rates_file")]
+    ref_paths = [
+        cfg.get("benchmark_returns_file"),
+        cfg.get("risk_free_rates_file"),
+        cfg.get("gold_prices_file"),
+    ]
     assert all(ref_paths), (
-        "golden config must explicitly set benchmark_returns_file and "
-        f"risk_free_rates_file; got {ref_paths}"
+        "golden config must explicitly set benchmark_returns_file, "
+        f"risk_free_rates_file, and gold_prices_file; got {ref_paths}"
     )
 
     for rel in ref_paths:

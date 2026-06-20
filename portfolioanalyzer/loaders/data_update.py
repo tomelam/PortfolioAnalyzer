@@ -29,6 +29,15 @@ Sources
   aggressively blocks non-browser clients and holds blocks against the source
   IP. The parser is unit-tested; **the live browser fetch must be verified in
   an environment that can reach the host** before relying on it.
+- ``gold_lbma`` → LBMA Gold Price PM fix (USD per troy ounce, daily) from the
+  LBMA's own price feed (``prices.lbma.org.uk``). Clean public JSON, no auth /
+  key / browser — like FRED. This replaced the dead World Gold Council "gold
+  price averages since 1978" dataset, which was discontinued in March 2025 when
+  ICE Benchmark Administration pulled the historical LBMA Gold Price from
+  third-party redistributors. LBMA still publishes the canonical London
+  benchmark directly here; USD is used unconverted (the tool reports only
+  normalized returns, and a time-varying USD/INR path would inject rupee/RBI
+  dynamics into gold's measured return).
 """
 
 from __future__ import annotations
@@ -51,6 +60,12 @@ DATA_DIR = "data"
 STAMP_FILE = os.path.join(DATA_DIR, ".last_fetched.json")
 
 FRED_CSV_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
+
+# The LBMA Gold Price (the canonical London auction benchmark) is published
+# directly on the LBMA's own site as a plain JSON array. We use the afternoon
+# (PM) fix — the conventional end-of-day reference for gold valuation — in USD
+# per troy ounce. No auth / key / browser needed (clean public JSON, like FRED).
+LBMA_GOLD_PM_URL = "https://prices.lbma.org.uk/json/gold_pm.json"
 
 # niftyindices serves its Total-Returns-Index history from a JSON POST API
 # behind an ASP.NET session + ARR-affinity cookie wall, and aggressively
@@ -125,6 +140,47 @@ def parse_niftyindices_tri_json(text: str) -> pd.DataFrame:
     return out
 
 
+def parse_lbma_gold_json(text: str) -> pd.DataFrame:
+    """Parse the LBMA Gold Price JSON into a date-indexed USD/oz ``value`` frame.
+
+    The feed is a JSON array of records ``{"d": "YYYY-MM-DD", "v": [USD, GBP,
+    EUR]}``. We take the USD column (``v[0]``) — the LBMA Gold Price in **USD per
+    troy ounce**. Records with a missing/None USD value (a handful of the oldest
+    rows carry ``None`` for some currencies) are dropped.
+
+    Raises on a non-JSON body — the LBMA endpoint, like any web feed, can return
+    an HTML error / rate-limit page instead of data; detecting that here makes a
+    bad response a *failed fetch* (→ stale → block) rather than a silently
+    truncated series.
+    """
+    try:
+        records = json.loads(text)
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"LBMA gold response was not JSON (got {text[:80]!r})"
+        ) from e
+    if not isinstance(records, list) or not records:
+        raise ValueError("LBMA gold response contained zero records")
+    out = pd.DataFrame(
+        {
+            "date": pd.to_datetime(
+                [r.get("d") for r in records], errors="coerce"
+            ),
+            "value": pd.to_numeric(
+                [
+                    (r.get("v")[0] if isinstance(r.get("v"), list) and r.get("v") else None)
+                    for r in records
+                ],
+                errors="coerce",
+            ),
+        }
+    ).dropna()
+    out = out.set_index("date").sort_index()
+    if out.empty:
+        raise ValueError("LBMA gold JSON parsed to zero rows")
+    return out
+
+
 # --- network fetchers ------------------------------------------------------
 
 def _get(url: str, *, session=None, timeout: int = 30, headers: dict | None = None) -> str:
@@ -138,6 +194,13 @@ def _get(url: str, *, session=None, timeout: int = 30, headers: dict | None = No
 def fetch_fred_series(series_id: str, *, session=None) -> pd.DataFrame:
     """Fetch a FRED series as a date-indexed ``value`` frame."""
     return parse_fred_csv(_get(FRED_CSV_URL.format(series_id=series_id), session=session))
+
+
+def fetch_lbma_gold(*, session=None) -> pd.DataFrame:
+    """Fetch the LBMA Gold Price (PM fix, USD/oz) as a date-indexed ``value``
+    frame. Clean public JSON over plain ``requests`` (default UA works); raises
+    on HTTP error or a non-JSON body (see :func:`parse_lbma_gold_json`)."""
+    return parse_lbma_gold_json(_get(LBMA_GOLD_PM_URL, session=session))
 
 
 def _niftyindices_body(index_name: str, start: str, end: str) -> str:
@@ -321,6 +384,22 @@ REGISTRY: dict[str, DataSource] = {
         affects="alpha, beta",
         label="NIFTY 50 TRI (benchmark)",
     ),
+    "gold_lbma": DataSource(
+        name="gold_lbma",
+        target_path=os.path.join(DATA_DIR, "reference", "gold_lbma_usd_daily.csv"),
+        fetch=lambda session=None: fetch_lbma_gold(session=session),
+        out_date_col="Date",
+        # "Close" so the gold loader's price-column detection (which matches
+        # "price"/"close") picks it up unchanged.
+        out_value_col="Close",
+        out_date_format="%Y-%m-%d",
+        # LBMA Gold Price PM fix, USD/troy-ounce, published every London
+        # business day. Clean public JSON ⇒ no ban risk, refresh whenever behind.
+        cadence="business_day",
+        day_gated=False,
+        affects="gold and SGB valuation",
+        label="LBMA Gold Price PM (USD/oz)",
+    ),
 }
 
 
@@ -446,9 +525,11 @@ def manual_staleness_warning(
 ) -> str | None:
     """Warn (never block) when a hand-maintained, feedless data file is behind.
 
-    Gold and PPF have no upstream feed to auto-refresh (see ARCHITECTURE.md →
-    *Data freshness as a correctness invariant*: feedless sources can only warn).
-    This surfaces a file that has fallen behind its own publication cadence so
+    A generic utility for sources with no upstream feed to auto-refresh (see
+    ARCHITECTURE.md → *Data freshness as a correctness invariant*: feedless
+    sources can only warn). Gold is no longer one of these — it auto-refreshes
+    from the LBMA feed and blocks like the other reference sources. This
+    surfaces a file that has fallen behind its own publication cadence so
     the user knows to refresh it — rather than letting carried-forward values
     silently shorten or flatten the affected metrics. Returns one warning line,
     or ``None`` when the source is current.

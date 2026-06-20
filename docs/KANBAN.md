@@ -602,17 +602,23 @@ are unaware of each other.
   - Procedure documented in `docs/DATA_REFRESH.md`; on-run force-refresh + cron-able `portfolio-analyzer-update`; staleness gate is now early-warning, not a hard blocker.
   - Goldens re-captured against the FRED risk-free (pinned via `--as-of`/`--replay-from`, so they stay deterministic regardless of live data).
 - [ ] **Audit the remaining under-watched data sources** not yet auto-updated: `ppf_interest_rates.csv`. SCSS is already fetched live; gold is being migrated (below). These change rarely; add registry entries if/when stable feeds are identified.
-- [ ] **Gold source migration — Part A (PLANNED, not built; approved plan).** The WGC
-  `gold_monthly_inr.csv` feed is **DEAD** (discontinued Mar 2025 when ICE pulled LBMA Gold
-  Price history — CSV ends 2025-03-31 because the source stopped). Decision: switch to
-  **stooq XAU/USD spot, daily, in USD, no FX→INR conversion** (normalized returns make
-  currency-scale irrelevant; time-varying FX would inject rupee/RBI noise — measure gold at
-  the freest market). Block-by-default + `--allow-stale`, only for gold/SGB portfolios.
-  Plan: `/Users/tom/.claude/plans/i-notice-that-lots-gleaming-haven.md`. **Step 0: verify the
-  stooq endpoint + history (≥2008) — unverified in plan mode; fail-loud to a named
-  alternative if it doesn't hold.** New `fetch_stooq_xauusd`/`parse_stooq_csv` + `gold_xauusd`
-  REGISTRY entry; repoint `loaders/gold.py` (unit INR→USD); config-driven `gold_prices_file`;
-  gate-wire via `portfolio_dict`; freeze golden + re-capture gold/SGB goldens; docs.
+- [x] **Gold source migration — Part A DONE (2026-06-20, branch `gold-autorefresh-lbma`).**
+  The WGC `gold_monthly_inr.csv` feed was **DEAD** (discontinued Mar 2025 when ICE pulled LBMA
+  Gold Price history). **Step 0 finding: stooq (the planned source) is also dead** — its free
+  CSV download endpoint now returns site-wide "Access denied" behind a new JS proof-of-work
+  (verified: even after solving the PoW, every symbol is denied). Per the plan's fail-loud
+  Step 0, switched to a **named, verified alternative: the LBMA's own price feed**
+  (`prices.lbma.org.uk/json/gold_pm.json`) — the canonical London PM fix, **USD/troy-ounce,
+  daily, back to 1968, fresh to yesterday, plain `requests` (no auth/key/browser/PoW)**. Matches
+  the "freest fair London market, USD, no FX" intent more precisely than scraped spot. Built:
+  `parse_lbma_gold_json`/`fetch_lbma_gold` + `gold_lbma` REGISTRY entry (business_day, not
+  day-gated); repointed `loaders/gold.py` (unit INR→USD, `gold_lbma_usd_daily.csv`);
+  config-driven `gold_prices_file`; gate-wired via `portfolio_dict` (gold/SGB portfolios only,
+  block-by-default + `--allow-stale`); removed `_warn_manual_sources`; retired
+  `gold_monthly_inr.csv` + unused `Gold Futures Historical Data.csv`; froze golden + re-captured
+  gold/SGB goldens; docs (README/DATA_REFRESH/ARCHITECTURE) + tests (parse/gate/live-network).
+  391 unit+golden green; live FRED+LBMA+niftyindices green. Plan:
+  `/Users/tom/.claude/plans/i-notice-that-lots-gleaming-haven.md`.
 - [ ] **Gold Part B (deferred, own thread):** second gold price = **SGB premature-redemption
   price** (RBI/IBJA 999-gold, INR — user accepts the Indian source as the contractual cash
   value), kept as a **co-equal view alongside HTM** (neither default). Activates the deferred

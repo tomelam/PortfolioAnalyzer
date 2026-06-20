@@ -105,8 +105,8 @@ def sgb_holding_civ(
         )
 
     # Daily gold prices over the holding period, ffilled to fill any gaps
-    # (the source CSV is monthly; ffill is the standard market convention
-    # for stale-quote roll-forward).
+    # (the source CSV is daily but skips weekends/holidays; ffill is the
+    # standard market convention for stale-quote roll-forward).
     daily_idx = pd.date_range(issue_date, end_date, freq="D")
     gold_window = gold_prices.reindex(daily_idx, method="ffill")
 

@@ -29,6 +29,21 @@ def test_fetch_fred_indirltlt01stm_live():
 
 @pytest.mark.network
 @pytest.mark.integration
+def test_fetch_lbma_gold_live():
+    df = du.fetch_lbma_gold()
+    assert not df.empty
+    assert list(df.columns) == ["value"]
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert df.index.is_monotonic_increasing
+    # Gold (USD/troy-ounce) has been in the four-figure range for years.
+    assert 500.0 < float(df["value"].iloc[-1]) < 100000.0
+    # Deep history (the LBMA series runs back to 1968) and fresh to recent days.
+    assert df.index.min() < pd.Timestamp("2009-01-01")
+    assert df.index.max() > pd.Timestamp("2025-06-01")
+
+
+@pytest.mark.network
+@pytest.mark.integration
 def test_fetch_niftyindices_tri_live():
     """Real fetch through the stealth-browser path.
 

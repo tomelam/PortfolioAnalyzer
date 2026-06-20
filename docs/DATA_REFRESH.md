@@ -10,16 +10,20 @@ what is behind and defends correctness itself.
 Stale **reference** data silently corrupts results: a stale benchmark skews
 alpha/beta, a stale risk-free rate skews Sharpe/Sortino/alpha. So freshness is
 treated as a **correctness invariant**, not a user-tunable policy. Mutual-fund
-NAVs are fetched live every run (current by construction); gold/PPF are manual
-CSVs with no feed to pull (they can only warn). The two auto-refreshable
-reference feeds are:
+NAVs are fetched live every run (current by construction); PPF is a manual CSV
+with no feed to pull (it can only warn). The auto-refreshable reference feeds
+are:
 
 | Data | Local file | Upstream | Cadence |
 |---|---|---|---|
 | Risk-free rate | `data/reference/INDIRLTLT01STM.csv` | FRED `INDIRLTLT01STM` (India 10Y govt bond rate) | monthly |
 | Benchmark (NIFTY 50 TRI) | `data/reference/NIFTY Total Returns Historical Data.csv` | niftyindices.com Total-Returns API | business day |
+| Gold price | `data/reference/gold_lbma_usd_daily.csv` | LBMA Gold Price PM fix (USD/troy-ounce), `prices.lbma.org.uk` | business day |
 
-Both are no-auth feeds. FRED serves a clean CSV. niftyindices is aggressively
+The gold feed is gated **only for portfolios that hold gold or SGBs** (both are
+valued off it); other portfolios never touch it. All are no-auth feeds. FRED and
+LBMA serve clean machine-readable responses (CSV / JSON) over plain `requests`.
+niftyindices is aggressively
 anti-scrape and holds blocks against the source IP, so it is fetched **only**
 through a stealth Chromium browser (`loaders/data_update.py`), never raw
 `requests`. This needs the optional `browser` extra:
@@ -37,7 +41,7 @@ old source, set `risk_free_rates_file` / `riskfree_date_format` in your config.
 
 1. **"Behind" is the feed's own cadence, not a magic number.** A source is
    behind when its latest local date is older than the most recent **business
-   day** (NIFTY) or **month** (FRED). There is no age-tolerance knob.
+   day** (NIFTY, gold) or **month** (FRED). There is no age-tolerance knob.
 2. **Auto-refresh is baked in.** A source that is behind is refreshed before
    metrics are computed — refreshing *is* the remedy. A successful fetch yields
    the latest the source offers, so it is current by definition (even on an
@@ -83,23 +87,37 @@ Practical guidance:
   `--allow-stale` if you accept degraded alpha/beta).
 - A benchmark already current for the day triggers **zero** fetches.
 
-## Manual, feedless sources (gold, PPF)
+## Gold is an auto-refreshed source (USD, daily)
 
-These inputs have **no upstream feed** to auto-refresh, so they can't be
-enforced like the benchmark/risk-free reference data — the program can only
-*warn*, never block or fetch (see `docs/ARCHITECTURE.md` → *Data freshness as a
-correctness invariant*). You maintain these by hand.
+Gold **used to be** a manual, feedless CSV (monthly INR averages from the World
+Gold Council). That dataset was **discontinued in March 2025** when ICE
+Benchmark Administration pulled the historical LBMA Gold Price from third-party
+redistributors — so the old "refresh by hand" path is dead, not merely neglected.
 
-- **Gold — `data/reference/gold_monthly_inr.csv`** (monthly INR/troy-ounce spot). A true
-  monthly price series, so a gap is real staleness: it drives both the **gold
-  asset** and **SGB** valuation, and a stale file silently freezes those at the
-  last price (and clips the portfolio's effective window). Every non-deterministic
-  run that uses gold/SGB checks it and prints a one-line **stderr warning** when
-  the latest row is behind the current month (cadence = `month`), naming the file,
-  the affected metrics, and this doc. Refresh: append the new month-end spot
-  rows and re-run. (`--as-of`/`--replay-from` runs skip the check — data is
-  pinned as of that date.) yfinance was rejected as a feed (unstable scrape); if
-  a stable public gold API appears, register it then.
+Gold now refreshes automatically from the **LBMA's own** price feed
+(`prices.lbma.org.uk/json/gold_pm.json`) — the canonical London auction
+benchmark, the freest fair gold market — as the **PM fix in USD per troy
+ounce**, daily, back to 1968, over plain `requests` (no auth, key, or browser).
+It is treated exactly like the benchmark/risk-free feeds: a gold/SGB-bearing run
+refreshes it when behind the business-day cadence and **blocks** if it can't be
+certified current (override with `--allow-stale`). Non-gold portfolios never
+touch it. `--as-of`/`--replay-from` runs neither fetch nor block (data pinned).
+
+The price is kept in **USD, unconverted**: the analyzer reports only normalized
+returns, and a time-varying USD/INR path would inject rupee/RBI dynamics into
+gold's measured return (a constant oz→gram unit cancels under normalization; a
+varying FX path does not). The per-gram conversion (`/31.1034768`) still holds,
+now USD/gram. SGBs are marked HTM to this USD gold spot plus their INR coupon
+sliver; the contractual **INR** premature-redemption view (RBI/IBJA) is *Part B*,
+a co-equal view to be added later (see `docs/ARCHITECTURE.md`).
+
+## Manual, feedless sources (PPF)
+
+PPF has **no upstream feed** to auto-refresh, so it can't be enforced like the
+reference data — the program can only *warn*, never block or fetch (see
+`docs/ARCHITECTURE.md` → *Data freshness as a correctness invariant*). You
+maintain it by hand.
+
 - **PPF — `data/funds/ppf_interest_rates.csv`** (declared rate by effective date).
   **Sparse by design**: one row per rate *change*, not per month. The loader
   carries the latest rate forward, so a months-old last row usually just means
