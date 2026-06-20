@@ -106,7 +106,7 @@ re-capture the goldens offline from those fixtures:
   --quiet --disable-plot-display --output-dir /tmp/cap --output-csv \
   --metrics-method daily --lookback 5Y --as-of 2026-06-13 \
   --save-replay tests/golden/replay \
-  port/port-everything.toml
+  examples/port/port-everything.toml
 
 # 2. Re-capture goldens for each portfolio × method (offline via replay).
 for p in port-1 port-mf-ppf-gold port-everything; do
@@ -120,7 +120,7 @@ for p in port-1 port-mf-ppf-gold port-everything; do
       --lookback 5Y \
       --as-of 2026-06-13 \
       --replay-from tests/golden/replay \
-      port/$p.toml
+      examples/port/$p.toml
   done
 done
 

@@ -19,7 +19,7 @@ import pandas as pd  # noqa: E402
 from portfolioanalyzer import visualizer  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-TOML = str(REPO_ROOT / "port" / "port-1.toml")
+TOML = str(REPO_ROOT / "examples" / "port" / "port-1.toml")
 
 
 def _cumulative(n=120, start=100.0, step=0.1, seed_offset=0.0):

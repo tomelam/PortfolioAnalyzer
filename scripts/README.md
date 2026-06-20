@@ -2,17 +2,17 @@
 
 Helper scripts grouped by purpose. None are imported by the application; they
 are operator conveniences and one-off investigations. App invocation itself is
-the `portfolio-analyzer` entry point (see `QUICKSTART.md`).
+the `portfolio-analyzer` entry point (see `docs/QUICKSTART.md`).
 
 ## Orchestration / rendering
 
 | Script | What it does |
 |---|---|
-| `render-all.sh` | Render every `port/*.toml` (or named ones) to a PNG + CSV under `outputs/<name>/`. |
+| `render-all.sh` | Render every `examples/port/*.toml` (or named ones) to a PNG + CSV under `outputs/<name>/`. |
 | `run_metrics_and_save_plot.sh` | Render a single portfolio to `outputs/<name>/{<name>.png,<name>.csv}`. |
-| `plot_all.sh` | PNG-only render of every `port/*.toml` into a chosen output dir. |
+| `plot_all.sh` | PNG-only render of every `examples/port/*.toml` into a chosen output dir. |
 | `run_all_metrics_to_csv.sh` | One combined headline-metrics CSV across all portfolios. |
-| `run_all_configs.sh` | Run the analyzer against every `config/*.toml` (CLI-flag hand-test fixtures). |
+| `run_all_configs.sh` | Run the analyzer against every `examples/config/*.toml` (CLI-flag hand-test fixtures). |
 | `single-asset-type.sh` | Run the single-asset sanity portfolios in sequence (`-H` for headless). |
 
 ## Analysis tools

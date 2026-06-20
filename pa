@@ -2,9 +2,9 @@
 # pa — run PortfolioAnalyzer using its own bundled venv. No activation, no
 # PATH changes, nothing touched outside this directory. Works from anywhere:
 # it cd's into the project root itself, so data/*.csv and the in-repo
-# port/ * config paths resolve regardless of where you invoke it.
+# examples/port/ + examples/config/ paths resolve regardless of where you invoke it.
 #
-#   ./pa port/port-1.toml --max-drawdown-threshold 10 --allow-stale
+#   ./pa examples/port/port-1.toml --max-drawdown-threshold 10 --allow-stale
 #   ./pa --help
 #
 # (Paths you pass are resolved from the project root; use an absolute path for

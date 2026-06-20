@@ -3,7 +3,7 @@
 # Build one combined CSV summarizing every portfolio's headline metrics.
 #
 # Usage:
-#   scripts/run_all_metrics_to_csv.sh                  # scans port/*.toml → portfolio_metrics.csv
+#   scripts/run_all_metrics_to_csv.sh                  # scans examples/port/*.toml → portfolio_metrics.csv
 #   scripts/run_all_metrics_to_csv.sh some-dir/        # scans some-dir/*.toml
 #   scripts/run_all_metrics_to_csv.sh -o my.csv        # writes to my.csv
 
@@ -11,7 +11,7 @@ set -u
 
 cd "$(dirname "$0")/.."
 
-PORT_DIR="port"
+PORT_DIR="examples/port"
 OUTPUT="portfolio_metrics.csv"
 PA="${PA:-./venv/bin/portfolio-analyzer}"
 CONFIG="${CONFIG:-tests/fixtures/golden_master_config.toml}"  # bypass staleness gate by default

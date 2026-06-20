@@ -9,7 +9,7 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 
 ```
 ┌─────────────┐
-│ portfolio   │  port/port-*.toml  (asset list + weights + asset_allocation)
+│ portfolio   │  examples/port/port-*.toml  (asset list + weights + asset_allocation)
 │   TOML      │
 └─────┬───────┘
       │

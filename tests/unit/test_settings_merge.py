@@ -29,7 +29,7 @@ DEFAULT_RISK_FREE_FILE = "data/reference/INDIRLTLT01STM.csv"
 def _args(**overrides):
     """An argparse-like namespace with the same defaults as a bare CLI run."""
     base = dict(
-        toml_file="port/port-1.toml",
+        toml_file="examples/port/port-1.toml",
         show_plot=None,  # set_defaults(show_plot=None); --disable-plot-display → False
         output_snapshot=False,
         output_csv=False,
@@ -52,7 +52,7 @@ def _args(**overrides):
 
 def test_defaults_when_neither_cli_nor_config_set() -> None:
     s = main.build_settings(_args(), {})
-    assert s["portfolio_file"] == "port/port-1.toml"
+    assert s["portfolio_file"] == "examples/port/port-1.toml"
     assert s["show_plot"] is True
     assert s["output_snapshot"] is False
     assert s["output_csv"] is False

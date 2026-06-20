@@ -113,7 +113,7 @@ def _run_main(toml: str, method: str, out_dir: Path) -> None:
         AS_OF,
         "--replay-from",
         str(REPLAY_DIR),
-        f"port/{toml}.toml",
+        f"examples/port/{toml}.toml",
     ]
     result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, timeout=180)
     assert result.returncode == 0, (

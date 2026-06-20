@@ -31,7 +31,7 @@ so they work without an activated virtualenv. If you activate the venv
 ## Run one portfolio (the most common case)
 
 ```bash
-./venv/bin/portfolio-analyzer port/port-1.toml
+./venv/bin/portfolio-analyzer examples/port/port-1.toml
 ```
 
 That prints metrics to the terminal **and** opens a matplotlib window
@@ -42,16 +42,16 @@ Common variations:
 
 ```bash
 # Use monthly metrics instead of the default daily.
-./venv/bin/portfolio-analyzer --metrics-method monthly port/port-1.toml
+./venv/bin/portfolio-analyzer --metrics-method monthly examples/port/port-1.toml
 
 # Last 5 years only.
-./venv/bin/portfolio-analyzer --lookback 5Y port/port-1.toml
+./venv/bin/portfolio-analyzer --lookback 5Y examples/port/port-1.toml
 
 # Save the plot as PNG (no window pops up) and dump metrics as CSV.
 ./venv/bin/portfolio-analyzer \
     --disable-plot-display --output-snapshot --output-csv \
     --output-dir outputs/port-1 \
-    port/port-1.toml
+    examples/port/port-1.toml
 ```
 
 After the third invocation you'll find:
@@ -90,7 +90,7 @@ outputs/port-1/port-1.csv    ← the metrics as one CSV row
 ### See the familiar plot window + printed metrics
 
 ```bash
-./venv/bin/portfolio-analyzer port/port-everything.toml
+./venv/bin/portfolio-analyzer examples/port/port-everything.toml
 ```
 
 ### Save plot + CSV without opening any window
@@ -99,7 +99,7 @@ outputs/port-1/port-1.csv    ← the metrics as one CSV row
 ./venv/bin/portfolio-analyzer \
     --disable-plot-display --output-snapshot --output-csv \
     --output-dir outputs/port-everything \
-    port/port-everything.toml
+    examples/port/port-everything.toml
 ```
 
 ### Compare two portfolios side-by-side
@@ -109,12 +109,12 @@ for p in port-1 port-mf-ppf-gold; do
     ./venv/bin/portfolio-analyzer \
         --disable-plot-display --output-snapshot \
         --output-dir outputs/$p \
-        port/$p.toml
+        examples/port/$p.toml
 done
 open outputs/port-1/port-1.png outputs/port-mf-ppf-gold/port-mf-ppf-gold.png
 ```
 
-### Sweep every portfolio in `port/` with one command
+### Sweep every portfolio in `examples/port/` with one command
 
 ```bash
 make all                 # incremental: render only stale/missing outputs
@@ -129,13 +129,13 @@ preserved by default** — `make clean` does **not** delete it; only
 
 ### Single asset class only
 
-The `port/` directory has tiny single-asset TOMLs for sanity checks:
+The `examples/port/` directory has tiny single-asset TOMLs for sanity checks:
 
 ```bash
-./venv/bin/portfolio-analyzer port/port-ppf.toml
-./venv/bin/portfolio-analyzer port/port-scss.toml
-./venv/bin/portfolio-analyzer port/port-sgb.toml
-./venv/bin/portfolio-analyzer port/port-gold.toml
+./venv/bin/portfolio-analyzer examples/port/port-ppf.toml
+./venv/bin/portfolio-analyzer examples/port/port-scss.toml
+./venv/bin/portfolio-analyzer examples/port/port-sgb.toml
+./venv/bin/portfolio-analyzer examples/port/port-gold.toml
 ```
 
 Or all of them in one go via `scripts/single-asset-type.sh`.
@@ -151,7 +151,7 @@ unreachable). For an unattended run that must never block on that, add
 ./venv/bin/portfolio-analyzer --allow-stale --disable-plot-display \
     --output-snapshot --output-csv \
     --output-dir outputs/port-1 \
-    port/port-1.toml
+    examples/port/port-1.toml
 ```
 
 ---
@@ -160,7 +160,7 @@ unreachable). For an unattended run that must never block on that, add
 
 | Script | What it does |
 |---|---|
-| `scripts/render-all.sh` | Loop over every `port/*.toml`. For each: save PNG + CSV under `outputs/<name>/`. |
+| `scripts/render-all.sh` | Loop over every `examples/port/*.toml`. For each: save PNG + CSV under `outputs/<name>/`. |
 | `scripts/single-asset-type.sh` | Run the six single-asset sanity portfolios with stdout-only output (matplotlib windows pop up). |
 | `scripts/run_metrics_and_save_plot.sh PORT.toml` | One portfolio → `outputs/<name>/` with PNG + CSV. |
 | `scripts/ppf_annualized_interest_rate.py CSV` | Standalone PPF rate analysis tool. |
@@ -172,7 +172,7 @@ Run any script with `--help` (or read the first few lines) for usage.
 ## Make targets
 
 ```bash
-make all                  # incremental render of every port/*.toml
+make all                  # incremental render of every examples/port/*.toml
 make rerender             # force-rebuild every PNG + CSV
 make outputs/port-1.png   # render just port-1
 make clean                # remove only portfolio_metrics.csv (outputs/ preserved)
