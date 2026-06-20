@@ -50,10 +50,23 @@ def _inline_spans(text: str) -> list[str]:
     return re.findall(r"`([^`\n]+)`", text)
 
 
+_FENCED_RE = re.compile(r"```[^\n]*\n(.*?)```", re.DOTALL)
+
+
 def _code_spans(text: str) -> list[str]:
     """Fenced ```code``` blocks + inline `code` spans of a markdown doc."""
-    fenced = re.findall(r"```[^\n]*\n(.*?)```", text, re.DOTALL)
-    return fenced + _inline_spans(text)
+    return _FENCED_RE.findall(text) + _inline_spans(text)
+
+
+def _fenced_command_lines(text: str) -> list[str]:
+    """Runnable command lines from fenced blocks (prompt-stripped, no comments)."""
+    lines: list[str] = []
+    for block in _FENCED_RE.findall(text):
+        for raw in block.splitlines():
+            line = raw.strip().removeprefix("$").strip()
+            if line and not line.startswith("#"):
+                lines.append(line)
+    return lines
 
 
 _FLAG_RE = re.compile(r"(?<![\w/])(--?[A-Za-z][\w-]*)")
@@ -93,6 +106,34 @@ def _documented_config_keys() -> set[str]:
 
 def _real_config_keys() -> set[str]:
     return set(_CONFIG_GET_RE.findall(_read(ROOT / "main.py")))
+
+
+def _console_script_names() -> set[str]:
+    data = tomllib.loads(_read(ROOT / "pyproject.toml"))
+    return set(data.get("project", {}).get("scripts", {}))
+
+
+# --- invocation form -------------------------------------------------------
+
+def test_docs_invoke_pa_wrapper_not_bare_console_script():
+    """Runnable doc examples must use ``./pa`` (or ``./venv/bin/<script>``), never
+    the bare console script — which only resolves with an activated venv. ``./pa``
+    is the one canonical entry point; this guards against the bare form creeping
+    back into the examples (it passed review once before).
+    """
+    scripts = _console_script_names()
+    assert scripts, "no [project.scripts] entries found in pyproject.toml"
+    offenders = [
+        (doc.name, line)
+        for doc in DOC_FILES
+        for line in _fenced_command_lines(_read(doc))
+        if line.split()[0] in scripts
+    ]
+    assert not offenders, (
+        "Runnable doc examples invoke the bare console script (needs an activated "
+        f"venv) instead of the canonical ./pa wrapper: {offenders}. "
+        "Use './pa …' or './venv/bin/<script> …'."
+    )
 
 
 # --- CLI flags -------------------------------------------------------------

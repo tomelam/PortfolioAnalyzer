@@ -4,7 +4,7 @@ Returns a ``pd.Series`` named ``"price"`` indexed by date so the result
 slots directly into ``main.py``'s ``nav_inputs`` dict alongside the
 mutual-fund Series.
 
-Unit caveat: ``data/gold_monthly_inr.csv`` stores prices in **INR per
+Unit caveat: ``data/reference/gold_monthly_inr.csv`` stores prices in **INR per
 troy ounce** despite the ambiguous "Spot Price" column header. For
 relative-returns analysis (the existing main.py path) the units cancel
 in normalization and the value doesn't matter. For absolute valuation
@@ -21,7 +21,7 @@ import pandas as pd
 GRAMS_PER_TROY_OUNCE = 31.1034768
 
 
-def load_gold_prices(csv_path: str = "data/gold_monthly_inr.csv") -> pd.Series:
+def load_gold_prices(csv_path: str = "data/reference/gold_monthly_inr.csv") -> pd.Series:
     """Read a gold-price CSV and return a sorted Series of float prices.
 
     Raises:
@@ -64,7 +64,7 @@ def load_gold_prices(csv_path: str = "data/gold_monthly_inr.csv") -> pd.Series:
     return series
 
 
-def load_gold_prices_per_gram(csv_path: str = "data/gold_monthly_inr.csv") -> pd.Series:
+def load_gold_prices_per_gram(csv_path: str = "data/reference/gold_monthly_inr.csv") -> pd.Series:
     """Return the same series as :func:`load_gold_prices` but in **INR per gram**.
 
     Wraps the underlying CSV's per-troy-ounce values with a single

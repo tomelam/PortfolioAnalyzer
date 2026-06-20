@@ -14,10 +14,10 @@ This repository contains the Portfolio Analyzer application. It fetches historic
 - **Data Loading & Alignment:**  
   - Fetches NAV data for each fund via API calls.
   - Loads risk-free rate data from CSV. The included file INDIRLTLT01STM.csv is one such file manually downloaded from [fred.stlouisfed.org](https://fred.stlouisfed.org).
-  - Uses PPF interest rates manually encoded as CSV in the file `data/ppf_interest_rates.csv`.
+  - Uses PPF interest rates manually encoded as CSV in the file `data/funds/ppf_interest_rates.csv`.
   - Scrapes the SCSS interest rates from [The National Savings Institute's table "Senior Citizens' Savings Scheme--Interest Rate Since Inception"](https://www.nsiindia.gov.in/(S(2xgxs555qwdlfb2p4ub03n3n))/InternalPage.aspx?Id_Pk=181).
   - Loads the SGB issue price/unit and redemption price/unit data manually copied from the Wikipedia page [Sovereign Gold Bond](https://en.wikipedia.org/wiki/Sovereign_Gold_Bond).
-  - Uses gold futures (GCJ5) manually downloaded as CSV from [https://www.investing.com/commodities/gold-historical-data](https://www.investing.com/commodities/gold-historical-data) and stored in the file `"data/Gold Futures Historical Data.csv"`. It is difficult to source the gold spot price for free, but gold futures front-month contracts closely approximate the gold spot price, especially as the contract nears expiration. This is why PortfolioAnalyzer uses the gold futures front-month contract price as a proxy for the gold spot price.
+  - Uses gold futures (GCJ5) manually downloaded as CSV from [https://www.investing.com/commodities/gold-historical-data](https://www.investing.com/commodities/gold-historical-data) and stored in the file `"data/reference/Gold Futures Historical Data.csv"`. It is difficult to source the gold spot price for free, but gold futures front-month contracts closely approximate the gold spot price, especially as the contract nears expiration. This is why PortfolioAnalyzer uses the gold futures front-month contract price as a proxy for the gold spot price.
   - Uses benchmark historical data from [niftyindices.com](https://www.niftyindices.com) or [investing.com](https://investing.com) (deprecated).
   - Aligns data to a common date range across all data sources.
 
@@ -219,7 +219,7 @@ Each of the options (except for `--config`) can also be set in the config TOML, 
   `benchmark_name = "NIFTY Total Returns Index"`:  
   Sets the name of the benchmark index in the outputs.
 
-  `benchmark_returns_file = "data/NIFTY Total Returns Historical Data.csv"`:  
+  `benchmark_returns_file = "data/reference/NIFTY Total Returns Historical Data.csv"`:  
   Sets the filename of the benchmark data CSV. (Note the key is
   `benchmark_returns_file`, not `benchmark_file`.) The bundled default is the
   NIFTY 50 TRI history the auto-updater maintains.

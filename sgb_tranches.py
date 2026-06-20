@@ -4,7 +4,7 @@ Scoped to tranches purchasable from February 2020 onward — the window
 the portfolio actually held. The earlier 56 tranches (Nov 2015 → Jan
 2020) are intentionally out of scope.
 
-Source of truth: ``data/sgb_tranches.csv``. The two tranches the user
+Source of truth: ``data/funds/sgb_tranches.csv``. The two tranches the user
 holds (FY 2019-20 Series IX and FY 2020-21 Series VII) are anchored
 to the actual RBI certificates; the rest are sourced from the
 consolidated SGB master ledger with explicit verify-against-PRID
@@ -30,7 +30,7 @@ import pandas as pd
 # can document the scope decision.
 PURCHASABLE_FROM = dt.date(2020, 2, 1)
 
-_DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "sgb_tranches.csv")
+_DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "funds", "sgb_tranches.csv")
 
 _Status = Literal["LOCK", "PRE", "MAT"]
 

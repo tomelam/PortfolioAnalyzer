@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """One-session probe: confirm the exact TRI-endpoint spelling for the equity
-benchmarks used by the fund catalog (data/fund_catalog.csv).
+benchmarks used by the fund catalog (data/funds/fund_catalog.csv).
 
 The niftyindices live-watch master (LiveIndicesWatch_new.json) lists indices by
 *abbreviated* names ("NIFTY SMLCAP 250", "LARGEMID250"); the TRI endpoint

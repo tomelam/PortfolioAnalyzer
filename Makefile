@@ -34,8 +34,8 @@ ARGS     ?=
 
 # CONFIG defaults to the staleness-bypass config so the Makefile produces
 # results out-of-the-box even when the bundled data/ CSVs are months old.
-# When you refresh data/NIFTY Total Returns Historical Data.csv and
-# data/India 10-Year Bond Yield Historical Data.csv (see KANBAN "Data
+# When you refresh data/reference/NIFTY Total Returns Historical Data.csv and
+# data/reference/India 10-Year Bond Yield Historical Data.csv (see KANBAN "Data
 # freshness"), override with CONFIG=config.toml (or unset entirely).
 
 PORTFOLIOS := $(wildcard $(PORT_DIR)/*.toml)

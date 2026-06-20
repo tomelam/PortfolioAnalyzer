@@ -22,8 +22,8 @@ from data_loader import load_config_toml
 
 # Built-in defaults build_settings falls back to when neither CLI nor config
 # supplies a value — pinned here so a silent change to a default is caught.
-DEFAULT_BENCHMARK_FILE = "data/NIFTY Total Returns Historical Data.csv"
-DEFAULT_RISK_FREE_FILE = "data/INDIRLTLT01STM.csv"
+DEFAULT_BENCHMARK_FILE = "data/reference/NIFTY Total Returns Historical Data.csv"
+DEFAULT_RISK_FREE_FILE = "data/reference/INDIRLTLT01STM.csv"
 
 
 def _args(**overrides):

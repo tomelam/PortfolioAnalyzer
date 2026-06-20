@@ -296,7 +296,7 @@ def write_normalized_csv(source: DataSource, df: pd.DataFrame) -> None:
 REGISTRY: dict[str, DataSource] = {
     "risk_free_fred": DataSource(
         name="risk_free_fred",
-        target_path=os.path.join(DATA_DIR, "INDIRLTLT01STM.csv"),
+        target_path=os.path.join(DATA_DIR, "reference", "INDIRLTLT01STM.csv"),
         fetch=lambda session=None: fetch_fred_series("INDIRLTLT01STM", session=session),
         out_date_col="observation_date",
         out_value_col="rate",
@@ -309,7 +309,7 @@ REGISTRY: dict[str, DataSource] = {
     ),
     "benchmark_nifty_tri": DataSource(
         name="benchmark_nifty_tri",
-        target_path=os.path.join(DATA_DIR, "NIFTY Total Returns Historical Data.csv"),
+        target_path=os.path.join(DATA_DIR, "reference", "NIFTY Total Returns Historical Data.csv"),
         fetch=lambda session=None: fetch_niftyindices_tri(),
         out_date_col="Date",
         out_value_col="Price",

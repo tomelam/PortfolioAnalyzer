@@ -211,7 +211,7 @@ allocation = 0.10
 # investments). Same tranche bought multiple times the same day lumps
 # into one entry by summing units_grams.
 [[sgb]]
-tranche_id = "2019-20-IX"     # see data/sgb_tranches.csv for the list
+tranche_id = "2019-20-IX"     # see data/funds/sgb_tranches.csv for the list
 units_grams = 12
 allocation = 0.05
 
@@ -245,7 +245,7 @@ KANBAN.md                  ← what's planned / done / in flight
 - **`KeyError: 'sgb'`** — the portfolio TOML uses the legacy `[sgb]`
   dict form. Migrate to one or more `[[sgb]]` entries (see schema above).
 - **"unknown tranche"** — the `tranche_id` doesn't exist in
-  `data/sgb_tranches.csv`. Currently only Feb 2020+ tranches are
+  `data/funds/sgb_tranches.csv`. Currently only Feb 2020+ tranches are
   registered. Use `./venv/bin/python -c "from sgb_tranches import
   list_tranches; print(list_tranches()[['tranche_id','issue_date']]
   .to_string(index=False))"` to see all valid IDs.

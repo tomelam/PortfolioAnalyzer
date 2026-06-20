@@ -212,7 +212,7 @@ niftyindices stealth fetch, manual refresh — are in
 
 We validate our own metrics against an external authority (Value Research
 Online) so a methodology drift can't pass silently. `loaders/vro.py` fetches
-VRO's published figures for the mapped funds (`data/vro_funds.csv`) and the
+VRO's published figures for the mapped funds (`data/funds/vro_funds.csv`) and the
 live wire test (`tests/integration/test_vro_parity.py`) asserts ours match.
 Reconciled methodology:
 
@@ -266,7 +266,7 @@ retrievability, not a price-vs-TRI gap. Payoff was thin anyway — VRO publishes
 Beta-only for the 2 HDFC hybrids and nothing for ICICI Corp Bond. We therefore
 treat these 3 funds' stated-benchmark Beta/Alpha as **out of scope (not freely
 sourceable)**, the same posture as Franklin below: `benchmark_index` stays empty
-for them in `data/vro_funds.csv`, so the parity test simply skips them. For the
+for them in `data/funds/vro_funds.csv`, so the parity test simply skips them. For the
 reader-facing summary of *which metrics survive* without a benchmark (everything
 except Alpha/Beta), see [README.md → Metrics](../README.md#metrics).
 
@@ -291,9 +291,9 @@ window, and risk-free** — and in that case it is *identical* to the aggregate
 regression we already run (the per-asset form is just an attribution of it). With
 *different* per-asset benchmarks (equity vs NIFTY, debt vs a bond index, gold/PPF
 vs none) the betas measure sensitivity to different market factors and cannot be
-summed. Per-fund benchmarks (`data/vro_funds.csv`, `data/fund_catalog.csv`) are
+summed. Per-fund benchmarks (`data/funds/vro_funds.csv`, `data/funds/fund_catalog.csv`) are
 therefore used only for **per-fund CAPM validation** against external authorities,
-not for the portfolio number. See the fund catalog in `data/fund_catalog.csv`
+not for the portfolio number. See the fund catalog in `data/funds/fund_catalog.csv`
 (which benchmarks are freely sourceable) and the KANBAN fund-catalog thread.
 
 ### SGB valuation: hold-to-maturity by default
