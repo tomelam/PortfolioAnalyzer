@@ -105,7 +105,7 @@ tests/_tmp/
 # Runtime CLI output cache (main.py --output-dir defaults here)
 /outputs/
 # Combined-summary CSV produced by `make summary` / scripts/run_all_metrics_to_csv.sh
-/portfolio_metrics.csv
+/reports/
 # Render destination for scripts/plot_all.sh
 /plots/
 

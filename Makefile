@@ -3,12 +3,12 @@
 # Targets:
 #   make all       — render PNG + CSV for every portfolio in $(PORT_DIR),
 #                    incrementally (only when missing or older than its TOML)
-#   make summary   — one combined CSV at portfolio_metrics.csv
+#   make summary   — one combined CSV at reports/portfolio_metrics.csv
 #   make rerender  — force-rebuild every PNG + CSV regardless of mtime
 #                    (preserves any other files in outputs/; only the targets
 #                    are overwritten)
 #   make outputs/<name>.png   — render just that one portfolio
-#   make clean     — remove only the summary CSV (portfolio_metrics.csv).
+#   make clean     — remove only the summary CSV (reports/portfolio_metrics.csv).
 #                    NEVER touches outputs/ — historical renders are
 #                    expensive to recompute (mfapi round-trips) and the
 #                    user often wants to keep them for comparison.
@@ -29,6 +29,7 @@
 
 PA       ?= ./venv/bin/portfolio-analyzer
 PORT_DIR ?= examples/port
+REPORT   ?= reports/portfolio_metrics.csv
 CONFIG   ?= tests/fixtures/golden_master_config.toml
 ARGS     ?=
 
@@ -47,8 +48,8 @@ help:
 	@echo "PortfolioAnalyzer Makefile targets:"
 	@echo "  make all       — render PNG + CSV for every $(PORT_DIR)/*.toml ($(words $(PORTFOLIOS)) found, incremental)"
 	@echo "  make rerender  — force-rebuild every PNG + CSV (preserves other files in outputs/)"
-	@echo "  make summary   — one combined CSV at portfolio_metrics.csv"
-	@echo "  make clean     — remove portfolio_metrics.csv only (outputs/ is preserved)"
+	@echo "  make summary   — one combined CSV at $(REPORT)"
+	@echo "  make clean     — remove $(REPORT) only (outputs/ is preserved)"
 	@echo "  make distclean — remove outputs/ wholesale (asks for confirmation)"
 	@echo "  make outputs/<name>.png  — render just one"
 	@echo
@@ -71,9 +72,9 @@ outputs/%.png: $(PORT_DIR)/%.toml
 		$(ARGS) \
 		$<
 
-summary: portfolio_metrics.csv
+summary: $(REPORT)
 
-portfolio_metrics.csv: $(PORTFOLIOS)
+$(REPORT): $(PORTFOLIOS)
 	scripts/run_all_metrics_to_csv.sh -o $@
 
 # Force-rebuild every PNG + CSV without deleting outputs/. Other files
@@ -84,9 +85,9 @@ rerender:
 	$(MAKE) -B all
 
 clean:
-	rm -f portfolio_metrics.csv
+	rm -f $(REPORT)
 
 distclean:
 	@printf "This will rm -rf outputs/ (every cached PNG + CSV). Continue? [y/N] " && \
 		read ans && [ "$$ans" = "y" ] || [ "$$ans" = "Y" ] || { echo "Aborted."; exit 1; }
-	rm -rf outputs/ portfolio_metrics.csv
+	rm -rf outputs/ $(REPORT)
