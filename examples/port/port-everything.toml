@@ -55,10 +55,7 @@ tranche_id = "2020-21-VII"
 units_grams = 1
 allocation = 0.05
 
-# SCSS carries the full 10% fixed-coupon-bond sleeve: the REC 54EC bond
-# this portfolio used to model matured and was redeemed to cash, and REC
-# support was dropped (it was modelled identically to SCSS — same
-# perpetual-compounding machinery — so it demonstrated nothing SCSS doesn't).
+# SCSS carries the full 10% fixed-coupon-bond sleeve.
 [scss]
 name = "Senior Citizen Savings Scheme"
 allocation = 0.10

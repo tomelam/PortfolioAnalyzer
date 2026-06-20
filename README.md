@@ -20,6 +20,11 @@ This repository contains the Portfolio Analyzer application. It fetches historic
   - Uses gold futures (GCJ5) manually downloaded as CSV from [https://www.investing.com/commodities/gold-historical-data](https://www.investing.com/commodities/gold-historical-data) and stored in the file `"data/reference/Gold Futures Historical Data.csv"`. It is difficult to source the gold spot price for free, but gold futures front-month contracts closely approximate the gold spot price, especially as the contract nears expiration. This is why PortfolioAnalyzer uses the gold futures front-month contract price as a proxy for the gold spot price.
   - Uses benchmark historical data from [niftyindices.com](https://www.niftyindices.com) or [investing.com](https://investing.com) (deprecated).
   - Aligns data to a common date range across all data sources.
+  - **Note — REC 54EC capital-gains bonds are no longer supported.** They were
+    removed because the user has no further use for a REC bond (the holding
+    matured and was redeemed to cash). They had been modelled identically to
+    SCSS — the same fixed-coupon-bond machinery — so SCSS now covers that sleeve
+    and nothing is lost. Do not re-add REC support.
 
 - **Portfolio Metrics Calculation:**  
   - Computes annualized return, volatility, Sharpe ratio, Sortino ratio.
