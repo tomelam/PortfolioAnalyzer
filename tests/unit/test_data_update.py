@@ -30,6 +30,13 @@ NIFTY_TRI_FIXTURE = (
     Path(__file__).resolve().parent.parent / "fixtures" / "api_responses" / "nifty_tri.json"
 ).read_text()
 
+# LBMA Gold Price PM JSON sample (mirrors the real schema: a JSON array of
+# {"d": date, "v": [USD, GBP, EUR]}; includes an old EUR-null row and a final
+# USD-null row to exercise the USD-column drop).
+LBMA_GOLD_FIXTURE = (
+    Path(__file__).resolve().parent.parent / "fixtures" / "api_responses" / "gold_lbma_pm.json"
+).read_text()
+
 
 class _FakeResp:
     def __init__(self, text, status=200):
@@ -97,6 +104,36 @@ def test_parse_niftyindices_unexpected_columns_raises():
         du.parse_niftyindices_tri_json(json.dumps({"d": inner}))
 
 
+def test_parse_lbma_gold_json():
+    df = du.parse_lbma_gold_json(LBMA_GOLD_FIXTURE)
+    assert list(df.columns) == ["value"]
+    assert df.index.name == "date"
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert df.index.is_monotonic_increasing
+    # The USD column (v[0]) is taken; the final USD-null row is dropped, so 6→5.
+    assert len(df) == 5
+    assert df.loc[pd.Timestamp("2026-06-19"), "value"] == pytest.approx(4150.9)
+    # The oldest row (EUR null but USD present) survives.
+    assert df.loc[pd.Timestamp("1968-04-01"), "value"] == pytest.approx(37.7)
+
+
+def test_parse_lbma_gold_not_json_raises():
+    # An HTML error / rate-limit page must surface as a failed fetch, not silence.
+    with pytest.raises(ValueError, match="not JSON"):
+        du.parse_lbma_gold_json("<html>Access denied</html>")
+
+
+def test_parse_lbma_gold_empty_raises():
+    with pytest.raises(ValueError, match="zero records"):
+        du.parse_lbma_gold_json("[]")
+
+
+def test_parse_lbma_gold_all_usd_null_raises():
+    body = json.dumps([{"d": "2026-06-19", "v": [None, 1.0, 2.0]}])
+    with pytest.raises(ValueError, match="zero rows"):
+        du.parse_lbma_gold_json(body)
+
+
 def test_niftyindices_body_shape():
     """The POST body wraps a single-quoted cinfo JSON string with the dates."""
     body = du._niftyindices_body("NIFTY 50", "10-Jun-2026", "12-Jun-2026")
@@ -142,6 +179,14 @@ def test_fetch_fred_series_mocked():
     df = du.fetch_fred_series("INDIRLTLT01STM", session=sess)
     assert len(df) == 3
     assert "INDIRLTLT01STM" in sess.calls[0]
+
+
+def test_fetch_lbma_gold_mocked():
+    sess = _FakeSession(LBMA_GOLD_FIXTURE)
+    df = du.fetch_lbma_gold(session=sess)
+    assert len(df) == 5  # USD-null row dropped
+    assert "lbma" in sess.calls[0].lower()
+    assert df["value"].iloc[-1] == pytest.approx(4150.9)
 
 
 # --- writer round-trips through the real loader ----------------------------
@@ -299,9 +344,68 @@ def _bench_source(tmp_path, fetch):
     )
 
 
+def _gold_source(tmp_path, fetch):
+    """A gold-like source: business-day cadence, NOT day-gated (clean public
+    JSON feed, no ban risk), mirroring REGISTRY['gold_lbma']."""
+    return du.DataSource(
+        name="gold",
+        target_path=str(tmp_path / "gold_lbma_usd_daily.csv"),
+        fetch=fetch,
+        out_date_col="Date",
+        out_value_col="Close",
+        out_date_format="%Y-%m-%d",
+        cadence="business_day",
+        day_gated=False,
+        affects="gold and SGB valuation",
+        label="LBMA Gold Price PM (USD/oz)",
+    )
+
+
 def test_source_for_path_matches_by_basename():
     assert du.source_for_path("whatever/INDIRLTLT01STM.csv") is du.REGISTRY["risk_free_fred"]
+    assert du.source_for_path("x/gold_lbma_usd_daily.csv") is du.REGISTRY["gold_lbma"]
     assert du.source_for_path("data/does-not-exist.csv") is None
+
+
+def test_gold_registry_entry_is_business_day_not_gated():
+    src = du.REGISTRY["gold_lbma"]
+    assert src.cadence == "business_day"
+    assert src.day_gated is False  # clean public JSON ⇒ no once-per-day guard
+    assert src.out_value_col == "Close"  # gold loader's price-column detection
+    assert "USD" in src.label
+
+
+def test_gold_refreshes_when_behind(tmp_path, monkeypatch):
+    """A gold file behind the business-day frontier is refreshed (business_day,
+    not day-gated)."""
+    monkeypatch.setattr(du, "STAMP_FILE", str(tmp_path / ".s.json"))
+    target = tmp_path / "gold_lbma_usd_daily.csv"
+    target.write_text("Date,Close\n2026-06-01,4000\n")  # June 1 < June 12 frontier
+    monkeypatch.setattr(
+        du,
+        "REGISTRY",
+        {"gold": _gold_source(tmp_path, lambda session=None: du.parse_lbma_gold_json(LBMA_GOLD_FIXTURE))},
+    )
+    res = du.ensure_source_current("gold", today="2026-06-15")
+    assert res["status"] == "refreshed"
+    assert res["affects"] == "gold and SGB valuation"
+
+
+def test_gold_blocks_when_stale(tmp_path, monkeypatch):
+    """An unreachable LBMA feed leaves gold stale (the block gate stops the run
+    unless --allow-stale), preserving the existing file."""
+    monkeypatch.setattr(du, "STAMP_FILE", str(tmp_path / ".s.json"))
+    target = tmp_path / "gold_lbma_usd_daily.csv"
+    target.write_text("Date,Close\n2026-06-01,4000\n")
+
+    def _boom(session=None):
+        raise RuntimeError("LBMA unreachable")
+
+    monkeypatch.setattr(du, "REGISTRY", {"gold": _gold_source(tmp_path, _boom)})
+    res = du.ensure_source_current("gold", today="2026-06-15")
+    assert res["status"] == "stale"
+    assert "Could not refresh" in res["message"]
+    assert target.exists()  # existing data preserved
 
 
 def test_ensure_current_when_local_meets_cadence(tmp_path, monkeypatch):

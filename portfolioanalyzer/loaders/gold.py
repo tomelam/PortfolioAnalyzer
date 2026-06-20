@@ -1,15 +1,18 @@
-"""Load monthly gold spot prices from a CSV.
+"""Load daily gold spot prices from a CSV.
 
 Returns a ``pd.Series`` named ``"price"`` indexed by date so the result
 slots directly into ``main.py``'s ``nav_inputs`` dict alongside the
 mutual-fund Series.
 
-Unit caveat: ``data/reference/gold_monthly_inr.csv`` stores prices in **INR per
-troy ounce** despite the ambiguous "Spot Price" column header. For
-relative-returns analysis (the existing main.py path) the units cancel
-in normalization and the value doesn't matter. For absolute valuation
-(the new SGB engine — where you multiply by ``units_grams``), call
-``load_gold_prices_per_gram`` to get the per-gram series.
+Unit caveat: ``data/reference/gold_lbma_usd_daily.csv`` stores prices in **USD per
+troy ounce** (the LBMA Gold Price PM fix, auto-refreshed via
+``loaders.data_update``). USD is used unconverted: the analyzer reports only
+normalized returns, and a time-varying USD/INR path would inject rupee/RBI
+dynamics into gold's measured return (a constant unit cancels; a varying FX
+path does not). For relative-returns analysis (the main.py path) the units
+cancel in normalization anyway. For absolute valuation (the SGB engine — where
+you multiply by ``units_grams``), call ``load_gold_prices_per_gram`` to get the
+**USD-per-gram** series.
 """
 
 from __future__ import annotations
@@ -20,8 +23,10 @@ import pandas as pd
 
 GRAMS_PER_TROY_OUNCE = 31.1034768
 
+DEFAULT_GOLD_CSV = "data/reference/gold_lbma_usd_daily.csv"
 
-def load_gold_prices(csv_path: str = "data/reference/gold_monthly_inr.csv") -> pd.Series:
+
+def load_gold_prices(csv_path: str = DEFAULT_GOLD_CSV) -> pd.Series:
     """Read a gold-price CSV and return a sorted Series of float prices.
 
     Raises:
@@ -64,11 +69,11 @@ def load_gold_prices(csv_path: str = "data/reference/gold_monthly_inr.csv") -> p
     return series
 
 
-def load_gold_prices_per_gram(csv_path: str = "data/reference/gold_monthly_inr.csv") -> pd.Series:
-    """Return the same series as :func:`load_gold_prices` but in **INR per gram**.
+def load_gold_prices_per_gram(csv_path: str = DEFAULT_GOLD_CSV) -> pd.Series:
+    """Return the same series as :func:`load_gold_prices` but in **USD per gram**.
 
     Wraps the underlying CSV's per-troy-ounce values with a single
-    documented division so callers doing absolute-INR valuation (the
+    documented division so callers doing absolute valuation (the
     SGB engine, P&L reports, position sizing) don't have to remember
     the magic constant.
     """

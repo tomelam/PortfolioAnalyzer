@@ -19,8 +19,8 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 │  - mutual_fund_loader        │  mfapi.in JSON (live)
 │  - ppf_loader                │  static rate CSV → synthetic CIV
 │  - scss_loader               │  NSI HTML scrape → synthetic CIV
-│  - sgb_holdings + sgb_tranches│ per-tranche CIV from IBJA gold spot
-│  - gold_loader               │  monthly INR CSV
+│  - sgb_holdings + sgb_tranches│ per-tranche CIV from LBMA gold spot
+│  - gold_loader               │  daily LBMA USD/oz CSV (auto-refreshed)
 │  - benchmark_loader          │  NIFTY Total Return CSV
 │  - risk_free_loader          │  India 10Y bond CSV → daily series
 └──────────────┬───────────────┘
@@ -72,7 +72,7 @@ points are `./pa` and `python -m portfolioanalyzer.main`.
 | `drawdowns_csv.py` | Per-drawdown sibling CSV writer |
 | `sgb_holdings.py` | Per-tranche SGB valuation: `sgb_holding_civ(tranche, grams, gold)` |
 | `sgb_tranches.py` | SGB tranche reference data + lookup API |
-| `loaders/gold.py` | Monthly INR/troy-ounce CSV → per-gram price series |
+| `loaders/gold.py` | Daily LBMA USD/troy-ounce CSV → per-gram price series (auto-refreshed) |
 | `visualizer.py` | Matplotlib plotting + drawdown printout; embeds PNG `tEXt` metadata + provenance footnote |
 | `output_metadata.py` | Pure formatters for the metrics block / provenance / PNG `tEXt` payload |
 | `utils.py` | `info` / `dbg` / `to_cutoff_date` |
@@ -123,9 +123,9 @@ together fix the two CIV bugs Phase D shook out:
    (a mutual fund) regardless of intended weight.
 2. **Reindex every asset onto a common business-day calendar with ffill before
    joining.** A plain `pd.concat(join="inner")` collapses the portfolio CIV
-   to the *intersection* of dates — effectively monthly when gold or PPF is
-   present — and the daily `sqrt(252)` annualization downstream then
-   over-states volatility ~10×.
+   to the *intersection* of dates — sparse when a coarse-grained asset like PPF
+   is present (gold is now daily) — and the daily `sqrt(252)` annualization
+   downstream then over-states volatility ~10×.
 
 Two TDD test files pin these contracts:
 `tests/unit/test_portfolio_civ_normalization.py` and
@@ -160,15 +160,19 @@ per-period rate.
 
 ### Data freshness as a correctness invariant
 
-The program's job is correct metrics. Stale **reference** data (the benchmark
-and the risk-free rate) silently corrupts results — a stale benchmark skews
-alpha/beta, a stale risk-free skews Sharpe/Sortino/alpha — so freshness is not
-a user-tunable policy; it is an invariant the program defends. The model:
+The program's job is correct metrics. Stale **reference** data (the benchmark,
+the risk-free rate, and — for gold/SGB-bearing portfolios — the gold price)
+silently corrupts results — a stale benchmark skews alpha/beta, a stale
+risk-free skews Sharpe/Sortino/alpha, a stale gold price freezes gold/SGB
+valuation — so freshness is not a user-tunable policy; it is an invariant the
+program defends. The model:
 
-- **Scope = reference data only.** Benchmark (NIFTY TRI) and risk-free (FRED)
-  are the auto-refreshable upstream feeds. Mutual-fund NAVs are fetched live
-  every run, so they are current by construction. Gold/PPF are manual CSVs
-  with no feed to pull — they can only warn, never block.
+- **Scope = reference data only.** Benchmark (NIFTY TRI), risk-free (FRED), and
+  gold (LBMA Gold Price) are the auto-refreshable upstream feeds; the gold feed
+  is only gated for portfolios that actually hold gold or SGBs. Mutual-fund NAVs
+  are fetched live every run, so they are current by construction. PPF is a
+  manual CSV with no feed to pull (and sparse by design — one row per rate
+  change), so it can only warn, never block.
 - **Block by default.** If the program cannot certify the reference data is
   current, it stops rather than print degraded metrics. The single override is
   `--allow-stale`, which proceeds after printing a warning that names the
@@ -305,12 +309,18 @@ not for the portfolio number. See the fund catalog in `data/funds/fund_catalog.c
 
 Sovereign Gold Bonds are modelled per tranche (each tranche is a distinct
 investment) as `units × gold_per_gram(t) + Σ(coupons paid ≤ t)` — i.e. marked to
-IBJA gold spot plus accrued coupons (`sgb_holdings.sgb_holding_civ`). For the
-holdings and analysis windows we care about, this **is** the hold-to-maturity
-(HTM) valuation, and HTM is the default everywhere SGBs appear (plots, charts,
-metric tables). Premature-redemption pricing — substituting RBI's announced
-pre-redemption price on the redemption date for the gold-spot proxy — is
-**intentionally deferred** (low current value); until it lands, SGBs are always
-valued HTM. The terminal maturity pin (RBI's last-week-average maturity price)
-only bites at the 8-year mark, which none of the modelled tranches has reached,
-so the gold-spot proxy and the HTM value coincide within the current window.
+gold spot (the LBMA Gold Price, USD/gram) plus accrued coupons
+(`sgb_holdings.sgb_holding_civ`). For the holdings and analysis windows we care
+about, this **is** the hold-to-maturity (HTM) valuation, and HTM is the default
+everywhere SGBs appear (plots, charts, metric tables). The HTM mark is thus
+USD-gold capital plus the bond's small INR coupon sliver.
+
+Premature-redemption pricing — substituting RBI's announced pre-redemption
+price (an **INR**, IBJA-3-day-average figure — the contractual cash value, for
+which the Indian source is correct) on the redemption date for the gold-spot
+proxy — is **intentionally deferred** (low current value) to *Part B* of the
+gold-source work, where it will be kept as a co-equal INR view *alongside* the
+HTM mark (neither is "default"). Until it lands, SGBs are always valued HTM. The
+terminal maturity pin (RBI's last-week-average maturity price) only bites at the
+8-year mark, which none of the modelled tranches has reached, so the gold-spot
+proxy and the HTM value coincide within the current window.

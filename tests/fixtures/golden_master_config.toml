@@ -16,3 +16,7 @@
 # the repo root (main.py runs with cwd=REPO_ROOT).
 benchmark_returns_file = "tests/golden/replay/reference/NIFTY Total Returns Historical Data.csv"
 risk_free_rates_file   = "tests/golden/replay/reference/INDIRLTLT01STM.csv"
+# Gold is now an auto-refreshed reference source too (LBMA Gold Price, USD/oz,
+# daily), so pin it to a frozen copy for the gold/SGB-bearing goldens — same
+# reasoning as the two above. Re-copy on re-capture.
+gold_prices_file       = "tests/golden/replay/reference/gold_lbma_usd_daily.csv"

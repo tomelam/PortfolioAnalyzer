@@ -27,28 +27,32 @@ from portfolioanalyzer.utils import (
 from portfolioanalyzer.visualizer import plot_cumulative_returns, print_major_drawdowns
 
 
-def _reference_paths(settings):
-    """The reference CSVs in use this run (benchmark — if enabled — + risk-free)."""
+def _reference_paths(settings, portfolio_dict):
+    """The reference CSVs in use this run: benchmark (if enabled) + risk-free,
+    plus the gold price series when the portfolio actually holds gold or SGBs
+    (both are valued off it). Only gold-bearing runs gate on the gold feed."""
     paths = []
     if settings.get("use_benchmark"):
         paths.append(settings["benchmark_file"])
     paths.append(settings["risk_free_rates_file"])
+    if "gold" in portfolio_dict or "sgb" in portfolio_dict:
+        paths.append(settings["gold_prices_file"])
     return paths
 
 
-def _enforce_reference_freshness(settings):
+def _enforce_reference_freshness(settings, portfolio_dict):
     """Refresh stale reference feeds and enforce the block-by-default gate.
 
-    Refreshes the benchmark / risk-free sources that are behind their cadence
-    (status messages go to stderr) and — for any source that could not be
-    certified current — either blocks the run (naming the degraded metrics) or,
-    under ``--allow-stale``, warns and proceeds. Provenance is reported
+    Refreshes the benchmark / risk-free / gold sources that are behind their
+    cadence (status messages go to stderr) and — for any source that could not
+    be certified current — either blocks the run (naming the degraded metrics)
+    or, under ``--allow-stale``, warns and proceeds. Provenance is reported
     separately by :func:`_report_reference_provenance` so it also rides every
     deterministic run and the PNG output.
     """
     from portfolioanalyzer.loaders.data_update import ensure_reference_data_fresh
 
-    results = ensure_reference_data_fresh(_reference_paths(settings))
+    results = ensure_reference_data_fresh(_reference_paths(settings, portfolio_dict))
     for r in results:
         if r["message"]:
             info(r["message"])
@@ -73,12 +77,12 @@ def _enforce_reference_freshness(settings):
         )
 
 
-def _report_reference_provenance(settings):
+def _report_reference_provenance(settings, portfolio_dict):
     """Read the reference-feed provenance (all run modes), echo it to stderr for
     the run log, and return it for embedding in the PNG snapshot."""
     from portfolioanalyzer.loaders.data_update import reference_provenance
 
-    provenance = reference_provenance(_reference_paths(settings))
+    provenance = reference_provenance(_reference_paths(settings, portfolio_dict))
     if provenance:
         from portfolioanalyzer import output_metadata as om
 
@@ -86,33 +90,6 @@ def _report_reference_provenance(settings):
         for line in om.format_provenance(provenance).splitlines():
             info(f"   {line}")
     return provenance
-
-
-def _warn_manual_sources(portfolio_dict):
-    """Surface staleness of hand-maintained, feedless data files the portfolio
-    actually uses. Warn-only: these have no upstream feed to auto-refresh, so the
-    remedy is the user updating the CSV (see docs/DATA_REFRESH.md).
-
-    Only **gold** is checked: it is a genuine monthly price series, so a cadence
-    gap means real staleness. PPF is deliberately *not* cadence-checked — its CSV
-    is sparse by design (one row per rate *change*), so a months-old last entry
-    just means the rate is unchanged and correctly carried forward, not stale.
-    """
-    if not ("gold" in portfolio_dict or "sgb" in portfolio_dict):
-        return  # portfolio doesn't touch gold-priced assets
-    from portfolioanalyzer.loaders.data_update import manual_staleness_warning
-    from portfolioanalyzer.loaders.gold import load_gold_prices
-
-    last = load_gold_prices().index.max()
-    warning = manual_staleness_warning(
-        "Gold prices (data/reference/gold_monthly_inr.csv)",
-        last,
-        cadence="month",
-        affects="gold and SGB valuation",
-        refresh_hint="Refresh the monthly CSV — see docs/DATA_REFRESH.md.",
-    )
-    if warning:
-        info(warning)
 
 
 def main(settings):
@@ -132,20 +109,18 @@ def main(settings):
             info(f"  {k}: {v}")
 
     # --- data-freshness invariant ------------------------------------------
-    # Stale reference data (benchmark, risk-free) silently corrupts metrics,
-    # so freshness is enforced rather than advised: a source behind its
+    # Stale reference data (benchmark, risk-free, and — for gold/SGB-bearing
+    # portfolios — the LBMA gold price) silently corrupts metrics, so freshness
+    # is enforced rather than advised: a source behind its
     # publication cadence is refreshed before computing, and one that cannot
     # be certified current BLOCKS the run — unless --allow-stale. Deterministic
     # modes (--as-of / --replay-from) opt out cleanly: data pinned through the
     # as-of date is current as of that date, so they neither fetch nor block.
     deterministic = settings.get("as_of") is not None or settings.get("replay_from")
     if not deterministic:
-        _enforce_reference_freshness(settings)
-        # Feedless manual sources (gold) can't be auto-refreshed or blocked on —
-        # warn if stale. Skipped in deterministic modes, where data is pinned.
-        _warn_manual_sources(portfolio_dict)
+        _enforce_reference_freshness(settings, portfolio_dict)
     # Provenance is echoed to stderr in every mode and embedded in the PNG.
-    reference_provenance = _report_reference_provenance(settings)
+    reference_provenance = _report_reference_provenance(settings, portfolio_dict)
 
     benchmark_returns_series = None
     if settings.get("use_benchmark"):
@@ -209,7 +184,7 @@ def main(settings):
         from portfolioanalyzer.loaders.gold import load_gold_prices_per_gram
         from portfolioanalyzer.sgb_holdings import sgb_holding_civ
 
-        gold_per_gram = load_gold_prices_per_gram()
+        gold_per_gram = load_gold_prices_per_gram(settings["gold_prices_file"])
         for entry in portfolio_dict["sgb"]:
             asset_name = f"SGB {entry['tranche_id']}"
             sgb_series_by_tranche[asset_name] = sgb_holding_civ(
@@ -221,7 +196,7 @@ def main(settings):
     if "gold" in portfolio_dict:
         from portfolioanalyzer.loaders.gold import load_gold_prices
 
-        gold_series = load_gold_prices()
+        gold_series = load_gold_prices(settings["gold_prices_file"])
 
     # --as-of YYYY-MM-DD: trim every loaded series to <= as_of so the
     # downstream math (CIV, returns, metrics, drawdowns) is bit-stable
@@ -821,6 +796,13 @@ def build_settings(args, config: dict) -> dict:
             "benchmark_returns_file", "data/reference/NIFTY Total Returns Historical Data.csv"
         ),
         "benchmark_date_format": config.get("benchmark_date_format", "%m/%d/%Y"),
+        # Gold price series (LBMA Gold Price PM fix, USD/oz, daily) — auto-
+        # refreshed via loaders.data_update and block-gated like the other
+        # reference feeds for gold/SGB-bearing portfolios. Config may repoint it
+        # (the golden replay pins it to a frozen copy for determinism).
+        "gold_prices_file": config.get(
+            "gold_prices_file", "data/reference/gold_lbma_usd_daily.csv"
+        ),
         "riskfree_date_format": config.get("riskfree_date_format", "%Y-%m-%d"),
         # --as-of YYYY-MM-DD pins the evaluation date for determinism;
         # parsed once here so downstream code sees a Timestamp, not a str.

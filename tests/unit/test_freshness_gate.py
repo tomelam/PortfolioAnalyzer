@@ -19,6 +19,7 @@ def _settings(**over):
         "use_benchmark": True,
         "benchmark_file": "data/reference/NIFTY Total Returns Historical Data.csv",
         "risk_free_rates_file": "data/reference/INDIRLTLT01STM.csv",
+        "gold_prices_file": "data/reference/gold_lbma_usd_daily.csv",
         "allow_stale": False,
     }
     s.update(over)
@@ -35,7 +36,7 @@ def test_gate_passes_when_all_current(monkeypatch, capsys):
         {"name": "risk_free_fred", "status": "current", "message": "", "affects": "Sharpe, Sortino, alpha"},
     ]
     _patch_results(monkeypatch, results)
-    main._enforce_reference_freshness(_settings())  # must not raise
+    main._enforce_reference_freshness(_settings(), {})  # must not raise
     # status messages ride on stderr, keeping stdout clean for the report
     assert "🔄 fresh" in capsys.readouterr().err
 
@@ -47,7 +48,7 @@ def test_report_provenance_echoes_to_stderr_and_returns(monkeypatch, capsys):
          "attempted_at": "2026-06-17T14:00:00+00:00"},
     ]
     monkeypatch.setattr(du, "reference_provenance", lambda paths: prov)
-    out = main._report_reference_provenance(_settings())
+    out = main._report_reference_provenance(_settings(), {})
     assert out == prov
     captured = capsys.readouterr()
     assert "FRED India 10Y (risk-free)" in captured.err and "last 2026-05-01" in captured.err
@@ -60,7 +61,7 @@ def test_gate_blocks_on_stale_by_default(monkeypatch):
     ]
     _patch_results(monkeypatch, results)
     with pytest.raises(RuntimeError, match="stale and could not be refreshed"):
-        main._enforce_reference_freshness(_settings())
+        main._enforce_reference_freshness(_settings(), {})
 
 
 def test_gate_block_message_names_degraded_metrics(monkeypatch):
@@ -70,7 +71,7 @@ def test_gate_block_message_names_degraded_metrics(monkeypatch):
     ]
     _patch_results(monkeypatch, results)
     with pytest.raises(RuntimeError) as exc:
-        main._enforce_reference_freshness(_settings())
+        main._enforce_reference_freshness(_settings(), {})
     msg = str(exc.value)
     # de-duplicated union of affected metrics across both stale sources
     for metric in ("Sharpe", "Sortino", "alpha", "beta"):
@@ -83,7 +84,7 @@ def test_allow_stale_proceeds_with_warning(monkeypatch, capsys):
         {"name": "risk_free_fred", "status": "stale", "message": "", "affects": "Sharpe, Sortino, alpha"},
     ]
     _patch_results(monkeypatch, results)
-    main._enforce_reference_freshness(_settings(allow_stale=True))  # must not raise
+    main._enforce_reference_freshness(_settings(allow_stale=True), {})  # must not raise
     err = capsys.readouterr().err
     assert "--allow-stale" in err and "Degraded metrics" in err
     assert "Sharpe" in err
@@ -97,5 +98,27 @@ def test_benchmark_path_omitted_when_use_benchmark_false(monkeypatch):
         return []
 
     monkeypatch.setattr(du, "ensure_reference_data_fresh", _capture)
-    main._enforce_reference_freshness(_settings(use_benchmark=False))
+    main._enforce_reference_freshness(_settings(use_benchmark=False), {})
     assert seen["paths"] == ["data/reference/INDIRLTLT01STM.csv"]  # no benchmark path
+
+
+def test_gold_path_gated_only_for_gold_or_sgb_portfolios(monkeypatch):
+    """The gold feed is appended (and thus block-gated) only when the portfolio
+    actually holds gold or SGBs; other portfolios never touch it."""
+    seen = {}
+
+    def _capture(paths):
+        seen["paths"] = list(paths)
+        return []
+
+    monkeypatch.setattr(du, "ensure_reference_data_fresh", _capture)
+    gold_csv = "data/reference/gold_lbma_usd_daily.csv"
+
+    main._enforce_reference_freshness(_settings(), {"funds": []})
+    assert gold_csv not in seen["paths"]  # no gold/sgb ⇒ not gated
+
+    main._enforce_reference_freshness(_settings(), {"gold": {}})
+    assert gold_csv in seen["paths"]  # gold present ⇒ gated
+
+    main._enforce_reference_freshness(_settings(), {"sgb": []})
+    assert gold_csv in seen["paths"]  # sgb present ⇒ gated (valued off gold)

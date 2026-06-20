@@ -15,12 +15,19 @@ import pandas as pd
 import pytest
 
 from portfolioanalyzer.loaders.gold import (
+    DEFAULT_GOLD_CSV,
     GRAMS_PER_TROY_OUNCE,
     load_gold_prices,
     load_gold_prices_per_gram,
 )
 
 FIXTURES = Path(__file__).resolve().parent.parent.parent / "fixtures" / "data"
+
+
+def test_default_path_is_lbma_usd_daily() -> None:
+    """The loader defaults to the auto-refreshed LBMA USD/oz daily CSV (the WGC
+    monthly-INR source was discontinued in March 2025)."""
+    assert DEFAULT_GOLD_CSV == "data/reference/gold_lbma_usd_daily.csv"
 
 
 def test_returns_series() -> None:
