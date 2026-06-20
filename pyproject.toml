@@ -11,7 +11,7 @@ authors = [{ name = "Tom Elam" }]
 readme = "README.md"
 
 dependencies = [
-    "pandas==2.2.3",
+    "pandas==3.0.3",
     "numpy==1.26.3",
     "requests==2.32.3",
     "toml==0.10.2",
