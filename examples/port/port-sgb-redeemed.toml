@@ -1,0 +1,15 @@
+label = "SGB (early-redeemed sample tranche)"
+
+# B2 holding-type schema: an early-redeemed SGB is a distinct holding type from
+# a hold-to-maturity one. valuation = "redeemed" exits the tranche at RBI's
+# announced premature-redemption price (₹/unit, looked up from
+# data/funds/sgb_redemptions.csv) on redemption_date, then carries the proceeds
+# flat as cash. redemption_date is optional when the tranche has exactly one
+# redemption on record; given here for clarity. Compare against port-sgb.toml
+# (the same family valued hold-to-maturity).
+[[sgb]]
+tranche_id = "2020-21-VII"
+units_grams = 1
+allocation = 1.00
+valuation = "redeemed"
+redemption_date = "2026-04-20"

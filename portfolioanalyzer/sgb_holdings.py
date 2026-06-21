@@ -41,6 +41,24 @@ from portfolioanalyzer.sgb_tranches import lookup_tranche
 _MONTHS_BETWEEN_COUPONS = 6
 
 
+def sgb_asset_label(entry: dict) -> str:
+    """Portfolio-asset label for one ``[[sgb]]`` entry.
+
+    Hold-to-maturity holdings keep the bare ``SGB <tranche_id>`` label
+    (unchanged, so existing outputs/goldens are byte-identical). An
+    early-redeemed holding is labelled distinctly so it reads as its own asset
+    and never collides — by weight key — with an HTM holding of the same tranche
+    in the same portfolio (the side-by-side comparison case). Pure function of
+    the entry dict: the label must be identical wherever it is computed
+    (``extract_weights`` and ``main.py``), so it never reads the redemption CSV.
+    """
+    tid = entry["tranche_id"]
+    if entry.get("valuation", "htm") == "redeemed":
+        when = entry.get("redemption_date")
+        return f"SGB {tid} (redeemed {when})" if when else f"SGB {tid} (redeemed)"
+    return f"SGB {tid}"
+
+
 def coupon_schedule(issue_date: dt.date, maturity_date: dt.date) -> list[dt.date]:
     """Return the ordered list of coupon-payment dates for one tranche.
 
@@ -79,6 +97,8 @@ def sgb_holding_civ(
     units_grams: float,
     gold_prices: pd.Series,
     fx_inr_per_usd: pd.Series,
+    redemption_date: dt.date | None = None,
+    redemption_inr_per_gram: float | None = None,
 ) -> pd.Series:
     """Daily CIV series for one SGB-tranche holding, **entirely in USD**.
 
@@ -90,6 +110,21 @@ def sgb_holding_civ(
     single consistent USD series. FX touches only the discrete coupon cash
     amounts, never the gold price path (the sanctioned "contractual cash value"
     FX exception).
+
+    Two holding types are modelled (the B2 design):
+
+    - **Hold-to-maturity (default)** — ``redemption_*`` unset. The capital leg
+      tracks gold spot for the whole window; coupons accrue on schedule.
+    - **Early-redeemed** — ``redemption_date`` + ``redemption_inr_per_gram`` set.
+      The holding behaves as HTM up to ``redemption_date``; on that date the
+      holder exits at RBI's announced premature-redemption price (an *INR*,
+      IBJA-3-day-average figure — the contractual cash value, for which the
+      Indian source is correct), so from then on the CIV is **carried flat as
+      cash** at ``units_grams × redemption_inr_per_gram`` converted to USD at the
+      redemption date's USD/INR, **plus** the coupons received *through* that date
+      (coupon accrual freezes — there is no holding left to pay coupons on). This
+      INR→USD conversion of a fixed cash amount is the same sanctioned FX
+      exception as the coupons.
 
     Args:
         tranche_id: Composite tranche key, e.g. ``"2020-21-VII"``. Looked
@@ -103,15 +138,37 @@ def sgb_holding_civ(
         fx_inr_per_usd: USD/INR exchange rate (Indian Rupees per US Dollar,
             FRED ``DEXINUS``), datetime-indexed. Read as-of each coupon date
             (ffilled over weekends/holidays) to convert the rupee coupon to USD.
+        redemption_date: Premature-redemption date for an early-redeemed holding
+            (``None`` → hold-to-maturity).
+        redemption_inr_per_gram: RBI's announced ₹/unit premature-redemption
+            price on ``redemption_date`` (required iff ``redemption_date`` set).
 
     Returns:
         ``pd.Series`` of CIV values, daily-indexed, name ``"value"``.
+
+    Note:
+        The HTM **maturity pin** (terminal value pinned to RBI's last-week-average
+        maturity price at the 8-year mark) is not modelled: no tranche in scope
+        has reached maturity, so within the data window HTM coincides with the
+        gold-spot proxy. It becomes relevant only once price data runs past a
+        tranche's 2028 maturity.
     """
+    if (redemption_date is None) != (redemption_inr_per_gram is None):
+        raise ValueError(
+            "redemption_date and redemption_inr_per_gram must be given together"
+        )
+
     t = lookup_tranche(tranche_id)
     issue_date: dt.date = t["issue_date"]
     maturity_date: dt.date = t["maturity_date"]
     coupon_rate_pct: float = float(t["coupon_rate_pct"])
     issue_price_offline: float = float(t["issue_price_offline"])
+
+    if redemption_date is not None and redemption_date < issue_date:
+        raise ValueError(
+            f"tranche {tranche_id} redemption date {redemption_date} precedes "
+            f"its issue date {issue_date}"
+        )
 
     # Clip the window to [issue, min(maturity, gold_end)].
     gold_end = gold_prices.index.max().date()
@@ -130,21 +187,39 @@ def sgb_holding_civ(
 
     capital = units_grams * gold_window
 
+    fx = fx_inr_per_usd.sort_index()
+    redemption_ts = pd.Timestamp(redemption_date) if redemption_date is not None else None
+
+    # Early-redeemed capital leg: on/after the redemption date the holder is out
+    # of gold, holding the redemption proceeds as cash. Pin the capital flat at
+    # the RBI ₹/unit price converted to USD at the redemption date's USD/INR.
+    if redemption_ts is not None:
+        rate = fx.asof(redemption_ts)
+        if pd.isna(rate):
+            raise ValueError(
+                f"tranche {tranche_id}: no USD/INR rate on or before redemption "
+                f"date {redemption_date}; FX series starts {fx.index.min().date()}"
+            )
+        redemption_usd = units_grams * float(redemption_inr_per_gram) / rate
+        capital.loc[daily_idx >= redemption_ts] = redemption_usd
+
     # Cumulative coupons received as of each day, in USD. Each rupee coupon is
     # converted at its payment date's USD/INR rate (FX ffilled over non-trading
     # days via Series.asof), so coupons paid in different FX regimes contribute
     # different USD amounts — this is why we accumulate per-coupon rather than
-    # multiplying a flat amount by a running count.
+    # multiplying a flat amount by a running count. For an early-redeemed holding
+    # coupons stop at the redemption date (no holding left to pay them).
     schedule = coupon_schedule(issue_date, maturity_date)
     per_coupon_inr = coupon_amount_per_payment(
         units_grams=units_grams,
         issue_price_offline=issue_price_offline,
         coupon_rate_pct=coupon_rate_pct,
     )
-    fx = fx_inr_per_usd.sort_index()
     income = pd.Series(0.0, index=daily_idx)
     for d in schedule:
         ts = pd.Timestamp(d)
+        if redemption_ts is not None and ts > redemption_ts:
+            break  # schedule is ordered; no coupon accrues past redemption
         rate = fx.asof(ts)  # last USD/INR on or before the coupon date
         if pd.isna(rate):
             raise ValueError(

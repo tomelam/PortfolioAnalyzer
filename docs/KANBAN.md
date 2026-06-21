@@ -283,35 +283,36 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
     (pure `parse_search_prids`/`parse_redemption_pr` + `fetch_*` + `update_sgb_redemptions`
     upsert, event cadence, reuses `data_update` stamps). 13 unit tests + 1 live
     `-m network` test. Run on demand: `python -m portfolioanalyzer.loaders.sgb_redemptions`.
-  - [ ] **Phase 3 (valuation) — TODO.** `sgb_holding_civ` produces two series per
-    tranche (HTM vs redemption); the INR redemption price → USD via the same FRED
-    `DEXINUS` FX as the coupons, carrying proceeds flat as cash after maturity
-    (ties to the perpetual-compounding item above).
-  - [ ] **Phase 4 (co-equal output plumbing) — TODO.** Two co-equal views
-    (`-htm`/`-redemption`) in `main.py`/`visualizer.py`, neither default.
+  - [x] **Phase 3 (valuation) — DONE** (2026-06-21, branch
+    `sgb-redeemed-holding-type`). **Design change (user):** instead of a global
+    `-htm`/`-redemption` view toggle, an early-redeemed SGB is modelled as a
+    *distinct holding type* — a `[[sgb]]` entry carries `valuation = "redeemed"`
+    (default `"htm"`) + optional `redemption_date`. `sgb_holding_civ` gained
+    `redemption_date`/`redemption_inr_per_gram`: HTM up to the date, then exit at
+    the RBI ₹/unit price → USD via `DEXINUS`, carried flat as cash with coupon
+    accrual frozen. `loaders/sgb_redemptions.lookup_redemption` (fail-loud)
+    resolves the price; `sgb_holdings.sgb_asset_label` keeps weight/label in sync
+    across `data_loader.extract_weights` and `main.py`. HTM labels unchanged →
+    goldens byte-identical. Example `examples/port/port-sgb-redeemed.toml`.
+  - [x] **Phase 4 (output plumbing) — SUBSUMED by the Phase 3 design.** No
+    `-htm`/`-redemption` flag or second pipeline: each holding is already its own
+    weighted asset, so a portfolio holding the same tranche both ways shows the
+    two side by side. *Maturity (MAT) pin remains deferred* (dormant; no tranche
+    matured within the data window).
   - *Backfill gaps:* the committed seed is RBI's recent search page only. Older
     premature redemptions + maturity (MAT) redemptions remain to backfill (a
     re-run upserts; the master ledger `money-news/raw/sgb-master-ledger.md` lists
     a few, e.g. 2017-18 Series IV ₹12,704, 2019-20 Series VII ₹15,275).
 
-- [ ] **SGB hold-to-maturity vs redeemable subtypes — BACK BURNER** (user-raised
-  2026-06-18; deferred 2026-06-19 with the redemption-pricing item it depends on).
-  HTM is the default valuation in the meantime (above). Split the SGB asset type
-  into two valuation subtypes so a portfolio can model a holder's actual intent
-  per tranche:
-  - **hold-to-maturity (HTM)** — valued through to the 8-year maturity, with the
-    terminal value pinned to RBI's maturity redemption price (the average of the
-    last week's gold) rather than the single-day IBJA-spot proxy.
-  - **redeemable** — a tranche the holder intends to (or may) pre-redeem from the
-    5-year window onward; valued at the RBI-announced premature-redemption price
-    on the redemption date (the `sgb_redemptions.csv` mechanism in the item above).
-  The scheme no longer accepts new purchases, so the universe is fixed. For our
-  personal example we hold **2 tranches** (2019-20-IX, 2020-21-VII); crossed with
-  the 2 subtypes that yields **4 possible SGB-related asset types** for hypothetical
-  portfolios — letting us model, e.g., holding IX to maturity while pre-redeeming
-  VII early and compare the portfolio metrics under each combination. Builds on the
-  per-tranche "each tranche is a distinct investment" constraint (see Hygiene →
-  SGB Phase 1) and depends on the premature-redemption pricing item above.
+- [x] **SGB hold-to-maturity vs redeemable subtypes — DONE, folded into B2
+  Phase 3** (user-raised 2026-06-18; implemented 2026-06-21). The two valuation
+  subtypes are now the `valuation = "htm" | "redeemed"` discriminator on a
+  `[[sgb]]` entry (each holding already a distinct weighted asset), so a portfolio
+  can hold the same tranche both ways and compare the outcomes side by side — the
+  "4 possible SGB-related asset types" goal for our 2 held tranches. See B2 Phase 3
+  above. *Remaining sliver:* the HTM **maturity pin** (terminal value at the 8-yr
+  mark = RBI's last-week-average maturity price rather than the gold-spot proxy)
+  stays deferred — dormant until price data runs past a tranche's 2028 maturity.
 
 - [x] **Deleted `combined_daily_returns()`** (2026-06-17, cycle 4). And
   `civ_and_returns()` which was its only caller. Test churn:
