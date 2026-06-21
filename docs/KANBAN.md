@@ -226,8 +226,8 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   in `scripts/sgb_coupon_load_check.py`. Co-equal HTM/redemption views are **B2**
   (back-burner item below). Related: [[project-sgb-htm-default]].
 
-- [x] **SCSS valuation: term-locked rollover — DONE (2026-06-21, branch
-  `scss-term-locked-rollover`).** The original framing here ("perpetual
+- [x] **SCSS valuation: term-locked rollover — DONE + MERGED + PUSHED (2026-06-21,
+  merge `40fa38c`, branch `scss-term-locked-rollover`; on origin/main).** The original framing here ("perpetual
   compounding = bug; stop at maturity and carry principal as cash") was a
   **misdiagnosis**, corrected with the user: for asset/portfolio metrics
   **reinvestment must be assumed** — a matured SCSS sleeve falling to flat cash
