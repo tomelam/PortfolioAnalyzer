@@ -364,11 +364,8 @@ on). Because each `[[sgb]]` holding is already its own portfolio asset with its
 own weight and label (`SGB <tranche> (redeemed <date>)` vs the bare `SGB
 <tranche>` for HTM), a portfolio can hold the same tranche **both** ways and the
 report compares them side by side — no `-htm`/`-redemption` flag or second output
-pipeline. HTM stays the default everywhere it is not overridden. The terminal
-**maturity pin** (RBI's last-week-average maturity price at the 8-year mark) is
-still not modelled — no tranche in scope has matured, so HTM coincides with the
-gold-spot proxy within the data window; it becomes relevant only once price data
-runs past a tranche's 2028 maturity.
+pipeline. HTM stays the default everywhere it is not overridden. (The terminal
+**maturity pin** is a separate, deferred refinement — see below.)
 
 **B2 data layer.** The redemption-price *data* is ingested by
 `loaders/sgb_redemptions.py` into `data/funds/sgb_redemptions.csv` (`tranche_id,
@@ -383,3 +380,32 @@ endpoint, then parse each `BS_PressReleaseDisplay.aspx?prid=<N>`. This is an
 *event*-cadence table (irregular redemption dates, no calendar frontier), so it
 is a standalone loader rather than a cadence-gated `data_update` `DataSource`.
 See `docs/DATA_REFRESH.md` → *SGB redemption prices*.
+
+**Maturity pin (deferred, dormant).** At its **8-year maturity** an SGB is
+redeemed by RBI at a *contractual* price — the simple average of the closing
+999-gold price over the week (Mon–Fri) preceding maturity — **not** that single
+day's spot. The maturity pin would, at `maturity_date`, replace the daily
+gold-spot capital leg with this RBI **maturity** redemption price (`kind = MAT`
+in `sgb_redemptions.csv`), INR→USD via `DEXINUS`, and carry it flat as cash
+thereafter. It is the at-maturity twin of the early-redemption (`PRE`) path
+already built — same `sgb_holding_civ` mechanism, but triggered by the tranche's
+own `maturity_date` and a `MAT` row rather than a user-supplied `redemption_date`
+and a `PRE` row. Its only effect is *terminal-day accuracy*: the week-average
+contractual figure instead of one day's LBMA spot, on the very last day of an
+8-year series.
+
+It is **dormant on two counts** and so left unimplemented:
+
+1. *Out of window.* Every tranche in `data/funds/sgb_tranches.csv` is scoped to
+   Feb 2020+, so the earliest maturity is **2028**, beyond the end of the daily
+   gold/FX data (~2026). `sgb_holding_civ` clips the series at
+   `min(maturity_date, gold_end)` = `gold_end`, so the maturity date never falls
+   inside the analysis window and HTM coincides with the gold-spot proxy there.
+2. *No data yet.* The `MAT` rows that exist (from the redemption backfill) are all
+   for **pre-2020** tranches that have already matured — none are in the tranche
+   reference. The in-scope 2020+ tranches have no `MAT` row yet.
+
+**Activation** needs *both*: the daily gold series to extend past a tranche's
+2028+ maturity, and a `MAT` redemption row for that tranche. Until then there is
+nothing to test and nothing it would change. See the deferred backlog item in
+`docs/KANBAN.md` and the plan `~/.claude/plans/sgb-maturity-pin.md`.
