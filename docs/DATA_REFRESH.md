@@ -126,9 +126,45 @@ on the price would not).
 
 This is the honest decoupling of gold and SGB: a **gold-only** run gates on the
 LBMA feed alone; an **SGB** run gates on LBMA gold **and** the `DEXINUS` FX
-feed. The contractual **INR** premature/maturity redemption view (RBI/IBJA),
-shown co-equally with the HTM mark, is *Part B* — to be added later (see
+feed. The contractual **INR** premature/maturity redemption *view* (RBI/IBJA),
+shown co-equally with the HTM mark, is still to come; its **data layer** now
+exists (next section), but it does not yet feed a valuation (see
 `docs/ARCHITECTURE.md`).
+
+## SGB redemption prices — event-cadence ingest (RBI press releases)
+
+The contractual redemption value of an SGB is fixed by the **RBI**, not by LBMA
+gold: ~3 business days before each redemption date RBI publishes a press release
+setting the price (₹ per unit; 1 unit = 1 gram of 999 gold) as the simple
+average of the IBJA closing gold price over the preceding three business days.
+`loaders/sgb_redemptions.py` ingests these announcements into
+`data/funds/sgb_redemptions.csv` (`tranche_id, redemption_date, kind ∈
+{PRE,MAT}, inr_per_gram, source_prid_or_url, tier`).
+
+This is **not** one of the cadence-gated reference feeds above: redemptions land
+on irregular scheduled dates (an *event* cadence, not daily/monthly), so there
+is no calendar frontier to measure "behind" against, and — until the redemption
+*view* valuation is wired — no metric depends on it, so nothing blocks on it. It
+is a growing multi-column **table**, not a single-value time series, so it has
+its own loader rather than a `data_update` `DataSource` (it reuses that module's
+stamp machinery for unified provenance in `data/.last_fetched.json`).
+
+Source path (established by `scripts/probe_rbi_sgb_redemption.py`, the B2
+Step-0 gate): the mobile directory `BS_SwarnaBharat.aspx` is CAPTCHA-walled, so
+we route around it over plain `requests` — enumerate redemption press releases
+via RBI's open search endpoint (`SearchResults.aspx`), then parse each
+`BS_PressReleaseDisplay.aspx?prid=<N>` for the date, ₹/unit price, and
+tranche(s). No IBJA paid API or stealth browser needed. Refresh on demand:
+
+```bash
+./venv/bin/python -m portfolioanalyzer.loaders.sgb_redemptions
+```
+
+The committed CSV is seeded with the redemptions RBI's search currently lists
+(most recent ~14, all tier **T1** — fetched direct from the press release).
+Older premature redemptions and maturity (MAT) redemptions are documented gaps
+to backfill; a re-run upserts new announcements on `(tranche_id,
+redemption_date)` and never drops existing rows.
 
 ## Manual, feedless sources (PPF)
 

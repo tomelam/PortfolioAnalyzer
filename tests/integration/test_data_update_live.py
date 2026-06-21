@@ -8,6 +8,8 @@ asserted leniently when the host throttles this IP.
 
 from __future__ import annotations
 
+import re
+
 import pandas as pd
 import pytest
 
@@ -82,3 +84,27 @@ def test_fetch_niftyindices_tri_live():
     assert isinstance(df.index, pd.DatetimeIndex)
     # NIFTY 50 TRI has been in the tens of thousands for years.
     assert float(df["value"].iloc[-1]) > 10000
+
+
+@pytest.mark.network
+@pytest.mark.integration
+def test_fetch_rbi_sgb_redemptions_live():
+    """Real fetch of RBI SGB redemption press releases (plain requests; no
+    CAPTCHA — see ``scripts/probe_rbi_sgb_redemption.py``, the B2 Step-0 gate).
+
+    Enumerate via the open search endpoint, then parse the newest press release
+    end-to-end: it must yield a sane premature-redemption row (recent ₹/gram in
+    a four-figure band, a real tranche id, an ISO date).
+    """
+    from portfolioanalyzer.loaders import sgb_redemptions as R
+
+    prids = R.parse_search_prids(R.fetch_search_html())
+    assert prids, "RBI search returned no SGB redemption PRIDs"
+    rows = R.parse_redemption_pr(R.fetch_pr_html(prids[0]))
+    assert rows, f"newest redemption PR {prids[0]} parsed no rows"
+    row = rows[0]
+    assert row["kind"] in {"PRE", "MAT"}
+    assert re.fullmatch(r"\d{4}-\d{2}-[IVXLC]+", row["tranche_id"]), row["tranche_id"]
+    assert pd.Timestamp(row["redemption_date"]) > pd.Timestamp("2017-01-01")
+    # Redemption price (₹/gram of 999 gold) has been four-to-five figures.
+    assert 1000 < int(row["inr_per_gram"]) < 100000

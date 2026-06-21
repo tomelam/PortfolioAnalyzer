@@ -72,6 +72,7 @@ points are `./pa` and `python -m portfolioanalyzer.main`.
 | `drawdowns_csv.py` | Per-drawdown sibling CSV writer |
 | `sgb_holdings.py` | Per-tranche SGB valuation: `sgb_holding_civ(tranche, grams, gold, fx)` — USD CIV, coupons converted via USD/INR |
 | `sgb_tranches.py` | SGB tranche reference data + lookup API |
+| `loaders/sgb_redemptions.py` | Ingest RBI press-release redemption prices → `data/funds/sgb_redemptions.csv` (event cadence; B2 data layer) |
 | `loaders/gold.py` | Daily LBMA USD/troy-ounce CSV → per-gram price series (auto-refreshed) |
 | `visualizer.py` | Matplotlib plotting + drawdown printout; embeds PNG `tEXt` metadata + provenance footnote |
 | `output_metadata.py` | Pure formatters for the metrics block / provenance / PNG `tEXt` payload |
@@ -354,9 +355,23 @@ gold-only run depends on LBMA alone; an SGB run depends on LBMA gold **and** the
 Premature-redemption pricing — substituting RBI's announced pre-redemption
 price (an **INR**, IBJA-3-day-average figure — the contractual cash value, for
 which the Indian source is correct) on the redemption date for the gold-spot
-proxy — is **intentionally deferred** (low current value) to *Part B* of the
-gold-source work, where it will be kept as a co-equal INR view *alongside* the
-HTM mark (neither is "default"). Until it lands, SGBs are always valued HTM. The
-terminal maturity pin (RBI's last-week-average maturity price) only bites at the
-8-year mark, which none of the modelled tranches has reached, so the gold-spot
-proxy and the HTM value coincide within the current window.
+proxy — is the co-equal **redemption view** of *Part B2*, to be shown *alongside*
+the HTM mark (neither is "default"). Until that valuation lands, SGBs are always
+valued HTM. The terminal maturity pin (RBI's last-week-average maturity price)
+only bites at the 8-year mark, which none of the modelled tranches has reached,
+so the gold-spot proxy and the HTM value coincide within the current window.
+
+**B2 data layer (built; valuation pending).** The redemption-price *data* now
+exists ahead of the valuation: `loaders/sgb_redemptions.py` ingests RBI's
+redemption press releases into `data/funds/sgb_redemptions.csv` (`tranche_id,
+redemption_date, kind ∈ {PRE,MAT}, inr_per_gram, source_prid_or_url, tier`). The
+fetchable source was confirmed by a **fail-loud Step 0** gate
+(`scripts/probe_rbi_sgb_redemption.py`): RBI's mobile directory
+(`BS_SwarnaBharat.aspx`) is CAPTCHA-walled, but the press releases themselves are
+reachable over plain `requests` — enumerate via the open `SearchResults.aspx`
+endpoint, then parse each `BS_PressReleaseDisplay.aspx?prid=<N>`. This is an
+*event*-cadence table (irregular redemption dates, no calendar frontier), so it
+is a standalone loader rather than a cadence-gated `data_update` `DataSource`,
+and — having no metric depending on it yet — nothing blocks on it. See
+`docs/DATA_REFRESH.md` → *SGB redemption prices*. The remaining B2 work is the
+two-series valuation (HTM vs redemption) and the co-equal output plumbing.
