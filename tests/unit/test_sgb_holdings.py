@@ -2,12 +2,15 @@
 
 The CIV (cumulative investment value) of one SGB holding at date t is:
 
-    CIV(t) = units_grams × gold_price_per_gram(t)         # mark-to-market
-           + Σ(coupons paid on or before t)               # accumulated income
+    CIV(t) = units_grams × gold_price_per_gram(t)         # mark-to-market, USD
+           + Σ(coupon_inr / fx_at_coupon_date)            # accumulated income, USD
 
 Coupons are 2.5% p.a. on the nominal (offline) issue price × units,
 paid semi-annually on the 6mo / 12mo / ... anniversaries of the issue
-date through maturity (16 coupons over 8 years).
+date through maturity (16 coupons over 8 years). The whole series is in
+USD: the rupee coupon is converted to USD at each payment date's USD/INR
+rate. Most baseline tests below pin FX = 1.0 so the coupon passes through
+unchanged and the original closed-form anchors still hold.
 
 Anchors: ground-truth values are derived from the user's actual RBI
 certificates (FY 2019-20 Series IX × 12 g, FY 2020-21 Series VII × 6 g).
@@ -80,19 +83,34 @@ def test_coupon_amount_for_2020_21_VII_holding_6g() -> None:
 
 
 def _linear_gold(start_date: dt.date, end_date: dt.date,
-                 start_inr_per_gram: float, end_inr_per_gram: float) -> pd.Series:
-    """Helper: daily gold price series linearly interpolated between endpoints."""
+                 start_per_gram: float, end_per_gram: float) -> pd.Series:
+    """Helper: daily gold price series linearly interpolated between endpoints
+    (USD/gram, the unit the engine now consumes)."""
     idx = pd.date_range(start_date, end_date, freq="D")
     n = len(idx)
-    values = [start_inr_per_gram + (end_inr_per_gram - start_inr_per_gram) * i / (n - 1)
+    values = [start_per_gram + (end_per_gram - start_per_gram) * i / (n - 1)
               for i in range(n)]
-    return pd.Series(values, index=idx, name="gold_inr_per_gram")
+    return pd.Series(values, index=idx, name="gold_usd_per_gram")
+
+
+def _flat_fx(rate: float) -> pd.Series:
+    """Helper: a constant USD/INR series spanning every tranche window used
+    here. A coupon's USD amount is ``coupon_inr / rate``; with ``rate == 1.0``
+    the coupon passes through unchanged, so the FX-neutral baseline preserves
+    the original closed-form coupon anchors."""
+    idx = pd.date_range(dt.date(2014, 1, 1), dt.date(2030, 1, 1), freq="D")
+    return pd.Series(rate, index=idx, name="value")
+
+
+# A flat USD/INR = 1.0: coupons convert INR→USD as a no-op, so the capital +
+# coupon closed forms below match the pre-FX engine exactly.
+_FX1 = _flat_fx(1.0)
 
 
 def test_civ_at_issue_date_equals_units_times_gold_at_issue() -> None:
     """CIV at the issue date = capital only; no coupons paid yet."""
     gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2028, 10, 20), 5051.0, 15000.0)
-    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold)
+    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_FX1)
     issue_ts = pd.Timestamp("2020-10-20")
     expected = 6 * 5051.0
     assert civ.loc[issue_ts] == pytest.approx(expected)
@@ -100,9 +118,11 @@ def test_civ_at_issue_date_equals_units_times_gold_at_issue() -> None:
 
 def test_civ_jumps_by_coupon_amount_on_coupon_date() -> None:
     """The CIV gains exactly one coupon between the day before and the
-    day of a coupon payment, in addition to the daily gold drift."""
+    day of a coupon payment, in addition to the daily gold drift.
+
+    With FX = 1.0 the USD coupon equals the rupee coupon amount."""
     gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2028, 10, 20), 5051.0, 15000.0)
-    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold)
+    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_FX1)
 
     first_coupon = pd.Timestamp("2021-4-20")
     day_before = first_coupon - pd.Timedelta(days=1)
@@ -116,7 +136,7 @@ def test_civ_ends_at_maturity_when_gold_extends_past_it() -> None:
     """CIV is not defined past the bond's maturity (principal redeemed)."""
     # Gold extends to 2029 but bond matures 2028-10-20.
     gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2029, 12, 31), 5051.0, 16000.0)
-    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold)
+    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_FX1)
     assert civ.index.max() == pd.Timestamp("2028-10-20")
 
 
@@ -124,7 +144,7 @@ def test_civ_ends_at_gold_data_end_when_gold_stops_first() -> None:
     """CIV can't extend past the available gold data either."""
     # Gold stops 2024-06-30; bond matures 2028-10-20.
     gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2024, 6, 30), 5051.0, 12000.0)
-    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold)
+    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_FX1)
     assert civ.index.max() == pd.Timestamp("2024-6-30")
 
 
@@ -132,14 +152,14 @@ def test_civ_starts_at_issue_date_even_if_gold_history_predates() -> None:
     """If we pass gold data going back 5 years before issue, the CIV
     still only starts at issue date (no pre-issue valuation)."""
     gold = _linear_gold(dt.date(2015, 1, 1), dt.date(2028, 10, 20), 2500.0, 15000.0)
-    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold)
+    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_FX1)
     assert civ.index.min() == pd.Timestamp("2020-10-20")
 
 
 def test_civ_terminal_value_matches_closed_form() -> None:
-    """At maturity, CIV = units × gold(maturity) + 16 × coupon."""
+    """At maturity, CIV = units × gold(maturity) + 16 × coupon (FX = 1.0)."""
     gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2028, 10, 20), 5051.0, 15000.0)
-    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold)
+    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_FX1)
     expected = 6 * 15000.0 + 16 * 378.825
     assert civ.iloc[-1] == pytest.approx(expected)
 
@@ -148,7 +168,7 @@ def test_civ_is_monotonic_under_monotonic_gold() -> None:
     """A monotonically rising gold price with positive coupons yields
     a monotonically rising CIV — no spurious dips."""
     gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2028, 10, 20), 5051.0, 15000.0)
-    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold)
+    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_FX1)
     diffs = civ.diff().dropna()
     assert (diffs >= 0).all(), f"CIV decreased on {(diffs < 0).sum()} day(s)"
 
@@ -157,9 +177,9 @@ def test_two_holdings_of_same_tranche_compose_linearly() -> None:
     """If you held two separate 6 g and 6 g of the same tranche, the
     combined CIV equals one 12 g holding. (Sanity for the lumping rule.)"""
     gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2028, 10, 20), 5051.0, 15000.0)
-    civ_lumped = sgb_holding_civ("2020-21-VII", units_grams=12, gold_prices=gold)
-    civ_a = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold)
-    civ_b = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold)
+    civ_lumped = sgb_holding_civ("2020-21-VII", units_grams=12, gold_prices=gold, fx_inr_per_usd=_FX1)
+    civ_a = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_FX1)
+    civ_b = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_FX1)
     summed = civ_a + civ_b
     pd.testing.assert_series_equal(civ_lumped, summed, check_names=False)
 
@@ -167,4 +187,55 @@ def test_two_holdings_of_same_tranche_compose_linearly() -> None:
 def test_unknown_tranche_raises_keyerror() -> None:
     gold = _linear_gold(dt.date(2020, 1, 1), dt.date(2025, 1, 1), 4000.0, 8000.0)
     with pytest.raises(KeyError, match="unknown tranche"):
-        sgb_holding_civ("nonexistent-tranche", units_grams=10, gold_prices=gold)
+        sgb_holding_civ("nonexistent-tranche", units_grams=10, gold_prices=gold, fx_inr_per_usd=_FX1)
+
+
+# ---------------------------------------------------------------------------
+# FX coupon conversion (the Part B1 fix)
+# ---------------------------------------------------------------------------
+
+
+def test_coupon_usd_is_inr_amount_divided_by_fx() -> None:
+    """A flat USD/INR of 75 converts each ₹378.825 coupon to ₹378.825/75 USD.
+    Capital is unaffected (FX never touches the gold leg)."""
+    gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2028, 10, 20), 5051.0, 15000.0)
+    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_flat_fx(75.0))
+    expected = 6 * 15000.0 + 16 * (378.825 / 75.0)
+    assert civ.iloc[-1] == pytest.approx(expected)
+
+
+def test_each_coupon_converts_at_its_own_date_fx() -> None:
+    """Two coupons paid under different FX regimes contribute different USD
+    amounts. FX steps from 50 to 100 partway through the first coupon period,
+    so coupon 1 (paid 2021-04-20, FX 100) is worth half of coupon-at-FX-50."""
+    gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2028, 10, 20), 5051.0, 5051.0)  # flat gold
+    fx = pd.Series(50.0, index=pd.date_range("2014-01-01", "2030-01-01", freq="D"), name="value")
+    fx.loc[fx.index >= pd.Timestamp("2021-01-01")] = 100.0
+    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=fx)
+    # Capital is flat (gold flat), so CIV minus capital is pure cumulative USD income.
+    capital = 6 * 5051.0
+    first_coupon = pd.Timestamp("2021-04-20")  # FX = 100
+    income_after_first = civ.loc[first_coupon] - capital
+    assert income_after_first == pytest.approx(378.825 / 100.0)
+
+
+def test_coupon_load_is_a_small_fraction_of_capital() -> None:
+    """Regression guard for the Part B1 bug: with realistic USD gold
+    (~$60/gram) and a realistic USD/INR (~75), one semiannual coupon is well
+    under 2% of capital — not the ~47% it became when a ₹coupon was summed
+    into a $capital number."""
+    gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2028, 10, 20), 60.0, 60.0)
+    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_flat_fx(75.0))
+    capital = 6 * 60.0
+    one_coupon_usd = 378.825 / 75.0
+    assert one_coupon_usd / capital < 0.02
+
+
+def test_coupon_date_before_fx_series_start_raises() -> None:
+    """Fail loud if FX history doesn't cover a coupon date (no silent NaN)."""
+    gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2028, 10, 20), 60.0, 60.0)
+    fx = pd.Series(
+        75.0, index=pd.date_range("2025-01-01", "2030-01-01", freq="D"), name="value"
+    )
+    with pytest.raises(ValueError, match="no USD/INR rate"):
+        sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=fx)

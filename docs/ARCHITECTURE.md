@@ -19,7 +19,7 @@ alpha / beta / drawdowns against a benchmark and risk-free rate.
 │  - mutual_fund_loader        │  mfapi.in JSON (live)
 │  - ppf_loader                │  static rate CSV → synthetic CIV
 │  - scss_loader               │  NSI HTML scrape → synthetic CIV
-│  - sgb_holdings + sgb_tranches│ per-tranche CIV from LBMA gold spot
+│  - sgb_holdings + sgb_tranches│ per-tranche CIV: LBMA gold spot + USD coupons (DEXINUS FX)
 │  - gold_loader               │  daily LBMA USD/oz CSV (auto-refreshed)
 │  - benchmark_loader          │  NIFTY Total Return CSV
 │  - risk_free_loader          │  India 10Y bond CSV → daily series
@@ -70,7 +70,7 @@ points are `./pa` and `python -m portfolioanalyzer.main`.
 | `bond_calculators.py` | `calculate_variable_bond_cumulative_gain` (used by the SCSS path) |
 | `fund_lifecycle.py` | Inauguration + DEFUNCT-status detection; writes the per-asset sibling CSV |
 | `drawdowns_csv.py` | Per-drawdown sibling CSV writer |
-| `sgb_holdings.py` | Per-tranche SGB valuation: `sgb_holding_civ(tranche, grams, gold)` |
+| `sgb_holdings.py` | Per-tranche SGB valuation: `sgb_holding_civ(tranche, grams, gold, fx)` — USD CIV, coupons converted via USD/INR |
 | `sgb_tranches.py` | SGB tranche reference data + lookup API |
 | `loaders/gold.py` | Daily LBMA USD/troy-ounce CSV → per-gram price series (auto-refreshed) |
 | `visualizer.py` | Matplotlib plotting + drawdown printout; embeds PNG `tEXt` metadata + provenance footnote |
@@ -161,15 +161,17 @@ per-period rate.
 ### Data freshness as a correctness invariant
 
 The program's job is correct metrics. Stale **reference** data (the benchmark,
-the risk-free rate, and — for gold/SGB-bearing portfolios — the gold price)
+the risk-free rate, for gold/SGB-bearing portfolios the gold price, and for
+SGB-bearing portfolios the USD/INR rate)
 silently corrupts results — a stale benchmark skews alpha/beta, a stale
 risk-free skews Sharpe/Sortino/alpha, a stale gold price freezes gold/SGB
 valuation — so freshness is not a user-tunable policy; it is an invariant the
 program defends. The model:
 
-- **Scope = reference data only.** Benchmark (NIFTY TRI), risk-free (FRED), and
-  gold (LBMA Gold Price) are the auto-refreshable upstream feeds; the gold feed
-  is only gated for portfolios that actually hold gold or SGBs. Mutual-fund NAVs
+- **Scope = reference data only.** Benchmark (NIFTY TRI), risk-free (FRED),
+  gold (LBMA Gold Price), and USD/INR (FRED DEXINUS) are the auto-refreshable
+  upstream feeds; the gold feed is only gated for portfolios that hold gold or
+  SGBs, and the FX feed only for portfolios that hold SGBs. Mutual-fund NAVs
   are fetched live every run, so they are current by construction. PPF is a
   manual CSV with no feed to pull (and sparse by design — one row per rate
   change), so it can only warn, never block.
@@ -308,12 +310,22 @@ not for the portfolio number. See the fund catalog in `data/funds/fund_catalog.c
 ### SGB valuation: hold-to-maturity by default
 
 Sovereign Gold Bonds are modelled per tranche (each tranche is a distinct
-investment) as `units × gold_per_gram(t) + Σ(coupons paid ≤ t)` — i.e. marked to
-gold spot (the LBMA Gold Price, USD/gram) plus accrued coupons
+investment) as `units × gold_per_gram(t) + Σ(coupon_inr / fx_at_coupon_date)` —
+i.e. marked to gold spot (the LBMA Gold Price, USD/gram) plus accrued coupons
 (`sgb_holdings.sgb_holding_civ`). For the holdings and analysis windows we care
 about, this **is** the hold-to-maturity (HTM) valuation, and HTM is the default
-everywhere SGBs appear (plots, charts, metric tables). The HTM mark is thus
-USD-gold capital plus the bond's small INR coupon sliver.
+everywhere SGBs appear (plots, charts, metric tables).
+
+The whole CIV is in **USD**. The capital leg is USD/gram LBMA gold; the 2.5%
+coupon is contractually a **rupee** cash amount, so each coupon is converted to
+USD at **its own payment date's** USD/INR rate (FRED `DEXINUS`, INR per USD:
+`usd = inr / DEXINUS`). This keeps the series a single consistent USD number
+rather than summing rupees into dollars — the bug Part B1 fixed, where a ₹63
+coupon added to a ~$133/gram capital number turned each semiannual coupon into
+~47% of capital. FX touches only the discrete coupon cash amounts, never the
+gold price path (the sanctioned "contractual cash value" FX exception). So a
+gold-only run depends on LBMA alone; an SGB run depends on LBMA gold **and** the
+`DEXINUS` FX feed — the honest decoupling of gold and SGB.
 
 Premature-redemption pricing — substituting RBI's announced pre-redemption
 price (an **INR**, IBJA-3-day-average figure — the contractual cash value, for

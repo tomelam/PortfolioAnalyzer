@@ -210,6 +210,21 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
 
 #### C. Correctness bugs surfaced but not fixed
 
+- [x] **SGB coupon-unit regression — FIXED (Part B1, 2026-06-20, branch
+  `sgb-coupon-fx-fix-b1`).** Part A repointed the SGB engine's gold input to the
+  **USD** LBMA series while `sgb_holding_civ` summed `capital + coupons` as one
+  number — capital became USD (~$133/gram) while the 2.5% coupon stayed **INR**
+  (~₹63/payment), so each semiannual coupon was ~47% of capital (≈520% load by
+  2026) instead of <1%. Fix: SGB CIV is now an all-**USD** series — rupee coupons
+  are converted to USD at each payment date's USD/INR rate (new `fx_usd_inr`
+  source = FRED `DEXINUS`; `sgb_holding_civ` gains an `fx_inr_per_usd` param;
+  `main.py` loads FX for SGB portfolios and `_reference_paths` gates SGB runs on
+  LBMA gold **+** FX). FX touches only the discrete coupon cash amounts, never
+  gold's price path. `port-everything` golden re-captured (CAGR 18.32%→12.41%
+  daily); frozen `DEXINUS.csv` under `tests/golden/replay/reference/`; spot-check
+  in `scripts/sgb_coupon_load_check.py`. Co-equal HTM/redemption views are **B2**
+  (back-burner item below). Related: [[project-sgb-htm-default]].
+
 - [ ] **Maturing instruments are modelled as perpetual compounding** (surfaced
   2026-06-19 by the REC-bond drop). SCSS (and the dropped REC bond) are valued by
   `calculate_variable_bond_cumulative_gain`, which compounds a fixed coupon from

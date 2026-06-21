@@ -20,6 +20,7 @@ def _settings(**over):
         "benchmark_file": "data/reference/NIFTY Total Returns Historical Data.csv",
         "risk_free_rates_file": "data/reference/INDIRLTLT01STM.csv",
         "gold_prices_file": "data/reference/gold_lbma_usd_daily.csv",
+        "fx_usd_inr_file": "data/reference/DEXINUS.csv",
         "allow_stale": False,
     }
     s.update(over)
@@ -122,3 +123,24 @@ def test_gold_path_gated_only_for_gold_or_sgb_portfolios(monkeypatch):
 
     main._enforce_reference_freshness(_settings(), {"sgb": []})
     assert gold_csv in seen["paths"]  # sgb present ⇒ gated (valued off gold)
+
+
+def test_sgb_portfolios_additionally_gate_on_usd_inr_fx(monkeypatch):
+    """An SGB is valued in USD off LBMA gold but converts its rupee coupons to
+    USD, so an SGB-bearing run gates on the FX feed *in addition to* gold. A
+    gold-only portfolio does not pull in FX (the honest decoupling)."""
+    seen = {}
+
+    def _capture(paths):
+        seen["paths"] = list(paths)
+        return []
+
+    monkeypatch.setattr(du, "ensure_reference_data_fresh", _capture)
+    fx_csv = "data/reference/DEXINUS.csv"
+    gold_csv = "data/reference/gold_lbma_usd_daily.csv"
+
+    main._enforce_reference_freshness(_settings(), {"gold": {}})
+    assert gold_csv in seen["paths"] and fx_csv not in seen["paths"]  # gold-only: no FX
+
+    main._enforce_reference_freshness(_settings(), {"sgb": []})
+    assert gold_csv in seen["paths"] and fx_csv in seen["paths"]  # sgb: gold + FX

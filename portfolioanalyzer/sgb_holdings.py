@@ -4,8 +4,13 @@ Replaced the bogus ``pct_change``-on-consecutive-tranche-issue-prices
 logic in the now-deleted ``sgb_loader.py`` with a proper holder-side
 mark-to-market:
 
-    CIV(t) = units_grams × gold_price_per_gram(t)        # capital
-           + Σ(coupons paid on or before t)               # income
+    CIV(t) = units_grams × gold_price_per_gram(t)        # capital, USD
+           + Σ(coupon_inr / fx_at_coupon_date)            # income, USD
+
+The whole series is in **USD**: the capital leg is USD/gram LBMA gold; the
+contractual *rupee* coupons are converted to USD at each payment date's USD/INR
+rate (FRED ``DEXINUS``). FX is applied only to the discrete coupon cash amounts,
+never to the gold price path.
 
 This module is the pure-function valuation layer. ``main.py`` iterates
 the portfolio's ``[[sgb]]`` entries and calls ``sgb_holding_civ`` once
@@ -73,8 +78,18 @@ def sgb_holding_civ(
     tranche_id: str,
     units_grams: float,
     gold_prices: pd.Series,
+    fx_inr_per_usd: pd.Series,
 ) -> pd.Series:
-    """Daily CIV series for one SGB-tranche holding.
+    """Daily CIV series for one SGB-tranche holding, **entirely in USD**.
+
+    An SGB is an INR instrument, but the tool reports only normalized returns
+    and has no free deep-history daily INR gold series, so the holding is marked
+    in USD off the LBMA gold price. The capital leg is ``units_grams ×``
+    USD/gram gold. The 2.5% coupon is contractually a *rupee* cash amount; it is
+    converted to USD at **its own payment date's** USD/INR rate so the CIV is a
+    single consistent USD series. FX touches only the discrete coupon cash
+    amounts, never the gold price path (the sanctioned "contractual cash value"
+    FX exception).
 
     Args:
         tranche_id: Composite tranche key, e.g. ``"2020-21-VII"``. Looked
@@ -82,9 +97,12 @@ def sgb_holding_civ(
         units_grams: Number of grams held (lumped per the holdings rule:
             multiple bank-application certs for the same tranche on the
             same issue date collapse into one ``units_grams``).
-        gold_prices: Gold price per gram in INR, datetime-indexed. May
+        gold_prices: Gold price per gram in **USD**, datetime-indexed. May
             extend before issue or past maturity; the returned series is
             clipped to ``[issue_date, min(maturity_date, gold_end)]``.
+        fx_inr_per_usd: USD/INR exchange rate (Indian Rupees per US Dollar,
+            FRED ``DEXINUS``), datetime-indexed. Read as-of each coupon date
+            (ffilled over weekends/holidays) to convert the rupee coupon to USD.
 
     Returns:
         ``pd.Series`` of CIV values, daily-indexed, name ``"value"``.
@@ -112,19 +130,29 @@ def sgb_holding_civ(
 
     capital = units_grams * gold_window
 
-    # Cumulative coupons received as of each day.
+    # Cumulative coupons received as of each day, in USD. Each rupee coupon is
+    # converted at its payment date's USD/INR rate (FX ffilled over non-trading
+    # days via Series.asof), so coupons paid in different FX regimes contribute
+    # different USD amounts — this is why we accumulate per-coupon rather than
+    # multiplying a flat amount by a running count.
     schedule = coupon_schedule(issue_date, maturity_date)
-    per_coupon = coupon_amount_per_payment(
+    per_coupon_inr = coupon_amount_per_payment(
         units_grams=units_grams,
         issue_price_offline=issue_price_offline,
         coupon_rate_pct=coupon_rate_pct,
     )
-    coupon_ts = pd.Series(
-        [pd.Timestamp(d) for d in schedule], dtype="datetime64[ns]"
-    )
-    # For each day in the window, count how many coupon dates are ≤ that day.
-    coupons_paid_by_day = coupon_ts.searchsorted(daily_idx.values, side="right")
-    income = pd.Series(coupons_paid_by_day * per_coupon, index=daily_idx)
+    fx = fx_inr_per_usd.sort_index()
+    income = pd.Series(0.0, index=daily_idx)
+    for d in schedule:
+        ts = pd.Timestamp(d)
+        rate = fx.asof(ts)  # last USD/INR on or before the coupon date
+        if pd.isna(rate):
+            raise ValueError(
+                f"tranche {tranche_id}: no USD/INR rate on or before coupon "
+                f"date {d}; FX series starts {fx.index.min().date()}"
+            )
+        per_coupon_usd = per_coupon_inr / rate
+        income.loc[daily_idx >= ts] += per_coupon_usd
 
     civ = (capital + income).rename("value")
     return civ

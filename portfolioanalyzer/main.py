@@ -30,13 +30,17 @@ from portfolioanalyzer.visualizer import plot_cumulative_returns, print_major_dr
 def _reference_paths(settings, portfolio_dict):
     """The reference CSVs in use this run: benchmark (if enabled) + risk-free,
     plus the gold price series when the portfolio actually holds gold or SGBs
-    (both are valued off it). Only gold-bearing runs gate on the gold feed."""
+    (both are valued off it), plus the USD/INR FX series when it holds SGBs (an
+    INR instrument whose rupee coupons are converted to USD). Only gold-bearing
+    runs gate on the gold feed; SGB runs additionally gate on the FX feed."""
     paths = []
     if settings.get("use_benchmark"):
         paths.append(settings["benchmark_file"])
     paths.append(settings["risk_free_rates_file"])
     if "gold" in portfolio_dict or "sgb" in portfolio_dict:
         paths.append(settings["gold_prices_file"])
+    if "sgb" in portfolio_dict:
+        paths.append(settings["fx_usd_inr_file"])
     return paths
 
 
@@ -185,12 +189,22 @@ def main(settings):
         from portfolioanalyzer.sgb_holdings import sgb_holding_civ
 
         gold_per_gram = load_gold_prices_per_gram(settings["gold_prices_file"])
+        # USD/INR (FRED DEXINUS) converts each tranche's rupee coupons to USD at
+        # their payment dates, keeping the CIV a consistent USD series. Freshness
+        # is enforced up front by _enforce_reference_freshness, so the loader's
+        # own staleness gate is disabled here to avoid double-gating.
+        fx_usd_inr = load_timeseries_csv(
+            settings["fx_usd_inr_file"],
+            settings["fx_date_format"],
+            max_delay_days=None,
+        ).value_series()
         for entry in portfolio_dict["sgb"]:
             asset_name = f"SGB {entry['tranche_id']}"
             sgb_series_by_tranche[asset_name] = sgb_holding_civ(
                 tranche_id=entry["tranche_id"],
                 units_grams=entry["units_grams"],
                 gold_prices=gold_per_gram,
+                fx_inr_per_usd=fx_usd_inr,
             )
 
     if "gold" in portfolio_dict:
@@ -803,6 +817,14 @@ def build_settings(args, config: dict) -> dict:
         "gold_prices_file": config.get(
             "gold_prices_file", "data/reference/gold_lbma_usd_daily.csv"
         ),
+        # USD/INR FX series (FRED DEXINUS, INR per USD, daily) — auto-refreshed
+        # via loaders.data_update and block-gated for SGB-bearing portfolios,
+        # whose rupee coupons are converted to USD at each cash-flow date. Config
+        # may repoint it (the golden replay pins it to a frozen copy).
+        "fx_usd_inr_file": config.get(
+            "fx_usd_inr_file", "data/reference/DEXINUS.csv"
+        ),
+        "fx_date_format": config.get("fx_date_format", "%Y-%m-%d"),
         "riskfree_date_format": config.get("riskfree_date_format", "%Y-%m-%d"),
         # --as-of YYYY-MM-DD pins the evaluation date for determinism;
         # parsed once here so downstream code sees a Timestamp, not a str.

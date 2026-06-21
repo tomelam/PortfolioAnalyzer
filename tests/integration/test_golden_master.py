@@ -33,7 +33,8 @@ Notes:
     1. Copy the current live reference CSVs into the freeze:
        `cp "data/reference/NIFTY Total Returns Historical Data.csv" \
            "data/reference/INDIRLTLT01STM.csv" \
-           "data/reference/gold_lbma_usd_daily.csv" tests/golden/replay/reference/`
+           "data/reference/gold_lbma_usd_daily.csv" \
+           "data/reference/DEXINUS.csv" tests/golden/replay/reference/`
     2. Run main.py for each (portfolio, method) with the same `--config`,
        `--lookback 5Y`, and `--as-of` used here, plus `--save-replay
        tests/golden/replay` once (any portfolio covering all funds + SCSS,
@@ -142,10 +143,12 @@ def test_golden_config_does_not_read_live_data_dir() -> None:
         cfg.get("benchmark_returns_file"),
         cfg.get("risk_free_rates_file"),
         cfg.get("gold_prices_file"),
+        cfg.get("fx_usd_inr_file"),
     ]
     assert all(ref_paths), (
         "golden config must explicitly set benchmark_returns_file, "
-        f"risk_free_rates_file, and gold_prices_file; got {ref_paths}"
+        "risk_free_rates_file, gold_prices_file, and fx_usd_inr_file; "
+        f"got {ref_paths}"
     )
 
     for rel in ref_paths:

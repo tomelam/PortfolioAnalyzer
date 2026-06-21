@@ -9,6 +9,7 @@ Static/reference market & rate series. Two groups:
 | `NIFTY Total Returns Historical Data.csv` | NIFTY 50 **TRI** (total return) | 2007 → 2025-05 | `main.py` `benchmark_returns_file` default; goldens |
 | `INDIRLTLT01STM.csv` | FRED India **long-term** govt bond rate (monthly) | 2011-12 → | `main.py` `risk_free_rates_file` default |
 | `gold_lbma_usd_daily.csv` | LBMA Gold Price PM fix, **USD/troy-ounce** (daily) | 1968 → | `main.py` `gold_prices_file` default; `loaders/gold.py`; **auto-refreshed** (`loaders/data_update.py` `gold_lbma`) |
+| `DEXINUS.csv` | FRED USD/INR (**Indian Rupees per US Dollar**, daily) | 1973 → | `main.py` `fx_usd_inr_file` default; SGB coupon→USD conversion (`sgb_holdings.py`); **auto-refreshed** (`loaders/data_update.py` `fx_usd_inr`) |
 | `India 10-Year Bond Yield Historical Data.csv` | India 10Y yield (investing.com export) | — | `examples/config/mid-cap_config.toml`, `Makefile` |
 | `Nifty Midcap 150 Historical Data.csv` | NIFTY Midcap 150 (investing.com export) | — | `examples/config/mid-cap_config.toml` |
 | `rbi_91day_tbills_from_dbie.csv` | RBI 91-day T-bill yield (DBIE) | 1993 → | `examples/config/mid-cap_config.toml` |

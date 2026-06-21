@@ -93,7 +93,7 @@ This repository contains the Portfolio Analyzer application. It fetches historic
 
 If the portfolio described by the TOML file includes PPF as a component, ensure that the file detailing historical PPF interest rates, `ppf_interest_rates.csv`, is up to date before running the program.
 
-If the portfolio described by the TOML file includes gold (or SGBs) as a component, the gold price series is **auto-refreshed** on each run from the LBMA feed and block-gated like the benchmark/risk-free data — no manual download. With the feed unreachable, the run blocks unless you pass `--allow-stale`. All gold — whether offshore-vaulted or held in India — is priced off the same USD/troy-ounce LBMA series.
+If the portfolio described by the TOML file includes gold (or SGBs) as a component, the gold price series is **auto-refreshed** on each run from the LBMA feed and block-gated like the benchmark/risk-free data — no manual download. With the feed unreachable, the run blocks unless you pass `--allow-stale`. All gold — whether offshore-vaulted or held in India — is priced off the same USD/troy-ounce LBMA series. SGBs are valued in **USD** off that gold spot, but as INR instruments their 2.5% rupee coupons are converted to USD at each payment date's USD/INR rate (FRED `DEXINUS`, `data/reference/DEXINUS.csv`, auto-refreshed too); an SGB-bearing run therefore block-gates on the gold feed **and** the FX feed. FX touches only the discrete coupon cash amounts, never gold's price path.
 Run the analyzer with the bundled-venv wrapper `./pa` — no venv activation, no
 `PATH` changes (see [`./pa`](#pa--run-without-activating-the-venv) below). Inside
 an activated venv the equivalent console command is `portfolio-analyzer …`.

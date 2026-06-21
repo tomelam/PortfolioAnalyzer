@@ -29,6 +29,22 @@ def test_fetch_fred_indirltlt01stm_live():
 
 @pytest.mark.network
 @pytest.mark.integration
+def test_fetch_fred_dexinus_live():
+    """USD/INR (FRED DEXINUS) — the SGB cash-flow FX source. Same clean FRED
+    CSV path as the risk-free series."""
+    df = du.fetch_fred_series("DEXINUS")
+    assert not df.empty
+    assert list(df.columns) == ["value"]
+    assert isinstance(df.index, pd.DatetimeIndex)
+    # Rupees per dollar has sat in a sane band (deep history starts ~8, recent ~85).
+    assert 5.0 < float(df["value"].iloc[-1]) < 200.0
+    # Deep history back to 1973, fresh to recent days.
+    assert df.index.min() < pd.Timestamp("1980-01-01")
+    assert df.index.max() > pd.Timestamp("2025-06-01")
+
+
+@pytest.mark.network
+@pytest.mark.integration
 def test_fetch_lbma_gold_live():
     df = du.fetch_lbma_gold()
     assert not df.empty
