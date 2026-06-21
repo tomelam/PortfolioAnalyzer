@@ -67,7 +67,7 @@ points are `./pa` and `python -m portfolioanalyzer.main`.
 | `timeseries/portfolio.py` | `PortfolioTimeseries`: weighted aggregation; the two CIV-bug fixes live here |
 | `metrics.py` | **Pure-function math layer.** All Sharpe/Sortino/Vol/CAGR/drawdown logic |
 | `portfolio_calculator.py` | `calculate_portfolio_allocations` + `calculate_gains_cumulative` |
-| `bond_calculators.py` | `calculate_variable_bond_cumulative_gain` (used by the SCSS path) |
+| `bond_calculators.py` | `calculate_variable_bond_cumulative_gain` + `term_locked_rate_series` (SCSS term-locked rollover) |
 | `fund_lifecycle.py` | Inauguration + DEFUNCT-status detection; writes the per-asset sibling CSV |
 | `drawdowns_csv.py` | Per-drawdown sibling CSV writer |
 | `sgb_holdings.py` | Per-tranche SGB valuation: `sgb_holding_civ(tranche, grams, gold, fx)` — USD CIV, coupons converted via USD/INR |
@@ -137,6 +137,30 @@ PPF / SCSS don't have NAV histories. `synthetic_civ.py` rebuilds
 an equivalent CIV from declared/historical interest rates. PPF specifically:
 monthly accrual on the year's opening principal, with yearly credit in March
 that compounds for the following year.
+
+### SCSS valuation: term-locked rollover
+
+SCSS is valued by `bond_calculators.calculate_variable_bond_cumulative_gain`
+(`term_years` set). Two facts drive the model:
+
+1. **Reinvestment must be assumed for metrics.** SCSS is a fixed-term scheme,
+   but to characterise it *as an asset* over a backtest window the principal has
+   to roll into a fresh SCSS at each maturity. Letting a matured sleeve fall to
+   flat cash would make the metrics describe "SCSS then idle cash," not SCSS —
+   distorting CAGR/vol/Sharpe. So the CIV compounds continuously to the window
+   end; there is no cash tail.
+2. **The rate locks per term.** A real SCSS account fixes its rate at opening
+   for the whole term; later quarterly government revisions do *not* touch an
+   open account. So the applicable rate is **locked per `term_years`-year term
+   and re-looked-up only at each rollover boundary** (`term_locked_rate_series`)
+   — a step function, not the published rate floated daily. Rollover boundaries
+   are anchored at the holding's `purchase_date` (TOML), or the analysis-window
+   start when omitted; `term_years` defaults to 5.
+
+The generic `term_years=None` path keeps the old continuous (daily-floated) rate
+behaviour for any non-SCSS variable-rate use. This is distinct from SGB, which
+is a one-time bond redeemed at maturity (see *SGB valuation* below), not a
+rolled-over deposit.
 
 ### Portfolio effective window
 

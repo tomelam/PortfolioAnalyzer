@@ -250,6 +250,20 @@ def load_portfolio_details(toml_file_path):
         else:
             if not isinstance(scss["allocation"], (float, int)) or not (0 <= scss["allocation"] <= 1):
                 errors.append(f"Invalid allocation value for {scss_id}: Must be between 0 and 1")
+        # Optional term-lock keys (fail-fast on bad values, no silent fallback).
+        if "purchase_date" in scss:
+            try:
+                pd.Timestamp(scss["purchase_date"])
+            except (ValueError, TypeError):
+                errors.append(
+                    f"Invalid purchase_date for {scss_id}: must be a parseable date"
+                )
+        if "term_years" in scss:
+            term = scss["term_years"]
+            if not isinstance(term, (float, int)) or isinstance(term, bool) or term <= 0:
+                errors.append(
+                    f"Invalid term_years for {scss_id}: must be a positive number"
+                )
 
     if errors:
         all_errors = "\n".join(errors)

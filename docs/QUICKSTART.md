@@ -206,6 +206,12 @@ allocation = 0.10
 
 [scss]
 allocation = 0.10
+# SCSS is valued as a term-locked rollover: the rate locks at account opening
+# for the whole term and re-prices only at each rollover boundary (reinvestment
+# is assumed, so the sleeve characterises SCSS over the window rather than
+# decaying to cash). Both keys are optional:
+purchase_date = 2019-04-01   # anchors the first term; omit → analysis-window start
+term_years = 5               # term length in years (default 5)
 
 # SGB — one [[sgb]] entry per tranche (different tranches = different
 # investments). Same tranche bought multiple times the same day lumps

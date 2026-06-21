@@ -9,6 +9,8 @@ and the small numeric helpers.
 
 from __future__ import annotations
 
+import datetime as dt
+
 import pandas as pd
 import pytest
 import toml
@@ -142,6 +144,32 @@ def test_asset_missing_allocation(mocker, key, section, name):
 def test_asset_invalid_allocation(mocker, key):
     with pytest.raises(ValueError, match="(Invalid allocation|allocation)"):
         _load(mocker, {"label": "x", key: {"allocation": 1.5}})
+
+
+def test_scss_accepts_purchase_date_and_term_years(mocker):
+    """Optional SCSS term-lock keys validate and pass through unchanged."""
+    d = {
+        "label": "x",
+        "scss": {
+            "allocation": 1.0,
+            "purchase_date": dt.date(2018, 4, 1),
+            "term_years": 5,
+        },
+    }
+    out = _load(mocker, d)
+    assert out["scss"]["purchase_date"] == dt.date(2018, 4, 1)
+    assert out["scss"]["term_years"] == 5
+
+
+def test_scss_rejects_unparseable_purchase_date(mocker):
+    with pytest.raises(ValueError, match="purchase_date"):
+        _load(mocker, {"label": "x", "scss": {"allocation": 1.0, "purchase_date": "not-a-date"}})
+
+
+@pytest.mark.parametrize("bad", [0, -5, "five"])
+def test_scss_rejects_non_positive_term_years(mocker, bad):
+    with pytest.raises(ValueError, match="term_years"):
+        _load(mocker, {"label": "x", "scss": {"allocation": 1.0, "term_years": bad}})
 
 
 def test_valid_multi_asset_portfolio_loads(mocker):

@@ -175,11 +175,22 @@ def main(settings):
         from portfolioanalyzer.bond_calculators import calculate_variable_bond_cumulative_gain
         from portfolioanalyzer.data_loader import load_scss_interest_rates
 
+        scss_cfg = portfolio_dict["scss"]
         scss_rates = load_scss_interest_rates(
             replay_from=settings.get("replay_from"),
             save_replay=settings.get("save_replay"),
         )
-        scss_series = calculate_variable_bond_cumulative_gain(scss_rates, scss_rates.index.min())
+        # SCSS is valued term-locked (the rate locks at opening for the whole
+        # term and re-prices only at each rollover), anchored at the holding's
+        # purchase_date when given (else the analysis-window start). Reinvestment
+        # is implicit so the sleeve characterises SCSS over the window rather
+        # than decaying to idle cash. See docs/ARCHITECTURE.md.
+        scss_series = calculate_variable_bond_cumulative_gain(
+            scss_rates,
+            scss_rates.index.min(),
+            term_years=scss_cfg.get("term_years", 5),
+            anchor_date=scss_cfg.get("purchase_date"),
+        )
 
     if "sgb" in portfolio_dict:
         # Phase 2: each [[sgb]] entry is a distinct holding. Per-tranche

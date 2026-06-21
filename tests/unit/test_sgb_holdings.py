@@ -225,7 +225,9 @@ def test_coupon_load_is_a_small_fraction_of_capital() -> None:
     under 2% of capital — not the ~47% it became when a ₹coupon was summed
     into a $capital number."""
     gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2028, 10, 20), 60.0, 60.0)
-    civ = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_flat_fx(75.0))
+    # Exercise the valuation path (must not raise); the assertion below is the
+    # analytic coupon/capital ratio.
+    sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_flat_fx(75.0))
     capital = 6 * 60.0
     one_coupon_usd = 378.825 / 75.0
     assert one_coupon_usd / capital < 0.02
