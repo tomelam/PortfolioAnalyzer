@@ -219,12 +219,18 @@ term_years = 5               # term length in years (default 5)
 [[sgb]]
 tranche_id = "2019-20-IX"     # see data/funds/sgb_tranches.csv for the list
 units_grams = 12
-allocation = 0.05
+allocation = 0.05             # valuation = "htm" (hold-to-maturity) is the default
 
+# An early-redeemed tranche is a distinct holding type: it exits at RBI's
+# announced premature-redemption price (₹/unit, from data/funds/sgb_redemptions.csv)
+# on redemption_date, then carries the proceeds flat as cash. Hold the same
+# tranche both ways to compare the two outcomes side by side.
 [[sgb]]
 tranche_id = "2020-21-VII"
 units_grams = 6
 allocation = 0.05
+valuation = "redeemed"        # default "htm"
+redemption_date = "2026-04-20"  # optional; required only to disambiguate multiple redemptions
 ```
 
 All `allocation` values must sum to 1.0 (±0.01).

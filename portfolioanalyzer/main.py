@@ -197,7 +197,8 @@ def main(settings):
         # CIV is built from per-gram gold spot plus accrued coupons by
         # the sgb_holdings engine (Phase 1 work).
         from portfolioanalyzer.loaders.gold import load_gold_prices_per_gram
-        from portfolioanalyzer.sgb_holdings import sgb_holding_civ
+        from portfolioanalyzer.loaders.sgb_redemptions import lookup_redemption
+        from portfolioanalyzer.sgb_holdings import sgb_asset_label, sgb_holding_civ
 
         gold_per_gram = load_gold_prices_per_gram(settings["gold_prices_file"])
         # USD/INR (FRED DEXINUS) converts each tranche's rupee coupons to USD at
@@ -210,12 +211,24 @@ def main(settings):
             max_delay_days=None,
         ).value_series()
         for entry in portfolio_dict["sgb"]:
-            asset_name = f"SGB {entry['tranche_id']}"
+            asset_name = sgb_asset_label(entry)
+            # Early-redeemed holdings exit at RBI's announced premature-redemption
+            # price (looked up from data/funds/sgb_redemptions.csv); HTM holdings
+            # mark to gold spot through the window. See docs/ARCHITECTURE.md.
+            redemption_date = redemption_inr = None
+            if entry.get("valuation", "htm") == "redeemed":
+                row = lookup_redemption(
+                    entry["tranche_id"], entry.get("redemption_date")
+                )
+                redemption_date = pd.Timestamp(row["redemption_date"]).date()
+                redemption_inr = row["inr_per_gram"]
             sgb_series_by_tranche[asset_name] = sgb_holding_civ(
                 tranche_id=entry["tranche_id"],
                 units_grams=entry["units_grams"],
                 gold_prices=gold_per_gram,
                 fx_inr_per_usd=fx_usd_inr,
+                redemption_date=redemption_date,
+                redemption_inr_per_gram=redemption_inr,
             )
 
     if "gold" in portfolio_dict:

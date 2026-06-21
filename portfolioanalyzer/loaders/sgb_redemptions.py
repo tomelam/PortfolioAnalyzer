@@ -201,6 +201,45 @@ def read_redemptions(path: str = REDEMPTIONS_CSV) -> pd.DataFrame:
     return df
 
 
+def lookup_redemption(tranche_id: str, redemption_date: str | None = None,
+                      *, path: str = REDEMPTIONS_CSV) -> dict:
+    """Return one redemption row for ``tranche_id`` as a plain dict.
+
+    Used by the valuation layer to price an early-redeemed SGB holding: the row's
+    ``inr_per_gram`` is the contractual cash value (₹/unit) on ``redemption_date``.
+
+    ``redemption_date`` (ISO ``YYYY-MM-DD``) selects a specific redemption when a
+    tranche has more than one on record. When omitted, the lookup succeeds only if
+    the tranche has **exactly one** redemption row; 0 or ≥2 candidates are an error
+    (fail-loud, no silent pick) so a portfolio that says "redeemed" without a date
+    can't quietly mark to the wrong window.
+
+    Raises ``ValueError`` on no match or an ambiguous (date-less, multi-row) lookup.
+    ``inr_per_gram`` is returned as ``int``; other columns pass through as strings.
+    """
+    df = read_redemptions(path)
+    cand = df[df["tranche_id"] == tranche_id]
+    if redemption_date is not None:
+        cand = cand[cand["redemption_date"] == redemption_date]
+    if cand.empty:
+        when = f" on {redemption_date}" if redemption_date else ""
+        raise ValueError(
+            f"no SGB redemption price on record for tranche {tranche_id!r}{when} "
+            f"in {os.path.basename(path)}; run "
+            f"`python -m portfolioanalyzer.loaders.sgb_redemptions` to refresh, or "
+            f"check the tranche_id / redemption_date"
+        )
+    if len(cand) > 1:
+        dates = ", ".join(sorted(cand["redemption_date"]))
+        raise ValueError(
+            f"tranche {tranche_id!r} has {len(cand)} redemption rows ({dates}); "
+            f"set redemption_date on the [[sgb]] entry to pick one"
+        )
+    row = cand.iloc[0].to_dict()
+    row["inr_per_gram"] = int(row["inr_per_gram"])
+    return row
+
+
 def merge_redemptions(existing: pd.DataFrame, incoming: list[dict]) -> pd.DataFrame:
     """Upsert ``incoming`` rows into ``existing`` keyed on
     ``(tranche_id, redemption_date)``.

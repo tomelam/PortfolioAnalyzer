@@ -240,6 +240,29 @@ def load_portfolio_details(toml_file_path):
                         errors.append(
                             f"Invalid allocation for [[sgb]] {entry_id}: must be between 0 and 1"
                         )
+                # Optional holding-type discriminator: "htm" (default, mark to
+                # gold spot) or "redeemed" (exit at RBI's premature-redemption
+                # price on redemption_date, then carry flat as cash). See the B2
+                # design in docs/ARCHITECTURE.md.
+                valuation = entry.get("valuation", "htm")
+                if valuation not in ("htm", "redeemed"):
+                    errors.append(
+                        f"Invalid valuation for [[sgb]] {entry_id}: "
+                        f"must be 'htm' or 'redeemed'"
+                    )
+                if "redemption_date" in entry:
+                    if valuation != "redeemed":
+                        errors.append(
+                            f"redemption_date set on [[sgb]] {entry_id} but valuation "
+                            f"is not 'redeemed'"
+                        )
+                    try:
+                        pd.Timestamp(entry["redemption_date"])
+                    except (ValueError, TypeError):
+                        errors.append(
+                            f"Invalid redemption_date for [[sgb]] {entry_id}: "
+                            f"must be a parseable date"
+                        )
     
     # Validate SCSS if present
     if "scss" in portfolio_details:
@@ -304,15 +327,19 @@ def extract_weights(portfolio_dict):
         if key in portfolio_dict:
             add_weight(key, label)
 
-    # SGB: one weight entry per [[sgb]] tranche. Keyed by tranche_id
-    # so the same key drops straight into PortfolioTimeseries.assets.
+    # SGB: one weight entry per [[sgb]] holding. Keyed by the asset label
+    # (tranche_id, plus a redemption tag for early-redeemed holdings) so the
+    # same key drops straight into PortfolioTimeseries.assets and an HTM and a
+    # redeemed holding of one tranche stay distinct.
     if "sgb" in portfolio_dict:
+        from portfolioanalyzer.sgb_holdings import sgb_asset_label
+
         for entry in portfolio_dict["sgb"]:
             if "tranche_id" not in entry or "allocation" not in entry:
                 raise ValueError(
                     "❌ Each [[sgb]] entry must have 'tranche_id' and 'allocation'"
                 )
-            weights[f"SGB {entry['tranche_id']}"] = entry["allocation"]
+            weights[sgb_asset_label(entry)] = entry["allocation"]
 
     return weights
 

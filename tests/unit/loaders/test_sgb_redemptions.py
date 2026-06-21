@@ -180,6 +180,48 @@ def test_fetch_pr_uses_prid(monkeypatch) -> None:
     assert "prid=62937" in captured["url"]
 
 
+# --- lookup_redemption (valuation-layer accessor) --------------------------
+
+def _seed_csv(tmp_path, rows) -> str:
+    df = pd.DataFrame(rows, columns=R.COLUMNS)
+    out = tmp_path / "r.csv"
+    R.write_redemptions(df, str(out))
+    return str(out)
+
+
+def test_lookup_redemption_single_row(tmp_path) -> None:
+    csv = _seed_csv(tmp_path, [
+        {"tranche_id": "2020-21-VII", "redemption_date": "2026-04-20", "kind": "PRE",
+         "inr_per_gram": "15254", "source_prid_or_url": "u", "tier": "T1"},
+    ])
+    row = R.lookup_redemption("2020-21-VII", path=csv)
+    assert row["inr_per_gram"] == 15254  # coerced to int
+    assert row["redemption_date"] == "2026-04-20"
+
+
+def test_lookup_redemption_missing_raises(tmp_path) -> None:
+    csv = _seed_csv(tmp_path, [
+        {"tranche_id": "2020-21-VII", "redemption_date": "2026-04-20", "kind": "PRE",
+         "inr_per_gram": "15254", "source_prid_or_url": "u", "tier": "T1"},
+    ])
+    with pytest.raises(ValueError, match="no SGB redemption price"):
+        R.lookup_redemption("2019-20-IX", path=csv)
+
+
+def test_lookup_redemption_ambiguous_without_date_raises(tmp_path) -> None:
+    csv = _seed_csv(tmp_path, [
+        {"tranche_id": "2020-21-VII", "redemption_date": "2026-04-20", "kind": "PRE",
+         "inr_per_gram": "15254", "source_prid_or_url": "u", "tier": "T1"},
+        {"tranche_id": "2020-21-VII", "redemption_date": "2026-10-20", "kind": "PRE",
+         "inr_per_gram": "15999", "source_prid_or_url": "u", "tier": "T1"},
+    ])
+    with pytest.raises(ValueError, match="redemption rows"):
+        R.lookup_redemption("2020-21-VII", path=csv)
+    # ...but disambiguating by date succeeds.
+    row = R.lookup_redemption("2020-21-VII", "2026-10-20", path=csv)
+    assert row["inr_per_gram"] == 15999
+
+
 # --- committed seed CSV conforms to the loader's schema --------------------
 
 def test_committed_seed_csv_matches_schema() -> None:

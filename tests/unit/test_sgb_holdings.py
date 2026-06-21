@@ -26,6 +26,7 @@ import pytest
 from portfolioanalyzer.sgb_holdings import (
     coupon_amount_per_payment,
     coupon_schedule,
+    sgb_asset_label,
     sgb_holding_civ,
 )
 
@@ -241,3 +242,110 @@ def test_coupon_date_before_fx_series_start_raises() -> None:
     )
     with pytest.raises(ValueError, match="no USD/INR rate"):
         sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=fx)
+
+
+# ---------------------------------------------------------------------------
+# Early-redeemed holding type (B2 Phase 3)
+# ---------------------------------------------------------------------------
+
+# 2020-21-VII, redeemed 2026-04-20 at RBI's ₹15,254/unit (the user's own
+# premature redemption; see data/funds/sgb_redemptions.csv).
+_REDEEM_DATE = dt.date(2026, 4, 20)
+_REDEEM_INR = 15254
+# Coupon dates 2021-04-20 … 2026-04-20 inclusive = 11 semi-annual payments
+# received before the holding is redeemed (the 2026-04-20 coupon coincides with
+# the redemption date and still counts).
+_COUPONS_THROUGH_REDEMPTION = 11
+
+
+def test_redeemed_matches_htm_before_redemption_date() -> None:
+    """An early-redeemed holding is identical to HTM up to its redemption date."""
+    gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2028, 10, 20), 5051.0, 15000.0)
+    htm = sgb_holding_civ("2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_FX1)
+    redeemed = sgb_holding_civ(
+        "2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_FX1,
+        redemption_date=_REDEEM_DATE, redemption_inr_per_gram=_REDEEM_INR,
+    )
+    before = pd.Timestamp(_REDEEM_DATE) - pd.Timedelta(days=1)
+    pd.testing.assert_series_equal(htm.loc[:before], redeemed.loc[:before])
+
+
+def test_redeemed_is_flat_cash_after_redemption() -> None:
+    """On/after the redemption date the CIV is constant (proceeds held as cash)."""
+    gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2028, 10, 20), 5051.0, 15000.0)
+    redeemed = sgb_holding_civ(
+        "2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_FX1,
+        redemption_date=_REDEEM_DATE, redemption_inr_per_gram=_REDEEM_INR,
+    )
+    tail = redeemed.loc[pd.Timestamp(_REDEEM_DATE):]
+    assert (tail.diff().dropna() == 0).all(), "redeemed CIV must be flat after redemption"
+
+
+def test_redeemed_pins_capital_at_rbi_price_plus_frozen_coupons() -> None:
+    """Post-redemption value = units × ₹price / FX (FX=1) + coupons received
+    through the redemption date; coupons stop accruing afterwards."""
+    gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2028, 10, 20), 5051.0, 15000.0)
+    redeemed = sgb_holding_civ(
+        "2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_FX1,
+        redemption_date=_REDEEM_DATE, redemption_inr_per_gram=_REDEEM_INR,
+    )
+    expected = 6 * _REDEEM_INR + _COUPONS_THROUGH_REDEMPTION * 378.825
+    assert redeemed.iloc[-1] == pytest.approx(expected)
+    assert redeemed.loc[pd.Timestamp(_REDEEM_DATE)] == pytest.approx(expected)
+
+
+def test_redeemed_capital_uses_fx_on_redemption_date() -> None:
+    """The ₹ redemption price converts to USD at the redemption date's USD/INR,
+    not the issue or coupon FX. Gold flat so we isolate the capital leg."""
+    gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2028, 10, 20), 5051.0, 5051.0)
+    redeemed = sgb_holding_civ(
+        "2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_flat_fx(80.0),
+        redemption_date=_REDEEM_DATE, redemption_inr_per_gram=_REDEEM_INR,
+    )
+    capital_after = 6 * _REDEEM_INR / 80.0
+    income = _COUPONS_THROUGH_REDEMPTION * (378.825 / 80.0)
+    assert redeemed.iloc[-1] == pytest.approx(capital_after + income)
+
+
+def test_redemption_args_must_be_paired() -> None:
+    gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2028, 10, 20), 5051.0, 15000.0)
+    with pytest.raises(ValueError, match="must be given together"):
+        sgb_holding_civ(
+            "2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_FX1,
+            redemption_date=_REDEEM_DATE,
+        )
+
+
+def test_redemption_before_issue_raises() -> None:
+    gold = _linear_gold(dt.date(2020, 10, 20), dt.date(2028, 10, 20), 5051.0, 15000.0)
+    with pytest.raises(ValueError, match="precedes"):
+        sgb_holding_civ(
+            "2020-21-VII", units_grams=6, gold_prices=gold, fx_inr_per_usd=_FX1,
+            redemption_date=dt.date(2019, 1, 1), redemption_inr_per_gram=_REDEEM_INR,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Asset labels
+# ---------------------------------------------------------------------------
+
+
+def test_htm_label_is_bare_tranche() -> None:
+    assert sgb_asset_label({"tranche_id": "2019-20-IX"}) == "SGB 2019-20-IX"
+    assert sgb_asset_label({"tranche_id": "2019-20-IX", "valuation": "htm"}) == "SGB 2019-20-IX"
+
+
+def test_redeemed_label_is_distinct_from_htm() -> None:
+    htm = sgb_asset_label({"tranche_id": "2020-21-VII"})
+    redeemed = sgb_asset_label(
+        {"tranche_id": "2020-21-VII", "valuation": "redeemed", "redemption_date": "2026-04-20"}
+    )
+    assert redeemed == "SGB 2020-21-VII (redeemed 2026-04-20)"
+    assert redeemed != htm  # no weight-key collision when both held
+
+
+def test_redeemed_label_without_date() -> None:
+    assert (
+        sgb_asset_label({"tranche_id": "2020-21-VII", "valuation": "redeemed"})
+        == "SGB 2020-21-VII (redeemed)"
+    )

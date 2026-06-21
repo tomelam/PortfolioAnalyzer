@@ -352,26 +352,34 @@ gold price path (the sanctioned "contractual cash value" FX exception). So a
 gold-only run depends on LBMA alone; an SGB run depends on LBMA gold **and** the
 `DEXINUS` FX feed — the honest decoupling of gold and SGB.
 
-Premature-redemption pricing — substituting RBI's announced pre-redemption
-price (an **INR**, IBJA-3-day-average figure — the contractual cash value, for
-which the Indian source is correct) on the redemption date for the gold-spot
-proxy — is the co-equal **redemption view** of *Part B2*, to be shown *alongside*
-the HTM mark (neither is "default"). Until that valuation lands, SGBs are always
-valued HTM. The terminal maturity pin (RBI's last-week-average maturity price)
-only bites at the 8-year mark, which none of the modelled tranches has reached,
-so the gold-spot proxy and the HTM value coincide within the current window.
+**Early-redeemed holdings (B2).** An early-redeemed SGB is modelled as a
+*distinct holding type*, not a global view toggle: a `[[sgb]]` entry carries
+`valuation = "redeemed"` (default `"htm"`) plus an optional `redemption_date`.
+Such a holding behaves as HTM up to its redemption date; on that date it exits at
+RBI's announced premature-redemption price (an **INR**, IBJA-3-day-average figure
+— the contractual cash value, for which the Indian source is correct) converted
+to USD at the redemption date's `DEXINUS`, and from then on the CIV is **carried
+flat as cash** (coupon accrual freezes — there is no holding left to pay coupons
+on). Because each `[[sgb]]` holding is already its own portfolio asset with its
+own weight and label (`SGB <tranche> (redeemed <date>)` vs the bare `SGB
+<tranche>` for HTM), a portfolio can hold the same tranche **both** ways and the
+report compares them side by side — no `-htm`/`-redemption` flag or second output
+pipeline. HTM stays the default everywhere it is not overridden. The terminal
+**maturity pin** (RBI's last-week-average maturity price at the 8-year mark) is
+still not modelled — no tranche in scope has matured, so HTM coincides with the
+gold-spot proxy within the data window; it becomes relevant only once price data
+runs past a tranche's 2028 maturity.
 
-**B2 data layer (built; valuation pending).** The redemption-price *data* now
-exists ahead of the valuation: `loaders/sgb_redemptions.py` ingests RBI's
-redemption press releases into `data/funds/sgb_redemptions.csv` (`tranche_id,
-redemption_date, kind ∈ {PRE,MAT}, inr_per_gram, source_prid_or_url, tier`). The
-fetchable source was confirmed by a **fail-loud Step 0** gate
-(`scripts/probe_rbi_sgb_redemption.py`): RBI's mobile directory
+**B2 data layer.** The redemption-price *data* is ingested by
+`loaders/sgb_redemptions.py` into `data/funds/sgb_redemptions.csv` (`tranche_id,
+redemption_date, kind ∈ {PRE,MAT}, inr_per_gram, source_prid_or_url, tier`);
+`lookup_redemption(tranche_id, redemption_date=None)` resolves one row for the
+valuation layer (fail-loud on a missing or — when the date is omitted —
+ambiguous match). The fetchable source was confirmed by a **fail-loud Step 0**
+gate (`scripts/probe_rbi_sgb_redemption.py`): RBI's mobile directory
 (`BS_SwarnaBharat.aspx`) is CAPTCHA-walled, but the press releases themselves are
 reachable over plain `requests` — enumerate via the open `SearchResults.aspx`
 endpoint, then parse each `BS_PressReleaseDisplay.aspx?prid=<N>`. This is an
 *event*-cadence table (irregular redemption dates, no calendar frontier), so it
-is a standalone loader rather than a cadence-gated `data_update` `DataSource`,
-and — having no metric depending on it yet — nothing blocks on it. See
-`docs/DATA_REFRESH.md` → *SGB redemption prices*. The remaining B2 work is the
-two-series valuation (HTM vs redemption) and the co-equal output plumbing.
+is a standalone loader rather than a cadence-gated `data_update` `DataSource`.
+See `docs/DATA_REFRESH.md` → *SGB redemption prices*.

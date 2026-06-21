@@ -126,6 +126,66 @@ allocation = 0.05
         load_portfolio_details(_write_toml(tmp_path, toml))
 
 
+def test_redeemed_valuation_accepted(tmp_path) -> None:
+    """A [[sgb]] entry may opt into the early-redeemed holding type."""
+    toml = _MIN_VALID.replace("0.90", "0.95") + """
+[[sgb]]
+tranche_id = "2020-21-VII"
+units_grams = 6
+allocation = 0.05
+valuation = "redeemed"
+redemption_date = "2026-04-20"
+"""
+    p = load_portfolio_details(_write_toml(tmp_path, toml))
+    assert p["sgb"][0]["valuation"] == "redeemed"
+
+
+def test_redeemed_entry_gets_distinct_weight_key(tmp_path) -> None:
+    """A redeemed holding is keyed distinctly so it never collides with the HTM
+    holding of the same tranche; both can appear in one portfolio."""
+    toml = _MIN_VALID + """
+[[sgb]]
+tranche_id = "2020-21-VII"
+units_grams = 6
+allocation = 0.05
+
+[[sgb]]
+tranche_id = "2020-21-VII"
+units_grams = 6
+allocation = 0.05
+valuation = "redeemed"
+redemption_date = "2026-04-20"
+"""
+    p = load_portfolio_details(_write_toml(tmp_path, toml))
+    w = extract_weights(p)
+    assert "SGB 2020-21-VII" in w
+    assert "SGB 2020-21-VII (redeemed 2026-04-20)" in w
+
+
+def test_invalid_valuation_rejected(tmp_path) -> None:
+    toml = _MIN_VALID.replace("0.90", "0.95") + """
+[[sgb]]
+tranche_id = "2020-21-VII"
+units_grams = 6
+allocation = 0.05
+valuation = "sell-everything"
+"""
+    with pytest.raises(ValueError, match="valuation"):
+        load_portfolio_details(_write_toml(tmp_path, toml))
+
+
+def test_redemption_date_without_redeemed_valuation_rejected(tmp_path) -> None:
+    toml = _MIN_VALID.replace("0.90", "0.95") + """
+[[sgb]]
+tranche_id = "2020-21-VII"
+units_grams = 6
+allocation = 0.05
+redemption_date = "2026-04-20"
+"""
+    with pytest.raises(ValueError, match="redemption_date"):
+        load_portfolio_details(_write_toml(tmp_path, toml))
+
+
 def test_old_dict_style_sgb_rejected_with_helpful_message(tmp_path) -> None:
     """The legacy ``[sgb]`` dict block (single allocation, no tranche
     information) is no longer accepted — Phase 2 of the refactor is
