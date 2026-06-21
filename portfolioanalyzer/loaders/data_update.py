@@ -38,6 +38,12 @@ Sources
   benchmark directly here; USD is used unconverted (the tool reports only
   normalized returns, and a time-varying USD/INR path would inject rupee/RBI
   dynamics into gold's measured return).
+- ``fx_usd_inr`` → FRED ``DEXINUS`` (Indian Rupees per US Dollar, daily). Used
+  only by the SGB engine, which values an INR instrument in USD off the LBMA
+  gold price and converts its rupee coupons to USD at each cash-flow date
+  (INR→USD = inr / DEXINUS). FX touches only discrete rupee cash amounts, never
+  gold's price path. Stable, no-auth, machine-readable CSV — like the risk-free
+  FRED feed.
 """
 
 from __future__ import annotations
@@ -399,6 +405,23 @@ REGISTRY: dict[str, DataSource] = {
         day_gated=False,
         affects="gold and SGB valuation",
         label="LBMA Gold Price PM (USD/oz)",
+    ),
+    "fx_usd_inr": DataSource(
+        name="fx_usd_inr",
+        target_path=os.path.join(DATA_DIR, "reference", "DEXINUS.csv"),
+        fetch=lambda session=None: fetch_fred_series("DEXINUS", session=session),
+        out_date_col="observation_date",
+        out_value_col="rate",
+        out_date_format="%Y-%m-%d",
+        # FRED DEXINUS = Indian Rupees per US Dollar (daily, 1973→). SGB is an
+        # INR instrument valued here in USD off the LBMA gold price; its rupee
+        # coupons (and, in B2, redemption prices) are converted to USD at the
+        # cash-flow date via this series (INR→USD = inr / DEXINUS). FX touches
+        # only discrete rupee cash amounts — never gold's price path.
+        cadence="business_day",
+        day_gated=False,  # clean public CSV, no ban risk: refresh whenever behind
+        affects="SGB valuation",
+        label="FRED USD/INR (SGB cash-flow FX)",
     ),
 }
 

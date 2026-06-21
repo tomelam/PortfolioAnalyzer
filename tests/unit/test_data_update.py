@@ -364,6 +364,7 @@ def _gold_source(tmp_path, fetch):
 def test_source_for_path_matches_by_basename():
     assert du.source_for_path("whatever/INDIRLTLT01STM.csv") is du.REGISTRY["risk_free_fred"]
     assert du.source_for_path("x/gold_lbma_usd_daily.csv") is du.REGISTRY["gold_lbma"]
+    assert du.source_for_path("ref/DEXINUS.csv") is du.REGISTRY["fx_usd_inr"]
     assert du.source_for_path("data/does-not-exist.csv") is None
 
 
@@ -373,6 +374,19 @@ def test_gold_registry_entry_is_business_day_not_gated():
     assert src.day_gated is False  # clean public JSON ⇒ no once-per-day guard
     assert src.out_value_col == "Close"  # gold loader's price-column detection
     assert "USD" in src.label
+
+
+def test_fx_usd_inr_registry_entry_is_a_daily_fred_source():
+    """DEXINUS (USD/INR) mirrors the risk-free FRED source: a clean daily CSV,
+    not day-gated, writing a loader-compatible ``rate`` column. It powers SGB
+    coupon→USD conversion only."""
+    src = du.REGISTRY["fx_usd_inr"]
+    assert src.target_path.endswith("DEXINUS.csv")
+    assert src.cadence == "business_day"
+    assert src.day_gated is False  # clean public CSV ⇒ no once-per-day guard
+    assert src.out_date_col == "observation_date"
+    assert src.out_value_col == "rate"
+    assert src.affects == "SGB valuation"
 
 
 def test_gold_refreshes_when_behind(tmp_path, monkeypatch):

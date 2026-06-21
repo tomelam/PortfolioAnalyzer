@@ -19,9 +19,12 @@ are:
 | Risk-free rate | `data/reference/INDIRLTLT01STM.csv` | FRED `INDIRLTLT01STM` (India 10Y govt bond rate) | monthly |
 | Benchmark (NIFTY 50 TRI) | `data/reference/NIFTY Total Returns Historical Data.csv` | niftyindices.com Total-Returns API | business day |
 | Gold price | `data/reference/gold_lbma_usd_daily.csv` | LBMA Gold Price PM fix (USD/troy-ounce), `prices.lbma.org.uk` | business day |
+| USD/INR FX | `data/reference/DEXINUS.csv` | FRED `DEXINUS` (Indian Rupees per US Dollar) | business day |
 
 The gold feed is gated **only for portfolios that hold gold or SGBs** (both are
-valued off it); other portfolios never touch it. All are no-auth feeds. FRED and
+valued off it); the FX feed is gated **only for portfolios that hold SGBs** (an
+INR instrument whose rupee coupons are converted to USD — see below). Other
+portfolios never touch either. All are no-auth feeds. FRED and
 LBMA serve clean machine-readable responses (CSV / JSON) over plain `requests`.
 niftyindices is aggressively
 anti-scrape and holds blocks against the source IP, so it is fetched **only**
@@ -107,9 +110,25 @@ The price is kept in **USD, unconverted**: the analyzer reports only normalized
 returns, and a time-varying USD/INR path would inject rupee/RBI dynamics into
 gold's measured return (a constant oz→gram unit cancels under normalization; a
 varying FX path does not). The per-gram conversion (`/31.1034768`) still holds,
-now USD/gram. SGBs are marked HTM to this USD gold spot plus their INR coupon
-sliver; the contractual **INR** premature-redemption view (RBI/IBJA) is *Part B*,
-a co-equal view to be added later (see `docs/ARCHITECTURE.md`).
+now USD/gram.
+
+## SGBs add a USD/INR FX dependency (coupons only)
+
+An SGB is an **INR** instrument, but there is no free, deep-history *daily* INR
+gold series, so the holding is marked in **USD** off the LBMA gold spot above.
+Its 2.5% coupon is contractually a **rupee** cash amount, so the SGB engine
+(`sgb_holdings.sgb_holding_civ`) converts each coupon to USD at **its own
+payment date's** USD/INR rate (FRED `DEXINUS`, INR per USD: `usd = inr /
+DEXINUS`) and the CIV is a single consistent USD series. FX touches only the
+discrete rupee coupon amounts — **never the gold price path** (the sanctioned
+"contractual cash value" exception; a constant unit cancels, a varying FX path
+on the price would not).
+
+This is the honest decoupling of gold and SGB: a **gold-only** run gates on the
+LBMA feed alone; an **SGB** run gates on LBMA gold **and** the `DEXINUS` FX
+feed. The contractual **INR** premature/maturity redemption view (RBI/IBJA),
+shown co-equally with the HTM mark, is *Part B* — to be added later (see
+`docs/ARCHITECTURE.md`).
 
 ## Manual, feedless sources (PPF)
 

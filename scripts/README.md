@@ -21,6 +21,7 @@ the `portfolio-analyzer` entry point (see `docs/QUICKSTART.md`).
 |---|---|
 | `fetch_vro_metrics.py` | Collector CLI: fetch Value Research Online's published figures for the mapped funds and print VRO vs ours vs Δ (returns, Mean/SD/Sharpe/Sortino, and Beta/Alpha where the benchmark is sourceable). `--json` writes a snapshot. Needs the `[browser]` extra. |
 | `ppf_annualized_interest_rate.py` | Diagnostic: compute the overall annualized PPF rate from the rate CSV. |
+| `sgb_coupon_load_check.py` | Read-only spot-check that an SGB tranche's coupon load is a small fraction of capital (per coupon < 1%). Established + re-verifies the Part B1 fix for the coupon-unit regression (rupee coupon summed into a USD capital number). |
 
 ## Discovery spikes (throwaway diagnostics — kept for the record)
 
