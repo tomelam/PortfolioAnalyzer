@@ -258,29 +258,40 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   off-by-1% portfolios are still rejected. Suite went from 24/30 to 30/30
   rendered via `scripts/render-all.sh`.
 
-- [ ] **SGB premature/maturity redemption views — BACK BURNER = Part B2**
-  (user, 2026-06-19; planned 2026-06-20). Now that B1 (above) fixed the unit
-  regression, SGBs are valued **HTM** everywhere they appear (all-USD CIV: LBMA
-  USD gold capital + USD-converted coupons). B2 adds the contractual **INR**
-  redemption view as a **co-equal** view alongside HTM (neither default).
-  Premature redemption is **not a big win right now**, so it is deferred. (HTM
-  default recorded in `docs/ARCHITECTURE.md` → *SGB valuation: hold-to-maturity
-  by default*.) For our two held tranches the gold-spot proxy *is* the HTM value
-  within the current window (neither has reached the 8-year maturity pin).
-  - *Full plan:* `~/.claude/plans/logical-prancing-backus.md` (Phase B2), incl. a
-    **fail-loud Step 0** to verify a fetchable RBI redemption-price source
-    (`m.rbi.org.in/Scripts/BS_SwarnaBharat.aspx` / IBJA `SGBPdf` PDFs) before
-    building ingest/valuation.
-  - *When revived:* data model `data/funds/sgb_redemptions.csv` (tranche_id,
-    redemption_date, kind ∈ {PRE, MAT}, inr_per_gram, source_prid_or_url, tier);
-    `sgb_holding_civ` produces two series per tranche (HTM vs redemption), the
-    INR redemption price converted to USD via the same FRED `DEXINUS` FX as the
-    coupons, carrying proceeds flat as cash after maturity (ties to the
-    perpetual-compounding item above). Master ledger provenanced at
-    `money-news/raw/sgb-master-ledger.md` (67 tranches, RBI-PRID links) — holds
-    only ~4–7 actual redemption prices (e.g. 2017-18 Series IV ₹12,704, Series XI
-    ₹12,801, Series XIV ₹13,486, 2019-20 Series VII ₹15,275); the rest are
-    explicit gaps needing per-PRID RBI fetches.
+- [ ] **SGB premature/maturity redemption views — Part B2 (IN PROGRESS)**
+  (user, 2026-06-19). Now that B1 (above) fixed the unit regression, SGBs are
+  valued **HTM** everywhere they appear (all-USD CIV: LBMA USD gold capital +
+  USD-converted coupons). B2 adds the contractual **INR** redemption view as a
+  **co-equal** view alongside HTM (neither default). (HTM default recorded in
+  `docs/ARCHITECTURE.md` → *SGB valuation: hold-to-maturity by default*.) For our
+  two held tranches the gold-spot proxy *is* the HTM value within the current
+  window (neither has reached the 8-year maturity pin).
+  - *Full plan:* `~/.claude/plans/logical-prancing-backus.md` (Phase B2).
+  - [x] **Step 0 (fail-loud source gate) — PASS** (2026-06-21, branch
+    `sgb-redemption-views-b2`). RBI's mobile directory
+    (`m.rbi.org.in/.../BS_SwarnaBharat.aspx`) is CAPTCHA-walled, but the
+    redemption press releases are reachable over plain `requests` — enumerate via
+    the open `SearchResults.aspx` endpoint, parse each
+    `BS_PressReleaseDisplay.aspx?prid=<N>`. No IBJA paid API / stealth browser
+    needed. Reproducible probe: `scripts/probe_rbi_sgb_redemption.py`.
+  - [x] **Phases 1–2 (data model + ingest) — DONE** (2026-06-21). Data model
+    `data/funds/sgb_redemptions.csv` (tranche_id, redemption_date, kind ∈
+    {PRE,MAT}, inr_per_gram, source_prid_or_url, tier), seeded live from RBI with
+    the ~14 redemptions its search currently lists (all tier **T1**, incl. the
+    user's 2020-21-VII @ ₹15,254 on 2026-04-20). Ingest `loaders/sgb_redemptions.py`
+    (pure `parse_search_prids`/`parse_redemption_pr` + `fetch_*` + `update_sgb_redemptions`
+    upsert, event cadence, reuses `data_update` stamps). 13 unit tests + 1 live
+    `-m network` test. Run on demand: `python -m portfolioanalyzer.loaders.sgb_redemptions`.
+  - [ ] **Phase 3 (valuation) — TODO.** `sgb_holding_civ` produces two series per
+    tranche (HTM vs redemption); the INR redemption price → USD via the same FRED
+    `DEXINUS` FX as the coupons, carrying proceeds flat as cash after maturity
+    (ties to the perpetual-compounding item above).
+  - [ ] **Phase 4 (co-equal output plumbing) — TODO.** Two co-equal views
+    (`-htm`/`-redemption`) in `main.py`/`visualizer.py`, neither default.
+  - *Backfill gaps:* the committed seed is RBI's recent search page only. Older
+    premature redemptions + maturity (MAT) redemptions remain to backfill (a
+    re-run upserts; the master ledger `money-news/raw/sgb-master-ledger.md` lists
+    a few, e.g. 2017-18 Series IV ₹12,704, 2019-20 Series VII ₹15,275).
 
 - [ ] **SGB hold-to-maturity vs redeemable subtypes — BACK BURNER** (user-raised
   2026-06-18; deferred 2026-06-19 with the redemption-pricing item it depends on).
