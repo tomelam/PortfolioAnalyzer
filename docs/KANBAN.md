@@ -267,8 +267,9 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   two held tranches the gold-spot proxy *is* the HTM value within the current
   window (neither has reached the 8-year maturity pin).
   - *Full plan:* `~/.claude/plans/logical-prancing-backus.md` (Phase B2).
-  - [x] **Step 0 (fail-loud source gate) — PASS** (2026-06-21, branch
-    `sgb-redemption-views-b2`). RBI's mobile directory
+  - *Status:* Step 0 + Phases 1–2 **MERGED to main** (`--no-ff` merge `02a4c1e`,
+    branch `sgb-redemption-views-b2`, 2026-06-21; full suite 455 offline + 11 network).
+  - [x] **Step 0 (fail-loud source gate) — PASS** (2026-06-21). RBI's mobile directory
     (`m.rbi.org.in/.../BS_SwarnaBharat.aspx`) is CAPTCHA-walled, but the
     redemption press releases are reachable over plain `requests` — enumerate via
     the open `SearchResults.aspx` endpoint, parse each
