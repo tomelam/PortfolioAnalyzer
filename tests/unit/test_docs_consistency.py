@@ -23,12 +23,14 @@ from pathlib import Path
 import pytest
 
 from portfolioanalyzer import main
+from portfolioanalyzer.data_loader import load_portfolio_details
 from portfolioanalyzer.loaders.benchmark import load_timeseries_csv
 from portfolioanalyzer.loaders.risk_free import fetch_and_standardize_risk_free_rates
 
 ROOT = Path(__file__).resolve().parents[2]
 DOC_FILES = [ROOT / "README.md", ROOT / "docs" / "QUICKSTART.md"]
 CONFIG_FILES = sorted((ROOT / "examples" / "config").glob("*.toml"))
+PORT_FILES = sorted((ROOT / "examples" / "port").glob("*.toml"))
 
 # Third-party flags that legitimately appear in install/run snippets and are not
 # the analyzer's to define: pip (-e), python/pytest (-m), rm (-rf), make (-j).
@@ -212,3 +214,18 @@ def test_config_data_files_load(config_path):
 
     if not checked:
         pytest.skip("no benchmark/risk-free files declared in this config")
+
+
+# --- example portfolios ----------------------------------------------------
+
+@pytest.mark.parametrize("port_path", PORT_FILES, ids=lambda p: p.name)
+def test_example_portfolios_validate(port_path):
+    """Every shipped example portfolio must pass the schema validator.
+
+    Guards that documented asset-section keys ([scss] purchase_date/term_years,
+    [ppf], [[sgb]], …) stay loadable as the schema evolves — the portfolio-TOML
+    analogue of the runtime-config-key check above. Offline: pure validation,
+    no NAV fetch.
+    """
+    assert PORT_FILES, "no example portfolios found under examples/port/"
+    load_portfolio_details(str(port_path))

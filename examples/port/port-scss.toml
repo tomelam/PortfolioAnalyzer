@@ -3,3 +3,8 @@ label = "SCSS"
 [scss]
 name = "Senior Citizens' Savings Scheme"
 allocation = 1.00
+# Term-locked rollover: the SCSS rate locks at opening for the whole term and
+# re-prices only at each rollover boundary. purchase_date anchors the first
+# term (omit to anchor at the analysis-window start); term_years defaults to 5.
+purchase_date = 2019-04-01
+term_years = 5

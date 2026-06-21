@@ -226,17 +226,30 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   in `scripts/sgb_coupon_load_check.py`. Co-equal HTM/redemption views are **B2**
   (back-burner item below). Related: [[project-sgb-htm-default]].
 
-- [ ] **Maturing instruments are modelled as perpetual compounding** (surfaced
-  2026-06-19 by the REC-bond drop). SCSS (and the dropped REC bond) are valued by
-  `calculate_variable_bond_cumulative_gain`, which compounds a fixed coupon from
-  2000→today with **no maturity event** — so a 5-year instrument keeps "earning"
-  forever in a backtest, overstating its late-window contribution. A faithful
-  model would stop compounding at the maturity (or pre-redemption) date and carry
-  the principal as **cash** (flat) thereafter, optionally reinvested. This is the
-  same gap as SGB maturity (see SGB items) — worth doing **generally** for all
-  fixed-term instruments (SCSS, SGB, FDs), not per-asset. Not yet scheduled;
-  related: [[project-sgb-htm-default]]. *(This is the real value the REC bond
-  surfaced; REC itself was dropped — modelled identically to SCSS, no longer held.)*
+- [x] **SCSS valuation: term-locked rollover — DONE (2026-06-21, branch
+  `scss-term-locked-rollover`).** The original framing here ("perpetual
+  compounding = bug; stop at maturity and carry principal as cash") was a
+  **misdiagnosis**, corrected with the user: for asset/portfolio metrics
+  **reinvestment must be assumed** — a matured SCSS sleeve falling to flat cash
+  would make the metrics describe "SCSS then idle cash," not SCSS, distorting
+  CAGR/vol/Sharpe. The current continuous compounding already *was* reinvestment
+  at the prevailing rate, so it was not wrong to keep compounding. The **one real
+  fidelity gap**: a real SCSS account **locks its rate at opening for the whole
+  term** (later quarterly revisions don't touch an open account), whereas the old
+  code floated the published rate daily. Fix: new pure `term_locked_rate_series`
+  locks the rate per `term_years` term and re-looks-it-up only at each rollover
+  boundary, anchored at an optional `[scss] purchase_date` (else the
+  analysis-window start); `term_years` defaults to 5. `calculate_variable_bond_cumulative_gain`
+  gains `term_years`/`anchor_date` kwargs (`term_years=None` preserves the legacy
+  continuous path). Schema validates the two optional keys fail-fast. Goldens:
+  only `port-everything` moved (CAGR 12.41→12.44% daily/monthly; anchored
+  drawdown cols unchanged); re-captured ×2. Tests: `tests/unit/test_bond_calculators.py`
+  (10), data_loader schema (3), a new docs-guard that every `examples/port/*.toml`
+  validates. Docs: ARCHITECTURE *SCSS valuation: term-locked rollover*, QUICKSTART,
+  example port files. **Scope:** SCSS only — SGB stays a one-time bond redeemed at
+  maturity (its rollover/redemption is the separate B2 thread,
+  [[project-sgb-htm-default]]). *(REC, which surfaced this, was dropped — it was
+  modelled identically to SCSS, no longer held.)*
 
 - [x] **Fixed `PortfolioTimeseries.__init__` weight-sum check** (2026-06-17,
   cycle 1). Strict `!= 1` replaced with `abs(total_weight - 1) > 0.01`.

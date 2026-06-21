@@ -9,3 +9,5 @@ allocation = 0.50
 [scss]
 name = "Senior Citizens' Savings Scheme"
 allocation = 0.50
+# Optional term-lock anchor; term_years defaults to 5 (see port-scss.toml).
+purchase_date = 2019-04-01
