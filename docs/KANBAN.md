@@ -316,9 +316,28 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
   `[[sgb]]` entry (each holding already a distinct weighted asset), so a portfolio
   can hold the same tranche both ways and compare the outcomes side by side — the
   "4 possible SGB-related asset types" goal for our 2 held tranches. See B2 Phase 3
-  above. *Remaining sliver:* the HTM **maturity pin** (terminal value at the 8-yr
-  mark = RBI's last-week-average maturity price rather than the gold-spot proxy)
-  stays deferred — dormant until price data runs past a tranche's 2028 maturity.
+  above. *Remaining sliver:* the HTM **maturity pin** — its own deferred item below.
+
+- [ ] **SGB HTM maturity pin — DEFERRED / DORMANT** (the last open SGB item;
+  specified 2026-06-21). At an SGB's **8-year maturity** RBI redeems at a contractual
+  price (simple average of the week's closing 999-gold price preceding maturity),
+  not that day's spot. The pin would, at `maturity_date`, swap the daily gold-spot
+  capital leg for that RBI **maturity** price (`kind = MAT` in
+  `sgb_redemptions.csv`, INR→USD via `DEXINUS`) and carry it flat as cash — the
+  at-maturity twin of the early-redemption (`PRE`) path already built in
+  `sgb_holding_civ`. Sole effect: terminal-day accuracy (week-average vs one day's
+  LBMA spot) on the last day of an 8-year series.
+  - **Why dormant (left unimplemented):** (1) every in-scope tranche
+    (`sgb_tranches.csv`, Feb 2020+) matures **2028+**, beyond the ~2026 gold/FX
+    data; `sgb_holding_civ` clips at `min(maturity_date, gold_end) = gold_end`, so
+    maturity never falls in-window and HTM = gold-spot proxy there. (2) The only
+    `MAT` rows we have are for pre-2020 matured tranches not in the reference; the
+    2020+ tranches have no `MAT` row yet.
+  - **Activate when BOTH hold:** daily gold extends past a tranche's 2028+
+    maturity **and** a `MAT` row exists for it. Then reuse the redeemed-path code,
+    keyed on `maturity_date` + the `MAT` row. *Full plan:*
+    `~/.claude/plans/sgb-maturity-pin.md`. See `docs/ARCHITECTURE.md` →
+    *SGB valuation … Maturity pin (deferred, dormant)*.
 
 - [x] **Deleted `combined_daily_returns()`** (2026-06-17, cycle 4). And
   `civ_and_returns()` which was its only caller. Test churn:
