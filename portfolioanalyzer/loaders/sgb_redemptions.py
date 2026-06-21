@@ -14,13 +14,16 @@ CAPTCHA-walled, so we route around it over plain ``requests``:
 
 - **Enumerate** redemption press releases via RBI's open search endpoint
   (``SearchResults.aspx?search=...``), which lists each announcement linked by
-  ``?prid=<N>``.
+  ``?prid=<N>``. The full history is reached by walking the ASP.NET pagination
+  (14 hits/page, ``hdnPageNo`` postback) across two queries — *premature* (PRE)
+  and *final* (MAT) redemption, which have distinct titles.
 - **Parse** each ``BS_PressReleaseDisplay.aspx?prid=<N>`` press release for the
-  redemption date, the ₹/unit price, and the tranche reference(s).
+  redemption date(s), the ₹/unit price, and the tranche reference(s).
 
 Decomposed like ``loaders/scss.py`` so the parsers are unit-testable offline:
 
-- ``parse_search_prids`` — pure: search HTML → list of redemption PRIDs
+- ``parse_search_prids`` — pure: one search page's HTML → list of redemption PRIDs
+- ``enumerate_redemption_prids`` — network: walk all pages of both searches → PRIDs
 - ``parse_redemption_pr`` — pure: one PR's HTML → list of redemption rows
 - ``fetch_search_html`` / ``fetch_pr_html`` — network: URL → HTML text
 - ``update_sgb_redemptions`` — composition: enumerate → fetch → parse → upsert
@@ -37,6 +40,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 
 import pandas as pd
 import requests
@@ -46,11 +50,23 @@ from portfolioanalyzer.loaders import data_update
 from portfolioanalyzer.utils import info
 
 # Open RBI endpoints (no CAPTCHA, plain requests — see module docstring).
+# Two searches are needed: "premature redemption" lists the pre-maturity (PRE)
+# announcements; "final redemption" lists the at-maturity (MAT) ones — they have
+# distinct titles, so a single query misses one kind. Both are unioned by PRID.
 RBI_SEARCH_URL = (
     "https://rbi.org.in/Scripts/SearchResults.aspx"
     "?search=premature%20redemption%20sovereign%20gold%20bond"
 )
+RBI_FINAL_SEARCH_URL = (
+    "https://rbi.org.in/Scripts/SearchResults.aspx"
+    "?search=final%20redemption%20sovereign%20gold%20bond"
+)
+RBI_SEARCH_URLS = (RBI_SEARCH_URL, RBI_FINAL_SEARCH_URL)
 RBI_PR_URL = "https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx?prid={prid}"
+
+# RBI's search returns 14 results per page; older redemptions are reached by
+# walking the ASP.NET postback pagination (see ``enumerate_redemption_prids``).
+_SEARCH_PAGE_SIZE = 14
 
 # Where the ingested table lives, and the stamp key (reusing data_update's stamp
 # file for unified provenance) for this event-cadence source.
@@ -68,6 +84,29 @@ COLUMNS = [
 ]
 
 _ROMAN = r"[IVXLC]+"
+
+_MONTHS = (
+    r"(?:January|February|March|April|May|June|July|August|September|"
+    r"October|November|December)"
+)
+# One or more redemption dates as RBI phrases them: a single "Month DD, YYYY",
+# or a co-incident pair "Month D and D, YYYY" / "Month D and Month D, YYYY"
+# (two tranches redeemed in the same week at one price). The trailing year is
+# shared. ``_parse_due_dates`` turns the captured string into date objects.
+_DATE = (
+    rf"{_MONTHS}\s+\d{{1,2}}"
+    rf"(?:\s*(?:and|&)\s*(?:{_MONTHS}\s+)?\d{{1,2}})*"
+    rf",?\s*\d{{4}}"
+)
+# The robust, era-spanning anchor: "...(falling) due on <date(s)> ... shall be
+# ₹|Rs.|INR <amount>/-". ``[^.]*?`` keeps the date and price within one sentence
+# so the header "due on <date>" (which has no price) is skipped in favour of the
+# operative "...shall be ₹<amount>" sentence. Handles both the modern "₹14,774"
+# and the older "Rs. 5119" / "₹4804" forms.
+_DUE_PRICE_RE = re.compile(
+    rf"(?:falling\s+)?due\s+on\s+({_DATE})[^.]*?"
+    rf"shall\s+be\s*(?:₹|Rs\.?|INR)\s?([\d,]+)"
+)
 
 
 # --- pure parsers ----------------------------------------------------------
@@ -127,6 +166,12 @@ def _extract_tranche_ids(text: str) -> list[str]:
     # Pattern B: "Series I of SGB 2015"
     for ser, yr in re.findall(rf"Series[\s-]+({_ROMAN})\s+of\s+SGB\s*(20\d\d(?:-\d\d)?)", text):
         pairs.append((yr, ser))
+    # Pattern C: "SGB 2016 (I)" / "SGB 2016-I" / "SGB 2016 - I" — the older
+    # series-less form, where the roman is bound to the year by a parenthesis or
+    # a dash (NOT a bare space, which would risk swallowing stray romans like the
+    # "I" in "In terms of…").
+    for yr, ser in re.findall(rf"SGB\s*(20\d\d(?:-\d\d)?)\s*(?:\(\s*|-\s*|\s-\s*)({_ROMAN})\b", text):
+        pairs.append((yr, ser))
     out: list[str] = []
     seen: set[str] = set()
     for yr, ser in pairs:
@@ -137,6 +182,32 @@ def _extract_tranche_ids(text: str) -> list[str]:
     return out
 
 
+def _parse_due_dates(date_str: str) -> list:
+    """Turn a captured ``_DATE`` string into a list of ``datetime.date``.
+
+    Handles ``"May 30, 2022"``, ``"August 5 and 8, 2021"`` (shared month+year),
+    and ``"November 04 and November 06, 2023"`` (explicit second month). The
+    4-digit year is shared across all days; a day without its own month inherits
+    the previous one. Returns ``[]`` if nothing parses.
+    """
+    year_m = re.search(r"\d{4}", date_str)
+    if not year_m:
+        return []
+    year = year_m.group(0)
+    body = re.sub(r"\d{4}", "", date_str)  # strip the year; days are 1–2 digits
+    out = []
+    last_month = None
+    for mon, day in re.findall(rf"(?:({_MONTHS})\s+)?(\d{{1,2}})", body):
+        mon = mon or last_month
+        if not mon:
+            continue
+        last_month = mon
+        d = pd.to_datetime(f"{mon} {day} {year}", errors="coerce")
+        if pd.notna(d):
+            out.append(d.date())
+    return out
+
+
 def parse_redemption_pr(html: str) -> list[dict]:
     """Pure: one redemption press release's HTML → list of redemption rows.
 
@@ -144,34 +215,54 @@ def parse_redemption_pr(html: str) -> list[dict]:
     ``tranche_id``, ``redemption_date`` (ISO ``YYYY-MM-DD``), ``kind``
     (``PRE``/``MAT``), and ``inr_per_gram`` (int). Provenance columns
     (``source_prid_or_url``, ``tier``) are attached by the caller, which knows
-    the PRID. Returns ``[]`` if the page isn't a parseable redemption notice
-    (e.g. a CAPTCHA interstitial or an unexpected layout) — the caller treats
-    an empty parse as "nothing to ingest from this PRID", never a crash.
+    the PRID. Returns ``[]`` if the page isn't a parseable redemption *price*
+    notice — a CAPTCHA interstitial, an unexpected layout, or a "scheme
+    calendar" announcement that carries no price — so the caller treats an empty
+    parse as "nothing to ingest from this PRID", never a crash.
+
+    The single ``_DUE_PRICE_RE`` anchor captures the redemption date(s) and the
+    ₹/unit price together (1 unit = 1 gram of 999 gold). ``kind`` is ``PRE`` when
+    the body mentions *premature* redemption, else ``MAT`` (the final at-maturity
+    redemption). When one release covers several tranches:
+
+    - **one date, N tranches** — all share that date and price (co-redeemed);
+    - **N dates, N tranches** — paired in listed order (two tranches whose
+      windows fall in the same week at one price);
+    - **mismatched counts** — ambiguous; the release is skipped with a logged
+      note rather than guessing a date↔tranche mapping (no silent bad rows).
     """
     text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html))
 
-    date_m = re.search(r"redemption (?:due|price)[^.]*?due on\s+([A-Z][a-z]+ \d{1,2},\s*\d{4})", text)
-    if not date_m:
-        date_m = re.search(r"due on\s+([A-Z][a-z]+ \d{1,2},\s*\d{4})", text)
-    price_m = re.search(r"redemption price[^₹]*₹\s?([0-9][0-9,]*)\s*/?-?[^.]*?per unit", text, re.I)
-    if not date_m or not price_m:
+    m = _DUE_PRICE_RE.search(text)
+    if not m:
+        return []
+    dates = _parse_due_dates(m.group(1))
+    tranche_ids = _extract_tranche_ids(text)
+    if not dates or not tranche_ids:
         return []
 
-    redemption_date = pd.to_datetime(date_m.group(1), errors="coerce")
-    if pd.isna(redemption_date):
-        return []
-    inr_per_gram = int(price_m.group(1).replace(",", ""))
+    inr_per_gram = int(m.group(2).replace(",", ""))
     kind = "PRE" if re.search(r"premature", text, re.I) else "MAT"
 
-    tranche_ids = _extract_tranche_ids(text)
+    if len(dates) == 1:
+        pairs = [(tid, dates[0]) for tid in tranche_ids]
+    elif len(dates) == len(tranche_ids):
+        pairs = list(zip(tranche_ids, dates))
+    else:
+        info(
+            f"sgb_redemptions: skipping ambiguous multi-date release "
+            f"(dates={m.group(1)!r}, tranches={tranche_ids}); add manually if needed"
+        )
+        return []
+
     return [
         {
             "tranche_id": tid,
-            "redemption_date": redemption_date.date().isoformat(),
+            "redemption_date": d.isoformat(),
             "kind": kind,
             "inr_per_gram": inr_per_gram,
         }
-        for tid in tranche_ids
+        for tid, d in pairs
     ]
 
 
@@ -189,6 +280,61 @@ def fetch_pr_html(prid: str, *, session=None) -> str:
     resp = (session or requests).get(RBI_PR_URL.format(prid=prid), timeout=30)
     resp.raise_for_status()
     return resp.text
+
+
+def _form_fields(html: str) -> dict:
+    """Extract the ASP.NET form's hidden/visible ``<input>`` name→value pairs
+    (``__VIEWSTATE``, ``__EVENTVALIDATION``, ``hdnPageNo``, the search box, …).
+    These must be echoed back on each pagination postback."""
+    soup = BeautifulSoup(html, "html.parser")
+    return {i.get("name"): i.get("value", "") for i in soup.find_all("input") if i.get("name")}
+
+
+def _total_records(html: str) -> int:
+    """The ``N Records`` count RBI prints above the result list (0 if absent)."""
+    m = re.search(r"([\d,]+)\s+Records", re.sub(r"<[^>]+>", " ", html))
+    return int(m.group(1).replace(",", "")) if m else 0
+
+
+def enumerate_redemption_prids(*, session=None, search_urls=RBI_SEARCH_URLS, sleep: float = 0.25) -> list[str]:
+    """Network: walk every page of each RBI redemption search and return the
+    union of redemption PRIDs (newest first within each search).
+
+    RBI's ``SearchResults.aspx`` shows 14 hits per page and pages via an ASP.NET
+    ``__doPostBack('btnUpdate','')`` that reads ``hdnPageNo``. We replay that:
+    GET page 1, then POST page 2…N echoing the form's ``__VIEWSTATE`` /
+    ``__EVENTVALIDATION`` (regenerated each response, so they are re-read every
+    hop) with ``hdnPageNo`` bumped. A persistent ``Session`` carries cookies.
+    Both the premature- and final-redemption searches are walked so PRE and MAT
+    announcements are covered (see ``RBI_SEARCH_URLS``).
+    """
+    sess = session or requests.Session()
+    out: list[str] = []
+    seen: set[str] = set()
+    for url in search_urls:
+        html = fetch_search_html(url, session=sess)
+        pages = max(1, -(-_total_records(html) // _SEARCH_PAGE_SIZE))  # ceil-div
+        fields = _form_fields(html)
+        for prid in parse_search_prids(html):
+            if prid not in seen:
+                seen.add(prid)
+                out.append(prid)
+        for page in range(2, pages + 1):
+            data = dict(fields)
+            data["__EVENTTARGET"] = "btnUpdate"
+            data["__EVENTARGUMENT"] = ""
+            data["hdnPageNo"] = str(page)
+            resp = sess.post(url, data=data, timeout=30)
+            resp.raise_for_status()
+            html = resp.text
+            fields = _form_fields(html)  # refresh viewstate for the next hop
+            for prid in parse_search_prids(html):
+                if prid not in seen:
+                    seen.add(prid)
+                    out.append(prid)
+            if sleep:
+                time.sleep(sleep)
+    return out
 
 
 # --- CSV read / merge / write ----------------------------------------------
@@ -277,11 +423,16 @@ def update_sgb_redemptions(
 ) -> dict:
     """Enumerate RBI redemption press releases, parse each, and upsert the CSV.
 
-    Network by default. With ``replay_from`` set, HTML is read from local files
+    Network by default: ``enumerate_redemption_prids`` walks *every* page of both
+    the premature- and final-redemption searches (full history, PRE + MAT), then
+    each PR is fetched and parsed. The upsert preserves existing rows, so a re-run
+    is the backfill mechanism — it adds newly-published redemptions and any older
+    ones not seen before. With ``replay_from`` set, HTML is read from local files
     (``<dir>/rbi_sgb_redemption_search.html`` and
     ``<dir>/rbi_sgb_redemption_pr_<prid>.html``) instead of RBI — the offline
-    path used by tests. ``limit`` caps how many PRIDs are fetched (newest first,
-    as the search lists them).
+    path used by tests, which uses the single saved search page (no pagination).
+    ``limit`` caps how many PRIDs are fetched (newest first, as the search lists
+    them).
 
     Returns a summary dict: ``prids`` seen, ``rows`` ingested this run, and the
     resulting ``total`` row count. Stamps ``data/.last_fetched.json`` under
@@ -291,8 +442,13 @@ def update_sgb_redemptions(
         with open(os.path.join(replay_from, name), encoding="utf-8") as f:
             return f.read()
 
-    search_html = _read("rbi_sgb_redemption_search.html") if replay_from else fetch_search_html(session=session)
-    prids = parse_search_prids(search_html)
+    if replay_from:
+        # Offline: a single saved search page (no live pagination/postback).
+        prids = parse_search_prids(_read("rbi_sgb_redemption_search.html"))
+    else:
+        # Network: walk every page of both searches so older PRE redemptions and
+        # the at-maturity (MAT) ones are reached, not just the recent first page.
+        prids = enumerate_redemption_prids(session=session)
     if limit is not None:
         prids = prids[:limit]
 

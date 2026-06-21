@@ -299,10 +299,16 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
     weighted asset, so a portfolio holding the same tranche both ways shows the
     two side by side. *Maturity (MAT) pin remains deferred* (dormant; no tranche
     matured within the data window).
-  - *Backfill gaps:* the committed seed is RBI's recent search page only. Older
-    premature redemptions + maturity (MAT) redemptions remain to backfill (a
-    re-run upserts; the master ledger `money-news/raw/sgb-master-ledger.md` lists
-    a few, e.g. 2017-18 Series IV ₹12,704, 2019-20 Series VII ₹15,275).
+  - [x] **Backfill — DONE** (2026-06-21, branch `sgb-redemption-backfill`). The
+    loader now walks **every** search page (ASP.NET `hdnPageNo` postback) across
+    **two** queries — *premature* (PRE) and *final* (MAT) redemption — and the
+    parser was hardened (era-spanning "due on `<date(s)>` … shall be ₹|Rs|INR
+    `<amt>`" anchor; `SGB 2016 (I)` form; co-redemption + skip-with-warning for
+    ambiguous multi-date releases). Committed CSV grew **14 → 232 rows** (210 PRE
+    + 22 MAT, all T1, 2021-11-17 → 2026-06-16; held tranches now carry full
+    premature history). Residual gaps surfaced, not guessed: price-less "scheme
+    calendar" pages + 3 early multi-date SGB-2016 co-redemptions (covered by those
+    tranches' later single-date rows). +7 unit tests; full suite 479 + 11 network.
 
 - [x] **SGB hold-to-maturity vs redeemable subtypes — DONE, folded into B2
   Phase 3** (user-raised 2026-06-18; implemented 2026-06-21). The two valuation

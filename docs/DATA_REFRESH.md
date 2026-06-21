@@ -160,11 +160,23 @@ tranche(s). No IBJA paid API or stealth browser needed. Refresh on demand:
 ./venv/bin/python -m portfolioanalyzer.loaders.sgb_redemptions
 ```
 
-The committed CSV is seeded with the redemptions RBI's search currently lists
-(most recent ~14, all tier **T1** — fetched direct from the press release).
-Older premature redemptions and maturity (MAT) redemptions are documented gaps
-to backfill; a re-run upserts new announcements on `(tranche_id,
-redemption_date)` and never drops existing rows.
+Enumeration walks **every page** of the search (RBI returns 14 hits/page via an
+ASP.NET `__doPostBack`/`hdnPageNo` pagination we replay) across **two** queries —
+*premature redemption* (PRE) and *final redemption* (MAT), which have distinct
+titles — and unions the PRIDs. The parser anchors on the era-spanning
+"…(falling) due on `<date(s)>` … shall be ₹|Rs.|INR `<amount>`/-" phrasing, so it
+handles both the modern `₹14,774` and the older `Rs. 5119` forms, single- and
+co-redemption (one price, several tranches) releases, and the series-less
+`SGB 2016 (I)` tranche form. A re-run upserts on `(tranche_id, redemption_date)`
+and never drops existing rows.
+
+**Known residual gaps** (all surfaced, none silently guessed): the handful of
+"scheme calendar" announcements carry no price (correctly skipped), and a few
+early co-incident **multi-date** releases (two tranches redeemed in the same week
+on different days, named without a parseable tranche↔date order — e.g. "due on
+August 5 and 8, 2021 (Series I of SGB 2016-17 **and SGB 2016 I**)") are skipped
+with a logged note rather than risk a wrong date↔tranche mapping; those tranches
+are otherwise covered by their later single-date redemptions.
 
 ## Manual, feedless sources (PPF)
 
