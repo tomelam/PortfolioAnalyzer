@@ -39,8 +39,16 @@ LBMA_GOLD_FIXTURE = (
 
 
 class _FakeResp:
+    """A more faithful requests.Response double.
+
+    `status_code` was added when the fetchers moved onto webgrab, which inspects
+    the status directly rather than relying on raise_for_status() -- so that it
+    can decline to retry a definite answer (404/403/410) while retrying a
+    transient one. A real Response has always had both."""
+
     def __init__(self, text, status=200):
         self.text = text
+        self.status_code = status
         self._status = status
 
     def raise_for_status(self):

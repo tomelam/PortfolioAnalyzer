@@ -59,6 +59,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 import requests
+from webgrab import http
 
 from portfolioanalyzer.loaders.benchmark import load_timeseries_csv
 
@@ -190,11 +191,26 @@ def parse_lbma_gold_json(text: str) -> pd.DataFrame:
 # --- network fetchers ------------------------------------------------------
 
 def _get(url: str, *, session=None, timeout: int = 30, headers: dict | None = None) -> str:
-    # headers=None → requests' default User-Agent (works for FRED & mfapi-style
-    # feeds). Only niftyindices passes explicit browser headers.
-    resp = (session or requests).get(url, timeout=timeout, headers=headers)
-    resp.raise_for_status()
-    return resp.text
+    """Fetch text through the shared ``webgrab`` client.
+
+    Sends **no User-Agent override**, and that is a measured requirement rather
+    than a convenience. FRED sits behind Akamai Bot Manager, which judges the UA
+    string: an omitted UA, ``python-requests/x`` and ``curl/8.7.1`` all return in
+    ~0.2s, while an unrecognised token such as ``webgrab/0.1`` times out — even
+    appended to a recognised one. A browser UA from a non-browser client fails too.
+
+    ``webgrab`` adds what this had none of: retry with widening backoff on
+    transient failures, no retry at all on a definite answer (404/403/410), and a
+    non-empty-body check, since a 0-byte HTTP 200 otherwise parses downstream as
+    "no rows" rather than as an error. It raises ``webgrab.http.FetchError``
+    where this previously raised ``requests.HTTPError``; both are caught by
+    :func:`update_all`, which isolates one dead feed from the rest.
+
+    ``headers`` is accepted for callers that need it but is passed by none today:
+    niftyindices is browser-only (see :func:`fetch_niftyindices_tri`), so the
+    earlier note that it was the one caller passing browser headers was stale.
+    """
+    return http.get(url, session=session, timeout=timeout, headers=headers)
 
 
 def fetch_fred_series(series_id: str, *, session=None) -> pd.DataFrame:

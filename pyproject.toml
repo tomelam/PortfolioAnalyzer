@@ -24,6 +24,7 @@ dependencies = [
     # our pytest filterwarnings. Pin to the last 3.1.x (no such warnings).
     "pyparsing==3.1.4",
     "tabulate",
+    "webgrab @ git+https://github.com/tomelam/webgrab.git",
 ]
 
 [project.scripts]
