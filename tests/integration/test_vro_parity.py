@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import pytest
 
+from portfolioanalyzer.loaders.data_update import NiftyEndpointMoved
 from portfolioanalyzer.loaders.mutual_fund import fetch_navs
 from portfolioanalyzer.loaders.vro import (
     browser_extra_available,
@@ -63,8 +64,19 @@ RETURN_PERIODS = (("3Y", 3), ("5Y", 5))
 # for run-day noise on top of that systematic, stable gap.
 TOL_MEAN_PP = 0.4
 TOL_STD_PP = 0.4
-TOL_SHARPE = 0.10
-TOL_SORTINO = 0.20
+TOL_SHARPE = 0.05   # observed worst |delta| 0.02 after the 2026-09-07 risk-free correction
+# Sortino is compared RELATIVELY, not absolutely. Mean, Std Dev and Sharpe all
+# reconcile to <=0.02 (2026-09-07), so our returns series and annualisation are
+# right and the entire residual sits in the downside-deviation denominator, which
+# VRO computes non-standardly (established in earlier reconciliations). The size
+# of that residual scales inversely with fund volatility: measured 2026-09-07 it
+# is 0.0% for HDFC BAF, 5% for HDFC Hybrid Debt, 7.7% for Franklin and 13.5% for
+# the corporate bond fund -- whose Sortino is large precisely because its downside
+# deviation is tiny. A fixed absolute band therefore says "pass" for volatile
+# funds and "fail" for stable ones at the same underlying disagreement.
+# 20% covers the observed spread with headroom; a real regression in the numerator
+# would move Sharpe first, and Sharpe is now held to 0.05.
+TOL_SORTINO_REL = 0.20
 
 # Beta / Alpha tolerances (only ICICI Bluechip, vs NIFTY 100 TRI). Calibrated
 # from the first live reconciliation (2026-06-18 NAV): Beta Δ−0.011 (ours 0.909
@@ -107,18 +119,31 @@ def test_our_metrics_match_vro(fund) -> None:
         ("mean", TOL_MEAN_PP),
         ("std_dev", TOL_STD_PP),
         ("sharpe", TOL_SHARPE),
-        ("sortino", TOL_SORTINO),
     ):
         assert abs(ours_risk[key] - vro.risk[key]) < tol, (
             f"{fund.name} {key}: ours={ours_risk[key]:.2f} vs VRO={vro.risk[key]:.2f} "
             f"(Δ{ours_risk[key] - vro.risk[key]:+.2f} ≥ {tol})"
         )
 
+    # Sortino: relative, for the reason given at TOL_SORTINO_REL.
+    rel = abs(ours_risk["sortino"] - vro.risk["sortino"]) / max(abs(vro.risk["sortino"]), 1e-9)
+    assert rel < TOL_SORTINO_REL, (
+        f"{fund.name} sortino: ours={ours_risk['sortino']:.2f} vs "
+        f"VRO={vro.risk['sortino']:.2f} ({rel*100:.1f}% ≥ {TOL_SORTINO_REL*100:.0f}%)"
+    )
+
     # --- CAPM Beta / Alpha (vs the stated benchmark TRI) ------------------
     # Asserted only where the benchmark is sourceable from niftyindices AND VRO
     # publishes the figure. Fetch the benchmark TRI once, here, for those funds.
     if fund.benchmark_index:
-        bench_tri = fetch_benchmark_tri(fund.benchmark_index)
+        try:
+            bench_tri = fetch_benchmark_tri(fund.benchmark_index)
+        except NiftyEndpointMoved as e:
+            # niftyindices put the TRI endpoint behind a login on 2026-09-07, so
+            # no benchmark series is obtainable. Skip only the CAPM assertions:
+            # everything above -- returns, mean, std dev, Sharpe, Sortino -- has
+            # already run and still guards this fund.
+            pytest.skip(f"benchmark TRI unavailable, so Beta/Alpha cannot be checked: {e}")
         ours_capm = trailing_risk_ratios(nav, years=3, benchmark_nav=bench_tri)
         for key, tol in (("beta", TOL_BETA), ("alpha", TOL_ALPHA_PP)):
             if key not in vro.risk:

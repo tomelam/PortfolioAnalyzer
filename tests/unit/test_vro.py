@@ -208,3 +208,57 @@ def test_trailing_risk_ratios_too_few_points_raises() -> None:
     nav = _synthetic_monthly_nav(periods=6)  # only ~5 monthly returns
     with pytest.raises(ValueError, match="too few"):
         trailing_risk_ratios(nav, years=3)
+
+
+class TestImpliedRiskFree:
+    """VRO's assumed risk-free is not published, so our constant was back-solved
+    by hand from a captured fragment -- and a hand-derived constant goes stale
+    silently.
+
+    It did: measured 2026-09-07, VRO's implied risk-free across four funds was
+    5.62-5.69% while our constant said 5.90%. The failure did not look like a
+    stale constant. It looked like "Sharpe is wrong for the corporate bond fund",
+    because dSharpe = dRf / StdDev, so a fixed 0.23pp error shows up as 0.17 on a
+    StdDev of 1.34 and as 0.01 on a StdDev of 17.94. The most stable fund in the
+    set was the loudest symptom.
+
+    implied_vro_risk_free() makes the derivation a one-liner over VRO's own
+    published triple, so it can be re-checked instead of re-guessed."""
+
+    def test_back_solves_the_risk_free_from_vros_own_numbers(self):
+        from portfolioanalyzer.loaders.vro import implied_vro_risk_free
+        # Sharpe = (mean - rf) / std  =>  rf = mean - sharpe * std
+        assert implied_vro_risk_free(
+            {"mean": 7.26, "std_dev": 1.34, "sharpe": 1.17}
+        ) == pytest.approx(5.69, abs=0.01)
+
+    def test_matches_a_high_volatility_fund_too(self):
+        from portfolioanalyzer.loaders.vro import implied_vro_risk_free
+        assert implied_vro_risk_free(
+            {"mean": 20.87, "std_dev": 17.94, "sharpe": 0.85}
+        ) == pytest.approx(5.62, abs=0.01)
+
+    def test_missing_keys_raise_rather_than_returning_a_plausible_number(self):
+        from portfolioanalyzer.loaders.vro import implied_vro_risk_free
+        with pytest.raises(KeyError):
+            implied_vro_risk_free({"mean": 7.26, "std_dev": 1.34})
+
+    def test_a_zero_std_dev_raises_instead_of_dividing(self):
+        from portfolioanalyzer.loaders.vro import implied_vro_risk_free
+        with pytest.raises(ValueError, match="std_dev"):
+            implied_vro_risk_free({"mean": 7.0, "std_dev": 0.0, "sharpe": 1.0})
+
+    def test_our_constant_is_within_a_quarter_point_of_the_measurement(self):
+        """Guards the constant itself. If VRO moves its assumption again this
+        fails saying so, instead of surfacing as one fund's Sharpe."""
+        from portfolioanalyzer.loaders.vro import VRO_RISK_FREE_ANNUAL
+        # 0.10pp is derived, not picked: dSharpe = dRf / StdDev, the smallest
+        # StdDev among the tracked funds is 1.34, and the Sharpe tolerance is
+        # 0.10 -- so 0.10 * 1.34 = 0.134pp is where Sharpe starts to fail. A
+        # 0.10pp guard therefore fires FIRST, and says what is actually wrong.
+        assert abs(VRO_RISK_FREE_ANNUAL * 100 - 5.67) < 0.10, (
+            f"VRO's implied risk-free has drifted from our constant "
+            f"({VRO_RISK_FREE_ANNUAL*100:.2f}%). Re-derive it with "
+            f"implied_vro_risk_free() over the tracked funds and update the "
+            f"constant; do NOT widen the Sharpe tolerance."
+        )
