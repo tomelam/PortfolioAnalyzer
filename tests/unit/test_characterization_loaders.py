@@ -331,3 +331,48 @@ class TestScss:
         (tmp_path / "scss_nsi.html").write_text("<html><body>redesigned</body></html>")
         with pytest.raises(RuntimeError, match="zero rows"):
             scss.load_scss_interest_rates(replay_from=str(tmp_path))
+
+
+class TestNiftyindicesLoginWall:
+    """niftyindices moved the TRI endpoint behind authentication (found
+    2026-09-07). The POST to Backpage.aspx/getTotalReturnIndexString now
+    redirects:
+
+        POST /Backpage.aspx/getTotalReturnIndexString
+        GET  /Sitefinity/Login?ReturnUrl=...getTotalReturnIndexString
+        GET  /?ReturnUrl=...
+
+    so the in-page fetch sees HTTP 200 carrying 93 KB of the site's homepage.
+    The historical-data page no longer references the endpoint at all. This is
+    not an IP block and not a fetch bug -- the landing page loads normally.
+
+    Left as a raw json.loads failure it surfaced as
+    'Expecting value: line 1 column 2 (char 1)', which says nothing about the
+    cause and reads like a transient glitch worth retrying. It is neither."""
+
+    def test_an_html_body_is_named_as_such_not_reported_as_bad_json(self):
+        html = '<!DOCTYPE html> <html><head><title>NIFTY Indices</title></head><body>x</body></html>'
+        with pytest.raises(ValueError) as e:
+            du.parse_niftyindices_tri_json(html)
+        msg = str(e.value)
+        assert "HTML" in msg
+        assert "login" in msg.lower(), "the message must name the likely cause"
+
+    def test_a_login_redirect_body_is_recognised(self):
+        body = '<html><head><title>NIFTY Indices</title></head><body>LOGIN Sitefinity</body></html>'
+        with pytest.raises(ValueError, match="authentication|login"):
+            du.parse_niftyindices_tri_json(body)
+
+    def test_genuine_json_still_parses(self):
+        import json as _json
+        payload = _json.dumps({"d": _json.dumps(
+            [{"Date": "12 Jun 2026", "TotalReturnsIndex": "1,234.56"}])})
+        df = du.parse_niftyindices_tri_json(payload)
+        assert len(df) == 1
+        assert df["value"].iloc[0] == pytest.approx(1234.56)
+
+    def test_a_still_malformed_but_non_html_body_keeps_its_own_error(self):
+        """Not everything non-JSON is a login wall; don't over-claim."""
+        with pytest.raises(Exception) as e:
+            du.parse_niftyindices_tri_json("{not json at all")
+        assert "HTML" not in str(e.value)

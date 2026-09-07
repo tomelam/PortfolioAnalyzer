@@ -78,6 +78,15 @@ def test_fetch_niftyindices_tri_live():
         df = du.fetch_niftyindices_tri(start="01-Apr-2026", end="30-Apr-2026")
     except RuntimeError as e:
         pytest.skip(f"niftyindices throttled this IP (upstream, not a bug): {e}")
+    except du.NiftyEndpointMoved as e:
+        # Found 2026-09-07: the POST to Backpage.aspx/getTotalReturnIndexString
+        # now redirects to /Sitefinity/Login and lands on the homepage, and the
+        # historical-data page no longer references the endpoint at all. That is
+        # an upstream availability change, not a regression here, and no amount
+        # of retrying gets past a login wall. Skipped with the reason rather than
+        # left permanently red -- a gate that is always red stops being read.
+        # A parser regression still fails: it would raise a plain ValueError.
+        pytest.skip(f"niftyindices TRI endpoint now requires authentication: {e}")
     # Reached only when the scrape succeeded — assert the data is real & sane.
     assert not df.empty
     assert list(df.columns) == ["value"]

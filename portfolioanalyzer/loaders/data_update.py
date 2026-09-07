@@ -91,6 +91,15 @@ _NIFTY_UA = (
 
 # --- pure parsers ----------------------------------------------------------
 
+class NiftyEndpointMoved(ValueError):
+    """The niftyindices TRI endpoint answered with a page instead of JSON.
+
+    A distinct type so callers can tell an upstream availability change from a
+    parser regression. String-matching an error message to make that distinction
+    is how a real regression eventually gets mistaken for a known outage.
+    """
+
+
 def parse_fred_csv(text: str) -> pd.DataFrame:
     """Parse a FRED ``fredgraph`` CSV into a date-indexed ``value`` frame.
 
@@ -121,6 +130,29 @@ def parse_niftyindices_tri_json(text: str) -> pd.DataFrame:
     Returns a DataFrame indexed by a ``date`` DatetimeIndex with a single
     float ``value`` column.
     """
+    # An HTML body here is not malformed JSON, it is a different answer entirely.
+    # Found 2026-09-07: niftyindices moved this endpoint behind authentication --
+    #   POST /Backpage.aspx/getTotalReturnIndexString
+    #   GET  /Sitefinity/Login?ReturnUrl=...getTotalReturnIndexString
+    #   GET  /?ReturnUrl=...
+    # so the caller receives HTTP 200 carrying ~93 KB of the site's homepage, and
+    # the historical-data page no longer references the endpoint at all. Left to
+    # json.loads this surfaced as "Expecting value: line 1 column 2 (char 1)",
+    # which says nothing about the cause and reads like a transient glitch worth
+    # retrying. It is neither: no amount of retrying gets past a login wall.
+    stripped = text.lstrip()
+    if stripped[:1] == "<" or stripped[:9].lower() == "<!doctype":
+        hint = ""
+        if "sitefinity" in text.lower() or "login" in text.lower():
+            hint = (" The body looks like the login/landing page, so the endpoint now "
+                    "requires authentication.")
+        raise NiftyEndpointMoved(
+            f"niftyindices returned HTML, not the JSON envelope: the TRI endpoint "
+            f"redirected instead of answering.{hint} This is not a transient failure "
+            f"and retrying will not help; the endpoint needs a new path or a login. "
+            f"First 120 chars: {stripped[:120]!r}"
+        )
+
     envelope = json.loads(text)
     if "d" not in envelope:
         raise ValueError("niftyindices response missing 'd' envelope key")

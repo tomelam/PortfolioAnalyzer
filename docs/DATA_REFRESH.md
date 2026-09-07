@@ -195,6 +195,34 @@ maintain it by hand.
   unparseable date or non-numeric rate (a silently-dropped row would corrupt the
   CIV — this caught a real `2025=01-01` typo).
 
+## niftyindices TRI: behind a login since 2026-09-07
+
+`benchmark_nifty_tri` cannot be refreshed. The POST to
+`Backpage.aspx/getTotalReturnIndexString` now redirects:
+
+```
+POST /Backpage.aspx/getTotalReturnIndexString
+GET  /Sitefinity/Login?ReturnUrl=...getTotalReturnIndexString
+GET  /?ReturnUrl=...
+```
+
+so the caller receives HTTP 200 carrying ~93 KB of the site's homepage. The
+historical-data page no longer references the endpoint at all. This is **not**
+an IP block — the landing page loads normally in the same session — and not a
+scraper regression. It is an upstream change, and no amount of retrying gets
+past a login wall.
+
+`parse_niftyindices_tri_json` now raises `NiftyEndpointMoved` naming this, rather
+than surfacing `Expecting value: line 1 column 2 (char 1)`, which said nothing
+about the cause and read like a transient glitch. The live test skips on that
+exception specifically; a genuine parser regression still raises a plain
+`ValueError` and still fails.
+
+Consequence: the benchmark CSV stays at its last good date and the freshness
+gate blocks a run that needs it unless `--allow-stale`. That is the designed
+behaviour. Restoring the feed needs a new public endpoint or an authenticated
+one — a decision, not a fix.
+
 ## Manual one-shot refresh (optional)
 
 `portfolio-analyzer-update` refreshes every registered source in one shot and
