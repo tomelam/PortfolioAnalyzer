@@ -6,6 +6,12 @@ Run via the in-repo wrapper: `./pa <args>` (executes `venv/bin/python main.py`).
 
 ---
 
+Staged-pipeline conventions shared with the other `make`-driven projects here — make vs
+staleness, `.PRECIOUS` vs `.DELETE_ON_ERROR:`, one-argument stages, atomic resume,
+sanity-checking a produced artifact: `~/Projects/meta/pipeline-conventions.md`.
+
+---
+
 ## Code and data rules
 
 ### Fail loud — no silent fallbacks
