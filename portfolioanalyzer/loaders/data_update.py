@@ -58,7 +58,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 import pandas as pd
-import requests
 from webgrab import http
 
 from portfolioanalyzer.loaders.benchmark import load_timeseries_csv

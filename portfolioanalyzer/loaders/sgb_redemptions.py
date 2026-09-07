@@ -40,11 +40,11 @@ from __future__ import annotations
 
 import os
 import re
-import time
 
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+from webgrab import session as wg_session
 
 from portfolioanalyzer.loaders import data_update
 from portfolioanalyzer.utils import info
@@ -282,58 +282,48 @@ def fetch_pr_html(prid: str, *, session=None) -> str:
     return resp.text
 
 
-def _form_fields(html: str) -> dict:
-    """Extract the ASP.NET form's hidden/visible ``<input>`` name→value pairs
-    (``__VIEWSTATE``, ``__EVENTVALIDATION``, ``hdnPageNo``, the search box, …).
-    These must be echoed back on each pagination postback."""
-    soup = BeautifulSoup(html, "html.parser")
-    return {i.get("name"): i.get("value", "") for i in soup.find_all("input") if i.get("name")}
-
-
-def _total_records(html: str) -> int:
-    """The ``N Records`` count RBI prints above the result list (0 if absent)."""
-    m = re.search(r"([\d,]+)\s+Records", re.sub(r"<[^>]+>", " ", html))
-    return int(m.group(1).replace(",", "")) if m else 0
-
-
 def enumerate_redemption_prids(*, session=None, search_urls=RBI_SEARCH_URLS, sleep: float = 0.25) -> list[str]:
     """Network: walk every page of each RBI redemption search and return the
     union of redemption PRIDs (newest first within each search).
 
     RBI's ``SearchResults.aspx`` shows 14 hits per page and pages via an ASP.NET
-    ``__doPostBack('btnUpdate','')`` that reads ``hdnPageNo``. We replay that:
-    GET page 1, then POST page 2…N echoing the form's ``__VIEWSTATE`` /
-    ``__EVENTVALIDATION`` (regenerated each response, so they are re-read every
-    hop) with ``hdnPageNo`` bumped. A persistent ``Session`` carries cookies.
-    Both the premature- and final-redemption searches are walked so PRE and MAT
-    announcements are covered (see ``RBI_SEARCH_URLS``).
+    ``__doPostBack('btnUpdate','')`` that reads ``hdnPageNo``. That walk is now
+    ``webgrab.session.paginate_aspnet``, which re-reads ``__VIEWSTATE`` from each
+    response (ASP.NET regenerates it per response) and carries cookies on a
+    persistent session. Both the premature- and final-redemption searches are
+    walked so PRE and MAT announcements are covered (see ``RBI_SEARCH_URLS``).
+
+    Two guards come with the shared implementation, and the first mattered here:
+
+      A FAILED POSTBACK DOES NOT ERROR -- it re-serves the previous page. This
+      function de-duplicated PRIDs into ``seen``, so a stale viewstate or dropped
+      cookie produced no new PRIDs, no exception, and a confident return of one
+      page out of seventeen. The de-duplication was hiding it. Identical
+      consecutive pages now raise.
+
+      A RUNAWAY CAP. The page count is derived from a number scraped off the
+      page; if that regex ever matches something large, the walk becomes a
+      hammering. It is now bounded regardless of what the page claims.
+
+    Page 1 is fetched through :func:`fetch_search_html` and handed over, so this
+    module keeps its own fetch seam.
     """
     sess = session or requests.Session()
     out: list[str] = []
     seen: set[str] = set()
     for url in search_urls:
-        html = fetch_search_html(url, session=sess)
-        pages = max(1, -(-_total_records(html) // _SEARCH_PAGE_SIZE))  # ceil-div
-        fields = _form_fields(html)
-        for prid in parse_search_prids(html):
-            if prid not in seen:
-                seen.add(prid)
-                out.append(prid)
-        for page in range(2, pages + 1):
-            data = dict(fields)
-            data["__EVENTTARGET"] = "btnUpdate"
-            data["__EVENTARGUMENT"] = ""
-            data["hdnPageNo"] = str(page)
-            resp = sess.post(url, data=data, timeout=30)
-            resp.raise_for_status()
-            html = resp.text
-            fields = _form_fields(html)  # refresh viewstate for the next hop
-            for prid in parse_search_prids(html):
+        first = fetch_search_html(url, session=sess)
+        for page_html in wg_session.paginate_aspnet(
+            url,
+            page_size=_SEARCH_PAGE_SIZE,
+            session=sess,
+            first_page=first,
+            throttle=sleep,
+        ):
+            for prid in parse_search_prids(page_html):
                 if prid not in seen:
                     seen.add(prid)
                     out.append(prid)
-            if sleep:
-                time.sleep(sleep)
     return out
 
 

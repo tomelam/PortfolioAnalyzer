@@ -242,14 +242,16 @@ def test_enumerate_paginates_and_unions_searches(monkeypatch) -> None:
                         lambda url, session=None: pages[(url, "1")])
 
     class FakeResp:
-        def __init__(self, text): self.text = text
+        def __init__(self, text):
+            self.text = text
+            self.status_code = 200   # webgrab inspects the status directly
         def raise_for_status(self): pass
 
     class FakeSession:
-        def post(self, url, data=None, timeout=None):
+        def post(self, url, data=None, timeout=None, **kwargs):   # real .post takes headers
             return FakeResp(pages[(url, data["hdnPageNo"])])
 
-    monkeypatch.setattr(R, "_form_fields", lambda html: {})
+    # _form_fields no longer exists here: webgrab.session owns it now.
     prids = R.enumerate_redemption_prids(
         session=FakeSession(), search_urls=("urlA", "urlB"), sleep=0
     )

@@ -14,7 +14,6 @@ cannot be smuggled in under a refactor.
 
 from __future__ import annotations
 
-import json
 import os
 
 import pandas as pd
@@ -222,9 +221,9 @@ class TestUpdateAllIsolatesFailures:
 
 class TestFetchNavs:
     def test_parses_a_good_response(self, monkeypatch):
-        import requests
-
         import json as _json
+
+        import requests
         body = {"data": [{"date": "04-09-2026", "nav": "10.5"},
                          {"date": "03-09-2026", "nav": "10.4"}]}
 
@@ -280,6 +279,7 @@ class TestFetchNavs:
         trips. A payload that parsed is an answer; asking again cannot change
         it."""
         import json as _json
+
         import requests
 
         calls = []
