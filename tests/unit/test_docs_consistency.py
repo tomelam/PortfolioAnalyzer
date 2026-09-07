@@ -163,6 +163,36 @@ def test_all_cli_flags_are_documented():
 
 # --- config keys -----------------------------------------------------------
 
+def test_update_cli_documented_flags_exist():
+    """DATA_REFRESH.md's flags for portfolio-analyzer-update must be real.
+
+    Extends this guard to the second console script. It previously covered only
+    main.build_parser(), so a flag documented for the refresh CLI -- or a flag
+    the refresh CLI grew without documentation -- drifted unchecked."""
+    from portfolioanalyzer.data_update_cli import build_parser as update_parser
+
+    real = {o for a in update_parser()._actions for o in a.option_strings}
+    text = (ROOT / "docs" / "DATA_REFRESH.md").read_text()
+    # Bound the slice by the NEXT heading of the same level, not by end-of-file:
+    # an unbounded slice swallows every later section's flags.
+    start = text.index("## Manual one-shot refresh")
+    nxt = text.find("\n## ", start + 1)
+    block = text[start:nxt if nxt != -1 else len(text)]
+    assert "portfolio-analyzer-update" in block, "sliced the wrong section"
+    documented = {f for f in _FLAG_RE.findall(block) if f not in _FOREIGN_FLAGS}
+    unknown = sorted(documented - real)
+    assert not unknown, f"DATA_REFRESH.md documents flags the refresh CLI lacks: {unknown}"
+
+
+def test_update_cli_flags_are_documented():
+    from portfolioanalyzer.data_update_cli import build_parser as update_parser
+
+    real = {o for a in update_parser()._actions for o in a.option_strings if o.startswith("--")}
+    text = (ROOT / "docs" / "DATA_REFRESH.md").read_text()
+    undocumented = sorted(f for f in real if f not in text and f != "--help")
+    assert not undocumented, f"refresh CLI flags missing from DATA_REFRESH.md: {undocumented}"
+
+
 def test_documented_config_keys_exist():
     bogus = sorted(_documented_config_keys() - _real_config_keys())
     assert not bogus, (

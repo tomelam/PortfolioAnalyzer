@@ -331,3 +331,85 @@ class TestScss:
         (tmp_path / "scss_nsi.html").write_text("<html><body>redesigned</body></html>")
         with pytest.raises(RuntimeError, match="zero rows"):
             scss.load_scss_interest_rates(replay_from=str(tmp_path))
+
+
+class TestNiftyindicesLoginWall:
+    """niftyindices moved the TRI endpoint behind authentication (found
+    2026-09-07). The POST to Backpage.aspx/getTotalReturnIndexString now
+    redirects:
+
+        POST /Backpage.aspx/getTotalReturnIndexString
+        GET  /Sitefinity/Login?ReturnUrl=...getTotalReturnIndexString
+        GET  /?ReturnUrl=...
+
+    so the in-page fetch sees HTTP 200 carrying 93 KB of the site's homepage.
+    The historical-data page no longer references the endpoint at all. This is
+    not an IP block and not a fetch bug -- the landing page loads normally.
+
+    Left as a raw json.loads failure it surfaced as
+    'Expecting value: line 1 column 2 (char 1)', which says nothing about the
+    cause and reads like a transient glitch worth retrying. It is neither."""
+
+    def test_an_html_body_is_named_as_such_not_reported_as_bad_json(self):
+        html = '<!DOCTYPE html> <html><head><title>NIFTY Indices</title></head><body>x</body></html>'
+        with pytest.raises(ValueError) as e:
+            du.parse_niftyindices_tri_json(html)
+        msg = str(e.value)
+        assert "HTML" in msg
+        assert "login" in msg.lower(), "the message must name the likely cause"
+
+    def test_a_login_redirect_body_is_recognised(self):
+        body = '<html><head><title>NIFTY Indices</title></head><body>LOGIN Sitefinity</body></html>'
+        with pytest.raises(ValueError, match="authentication|login"):
+            du.parse_niftyindices_tri_json(body)
+
+    def test_genuine_json_still_parses(self):
+        import json as _json
+        payload = _json.dumps({"d": _json.dumps(
+            [{"Date": "12 Jun 2026", "TotalReturnsIndex": "1,234.56"}])})
+        df = du.parse_niftyindices_tri_json(payload)
+        assert len(df) == 1
+        assert df["value"].iloc[0] == pytest.approx(1234.56)
+
+    def test_a_still_malformed_but_non_html_body_keeps_its_own_error(self):
+        """Not everything non-JSON is a login wall; don't over-claim."""
+        with pytest.raises(Exception) as e:
+            du.parse_niftyindices_tri_json("{not json at all")
+        assert "HTML" not in str(e.value)
+
+
+class TestNiftyindicesNewApiShape:
+    """niftyindices moved to a route-based API (found 2026-09-07 by driving the
+    page's own form under Playwright and reading the request off the wire, then
+    confirming against the call site in the site's IISLComponet.js bundle):
+
+        OLD  POST /Backpage.aspx/getTotalReturnIndexString  -> {"d": "<json string>"}
+        NEW  POST /BackPage/getTotalReturnIndexString       -> bare JSON array
+
+    The method name and the request body are UNCHANGED -- `cinfo` is still a
+    single-quoted JSON string, exactly what _niftyindices_body already builds.
+    Only the route and the response envelope moved. The legacy envelope is still
+    accepted so a recorded fixture from before the change keeps working."""
+
+    def test_the_new_bare_array_parses(self):
+        df = du.parse_niftyindices_tri_json(_fx("nifty_tri_bare_array.json"))
+        assert len(df) == 3
+        assert list(df.columns) == ["value"]
+        assert df.index.is_monotonic_increasing
+        assert df.index.max() == pd.Timestamp("2026-04-30")
+        assert df["value"].iloc[-1] == pytest.approx(36174.80)
+
+    def test_the_legacy_d_envelope_still_parses(self):
+        import json as _json
+        legacy = _json.dumps({"d": _json.dumps(
+            [{"Date": "30 Apr 2026", "TotalReturnsIndex": "36174.80"}])})
+        df = du.parse_niftyindices_tri_json(legacy)
+        assert len(df) == 1 and df["value"].iloc[0] == pytest.approx(36174.80)
+
+    def test_an_empty_array_is_an_error_not_an_empty_frame(self):
+        with pytest.raises(ValueError, match="zero records"):
+            du.parse_niftyindices_tri_json("[]")
+
+    def test_the_endpoint_url_is_the_new_route(self):
+        assert du.NIFTY_TRI_ENDPOINT.endswith("/BackPage/getTotalReturnIndexString")
+        assert ".aspx" not in du.NIFTY_TRI_ENDPOINT

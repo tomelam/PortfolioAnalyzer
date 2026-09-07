@@ -102,9 +102,23 @@ def test_parse_niftyindices_tri_json():
 
 
 def test_parse_niftyindices_missing_envelope_raises():
-    with pytest.raises(ValueError, match="'d' envelope"):
-        du.parse_niftyindices_tri_json('{"notd": "x"}')
+    """A dict that is neither the legacy envelope nor a record list is an error.
 
+    Updated 2026-09-07: the route-based API returns a BARE ARRAY, so "no 'd'
+    key" is no longer wrong by itself. What must still fail is a dict shaped like
+    neither -- and the message now names both accepted shapes, so the reader
+    learns the contract from the failure."""
+    with pytest.raises(ValueError, match="expected a list of records"):
+        du.parse_niftyindices_tri_json(json.dumps({"notd": []}))
+
+
+def test_parse_niftyindices_accepts_a_bare_array():
+    """The current API shape, recorded live on 2026-09-07."""
+    df = du.parse_niftyindices_tri_json(
+        json.dumps([{"Date": "30 Apr 2026", "TotalReturnsIndex": "36174.80"}])
+    )
+    assert len(df) == 1
+    assert df["value"].iloc[0] == pytest.approx(36174.80)
 
 def test_parse_niftyindices_unexpected_columns_raises():
     inner = json.dumps([{"Date": "12 Jun 2026", "Foo": "1"}])

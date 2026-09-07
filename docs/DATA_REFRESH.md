@@ -195,6 +195,48 @@ maintain it by hand.
   unparseable date or non-numeric rate (a silently-dropped row would corrupt the
   CIV — this caught a real `2025=01-01` typo).
 
+## niftyindices moved to a route-based API (2026-09-07)
+
+`benchmark_nifty_tri` broke and was fixed the same day. Recorded because the
+symptom pointed at the wrong thing entirely.
+
+**Symptom.** `json.decoder.JSONDecodeError: Expecting value: line 1 column 2`.
+
+**What was actually happening.** The old WebForms page method redirected:
+
+```
+POST /Backpage.aspx/getTotalReturnIndexString
+GET  /Sitefinity/Login?ReturnUrl=...getTotalReturnIndexString
+GET  /?ReturnUrl=...
+```
+
+so the caller got HTTP 200 carrying ~93 KB of the site's homepage. `/Sitefinity/Login`
+is the **CMS editor** login, which is what a Sitefinity site serves for a route that no
+longer exists — not a visitor paywall. The data was never gated; the route was deleted.
+
+**The fix.** Driving the page's own form under Playwright and reading the request off the
+wire showed the new shape, confirmed against the call site in the site's own
+`liveindexsa.niftyindices.com/assets/js/IISLComponet.js`:
+
+| | Old | New |
+|---|---|---|
+| Route | `/Backpage.aspx/getTotalReturnIndexString` | `/BackPage/getTotalReturnIndexString` |
+| Body | `{"cinfo": "{'name':...}"}` | **unchanged** |
+| Response | `{"d": "<json string>"}` | bare JSON array |
+
+The method name and request body never changed — only the route and the response
+envelope. `parse_niftyindices_tri_json` accepts both envelopes, so a fixture recorded
+before the change still works. Verified live: 4877 rows, 2007-01-02 to 2026-09-07.
+
+**Two things kept from the diagnosis.** `NiftyEndpointMoved` still fires if an HTML body
+ever comes back from that endpoint again, naming the redirect instead of reporting bad
+JSON. And the live test skips on that exception specifically, so a genuine parser
+regression (a plain `ValueError`) still fails.
+
+**The lesson worth keeping:** an HTML body from a JSON endpoint is a different *answer*,
+not malformed JSON. Reporting it as a parse error made it look transient and retryable,
+which sent the investigation toward the parser rather than the URL.
+
 ## Manual one-shot refresh (optional)
 
 `portfolio-analyzer-update` refreshes every registered source in one shot and
@@ -204,11 +246,18 @@ ahead of time (e.g. before an offline session):
 
 ```bash
 ./venv/bin/portfolio-analyzer-update
+./venv/bin/portfolio-analyzer-update --dry-run   # list the sources, contact none
 ```
 
 It exits non-zero only if *every* source failed (so one flaky feed doesn't fail
 the command). There is intentionally no scheduled/cron path: the analyzer is
 self-sufficient and refreshes on demand.
+
+Arguments are parsed **before** anything is fetched. Until 2026-09-07 `main`
+accepted `argv` and ignored it, so `--help` refreshed every source instead of
+printing help — and one of those sources holds blocks against the source IP, so
+an informational command could cost real access. `--dry-run` exists for the same
+reason: to answer "what would this touch?" without touching it.
 
 ## Re-capturing goldens after a source change
 

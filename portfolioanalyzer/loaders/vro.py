@@ -70,7 +70,32 @@ VRO_RISK_KEYS: tuple[str, ...] = (*VRO_RISK_REQUIRED_KEYS, "beta", "alpha")
 # from a captured fragment (ICICI Pru Large Cap Dir 3Y): Sharpe 0.64 = (Mean
 # 14.51 - Rf) / Std 13.51 ⇒ Rf ≈ 5.9%. Used as the default for our matched
 # computation; refined during live reconciliation across the mapped funds.
-VRO_RISK_FREE_ANNUAL = 0.059
+# VRO does not publish its assumed risk-free, so this is back-solved from VRO's
+# own Mean / Std Dev / Sharpe triple -- see implied_vro_risk_free().
+#
+# Measured 2026-09-07 across four tracked funds: 5.62, 5.67, 5.68, 5.69 -> 5.67%.
+# It was 5.90% (derived June 2026) and had drifted. That drift did NOT look like a
+# stale constant: because dSharpe = dRf / StdDev, a fixed 0.23pp error surfaced as
+# 0.17 on the corporate bond fund (StdDev 1.34) and 0.01 on the US equity FoF
+# (StdDev 17.94). The steadiest fund in the set was the loudest symptom, which is
+# exactly the wrong place to start looking.
+#
+# tests/unit/test_vro.py guards this constant directly, so the next drift fails
+# saying "the risk-free has drifted" rather than "Sharpe is wrong for one fund".
+VRO_RISK_FREE_ANNUAL = 0.0567
+
+
+def implied_vro_risk_free(risk: dict) -> float:
+    """VRO's implied annual risk-free (percent), from its own published triple.
+
+    Sharpe = (mean - rf) / std_dev, so rf = mean - sharpe * std_dev. Making this
+    a function rather than a hand-derivation is the point: a constant back-solved
+    once by hand goes stale silently, and the symptom appears somewhere else.
+    """
+    mean, std, sharpe = risk["mean"], risk["std_dev"], risk["sharpe"]
+    if not std:
+        raise ValueError("std_dev is zero; the risk-free cannot be back-solved")
+    return mean - sharpe * std
 
 # In-page fetch used inside the (Cloudflare-cleared) page so same-origin session
 # cookies ride along. Returns the raw response text; raises on non-2xx.
@@ -354,6 +379,13 @@ def fetch_benchmark_tri(
     return frame["value"].rename(index_name)
 
 
+class VROFundPageGone(ValueError):
+    """VRO answered 410/404 for a fund page: the stored slug is stale.
+
+    A named type so a renamed fund is not mistaken for a parser regression.
+    """
+
+
 def browser_extra_available() -> bool:
     """True if the optional ``browser`` extra (playwright + stealth) is installed.
 
@@ -442,6 +474,20 @@ def _fetch_risk_fragment(page, *, timeout: int = 45) -> str:
         }"""
     )
     if not info["fund"]:
+        # Distinguish "the fund page is gone" from "the page shape changed".
+        # Found 2026-09-07: ICICI Bluechip was renamed to Large Cap, so its old
+        # slug returned HTTP 410 and this surfaced as an unreadable #fund_name --
+        # a message that sends you looking at the selector rather than the URL.
+        # A renamed fund keeps its plan_id; only the slug moves.
+        title = ""
+        with suppress(Exception):
+            title = page.title() or ""
+        if "410" in title or "404" in title or "error" in title.lower():
+            raise VROFundPageGone(
+                f"VRO returned {title!r} for this fund page: the slug is stale, most "
+                f"likely because the fund was renamed (the plan_id usually survives). "
+                f"Re-identify it and update data/funds/vro_funds.csv."
+            )
         raise ValueError("could not read the fund short name (#fund_name) from the page")
     url = vro_risk_ratios_api(info["fund"], tuple(info["peers"]), info["lang"])
 

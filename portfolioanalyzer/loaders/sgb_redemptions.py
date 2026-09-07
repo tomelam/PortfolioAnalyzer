@@ -247,7 +247,9 @@ def parse_redemption_pr(html: str) -> list[dict]:
     if len(dates) == 1:
         pairs = [(tid, dates[0]) for tid in tranche_ids]
     elif len(dates) == len(tranche_ids):
-        pairs = list(zip(tranche_ids, dates))
+        # strict=True is provably safe: the elif above establishes equal
+        # lengths. It documents that invariant rather than trusting it.
+        pairs = list(zip(tranche_ids, dates, strict=True))
     else:
         info(
             f"sgb_redemptions: skipping ambiguous multi-date release "
