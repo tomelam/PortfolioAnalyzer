@@ -204,11 +204,18 @@ ahead of time (e.g. before an offline session):
 
 ```bash
 ./venv/bin/portfolio-analyzer-update
+./venv/bin/portfolio-analyzer-update --dry-run   # list the sources, contact none
 ```
 
 It exits non-zero only if *every* source failed (so one flaky feed doesn't fail
 the command). There is intentionally no scheduled/cron path: the analyzer is
 self-sufficient and refreshes on demand.
+
+Arguments are parsed **before** anything is fetched. Until 2026-09-07 `main`
+accepted `argv` and ignored it, so `--help` refreshed every source instead of
+printing help — and one of those sources holds blocks against the source IP, so
+an informational command could cost real access. `--dry-run` exists for the same
+reason: to answer "what would this touch?" without touching it.
 
 ## Re-capturing goldens after a source change
 

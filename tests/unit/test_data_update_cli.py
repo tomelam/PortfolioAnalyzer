@@ -1,41 +1,57 @@
-"""Tests for the portfolio-analyzer-update console entry point."""
+"""The one-shot refresh console entry point.
 
-from __future__ import annotations
+The load-bearing test here is that a bad or informational argument must NOT
+cause a network refresh. `main(argv)` accepted argv and ignored it, so
+`portfolio-analyzer-update --help` -- the exact command someone runs to find out
+what the tool does -- fetched every registered source instead of printing help.
+One of those sources is documented as holding blocks against the source IP.
+"""
 
-from portfolioanalyzer import data_update_cli
+import pytest
 
-
-def test_cli_reports_and_exits_zero_on_success(capsys, monkeypatch):
-    monkeypatch.setattr(
-        data_update_cli,
-        "update_all",
-        lambda: [{"name": "risk_free_fred", "ok": True, "rows": 174, "last_date": "2026-05-01"}],
-    )
-    rc = data_update_cli.main()
-    out = capsys.readouterr().out
-    assert rc == 0
-    assert "risk_free_fred" in out and "174 rows" in out
-    assert "1/1 source(s) updated." in out
+from portfolioanalyzer import data_update_cli as cli
 
 
-def test_cli_exits_one_when_all_fail(capsys, monkeypatch):
-    monkeypatch.setattr(
-        data_update_cli,
-        "update_all",
-        lambda: [{"name": "benchmark_nifty_tri", "ok": False, "error": "throttled"}],
-    )
-    rc = data_update_cli.main()
-    assert rc == 1
-    assert "0/1 source(s) updated." in capsys.readouterr().out
+@pytest.fixture
+def never_fetch(monkeypatch):
+    """update_all must not be reached. If it is, the test fails loudly."""
+    def boom():
+        raise AssertionError("update_all() was called; this argv must not refresh")
+    monkeypatch.setattr(cli, "update_all", boom)
 
 
-def test_cli_exits_zero_when_some_succeed(monkeypatch):
-    monkeypatch.setattr(
-        data_update_cli,
-        "update_all",
-        lambda: [
-            {"name": "risk_free_fred", "ok": True, "rows": 1, "last_date": "2026-05-01"},
-            {"name": "benchmark_nifty_tri", "ok": False, "error": "throttled"},
-        ],
-    )
-    assert data_update_cli.main() == 0
+class TestArgumentsDoNotTriggerARefresh:
+    def test_help_prints_and_exits_without_fetching(self, never_fetch, capsys):
+        with pytest.raises(SystemExit) as e:
+            cli.main(["--help"])
+        assert e.value.code == 0
+        assert "refresh" in capsys.readouterr().out.lower()
+
+    def test_an_unknown_argument_exits_without_fetching(self, never_fetch):
+        with pytest.raises(SystemExit) as e:
+            cli.main(["--nonsense"])
+        assert e.value.code != 0
+
+
+class TestNormalOperation:
+    def test_no_arguments_refreshes_and_reports(self, monkeypatch, capsys):
+        monkeypatch.setattr(cli, "update_all", lambda: [
+            {"name": "a", "ok": True, "rows": 10, "last_date": "2026-09-07"},
+            {"name": "b", "ok": False, "error": "boom"},
+        ])
+        assert cli.main([]) == 0
+        out = capsys.readouterr()
+        assert "a: 10 rows through 2026-09-07" in out.out
+        assert "b" in out.err and "boom" in out.err
+        assert "1/2 source(s) updated" in out.out
+
+    def test_exit_1_only_when_every_source_failed(self, monkeypatch):
+        monkeypatch.setattr(cli, "update_all", lambda: [{"name": "a", "ok": False, "error": "x"}])
+        assert cli.main([]) == 1
+
+    def test_dry_run_reports_without_fetching(self, never_fetch, capsys):
+        """Lets someone see what would be refreshed without touching a host that
+        bans on bursts."""
+        assert cli.main(["--dry-run"]) == 0
+        out = capsys.readouterr().out
+        assert "would refresh" in out.lower()
