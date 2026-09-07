@@ -376,3 +376,40 @@ class TestNiftyindicesLoginWall:
         with pytest.raises(Exception) as e:
             du.parse_niftyindices_tri_json("{not json at all")
         assert "HTML" not in str(e.value)
+
+
+class TestNiftyindicesNewApiShape:
+    """niftyindices moved to a route-based API (found 2026-09-07 by driving the
+    page's own form under Playwright and reading the request off the wire, then
+    confirming against the call site in the site's IISLComponet.js bundle):
+
+        OLD  POST /Backpage.aspx/getTotalReturnIndexString  -> {"d": "<json string>"}
+        NEW  POST /BackPage/getTotalReturnIndexString       -> bare JSON array
+
+    The method name and the request body are UNCHANGED -- `cinfo` is still a
+    single-quoted JSON string, exactly what _niftyindices_body already builds.
+    Only the route and the response envelope moved. The legacy envelope is still
+    accepted so a recorded fixture from before the change keeps working."""
+
+    def test_the_new_bare_array_parses(self):
+        df = du.parse_niftyindices_tri_json(_fx("nifty_tri_bare_array.json"))
+        assert len(df) == 3
+        assert list(df.columns) == ["value"]
+        assert df.index.is_monotonic_increasing
+        assert df.index.max() == pd.Timestamp("2026-04-30")
+        assert df["value"].iloc[-1] == pytest.approx(36174.80)
+
+    def test_the_legacy_d_envelope_still_parses(self):
+        import json as _json
+        legacy = _json.dumps({"d": _json.dumps(
+            [{"Date": "30 Apr 2026", "TotalReturnsIndex": "36174.80"}])})
+        df = du.parse_niftyindices_tri_json(legacy)
+        assert len(df) == 1 and df["value"].iloc[0] == pytest.approx(36174.80)
+
+    def test_an_empty_array_is_an_error_not_an_empty_frame(self):
+        with pytest.raises(ValueError, match="zero records"):
+            du.parse_niftyindices_tri_json("[]")
+
+    def test_the_endpoint_url_is_the_new_route(self):
+        assert du.NIFTY_TRI_ENDPOINT.endswith("/BackPage/getTotalReturnIndexString")
+        assert ".aspx" not in du.NIFTY_TRI_ENDPOINT

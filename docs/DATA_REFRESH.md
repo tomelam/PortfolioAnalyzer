@@ -195,10 +195,14 @@ maintain it by hand.
   unparseable date or non-numeric rate (a silently-dropped row would corrupt the
   CIV — this caught a real `2025=01-01` typo).
 
-## niftyindices TRI: behind a login since 2026-09-07
+## niftyindices moved to a route-based API (2026-09-07)
 
-`benchmark_nifty_tri` cannot be refreshed. The POST to
-`Backpage.aspx/getTotalReturnIndexString` now redirects:
+`benchmark_nifty_tri` broke and was fixed the same day. Recorded because the
+symptom pointed at the wrong thing entirely.
+
+**Symptom.** `json.decoder.JSONDecodeError: Expecting value: line 1 column 2`.
+
+**What was actually happening.** The old WebForms page method redirected:
 
 ```
 POST /Backpage.aspx/getTotalReturnIndexString
@@ -206,22 +210,32 @@ GET  /Sitefinity/Login?ReturnUrl=...getTotalReturnIndexString
 GET  /?ReturnUrl=...
 ```
 
-so the caller receives HTTP 200 carrying ~93 KB of the site's homepage. The
-historical-data page no longer references the endpoint at all. This is **not**
-an IP block — the landing page loads normally in the same session — and not a
-scraper regression. It is an upstream change, and no amount of retrying gets
-past a login wall.
+so the caller got HTTP 200 carrying ~93 KB of the site's homepage. `/Sitefinity/Login`
+is the **CMS editor** login, which is what a Sitefinity site serves for a route that no
+longer exists — not a visitor paywall. The data was never gated; the route was deleted.
 
-`parse_niftyindices_tri_json` now raises `NiftyEndpointMoved` naming this, rather
-than surfacing `Expecting value: line 1 column 2 (char 1)`, which said nothing
-about the cause and read like a transient glitch. The live test skips on that
-exception specifically; a genuine parser regression still raises a plain
-`ValueError` and still fails.
+**The fix.** Driving the page's own form under Playwright and reading the request off the
+wire showed the new shape, confirmed against the call site in the site's own
+`liveindexsa.niftyindices.com/assets/js/IISLComponet.js`:
 
-Consequence: the benchmark CSV stays at its last good date and the freshness
-gate blocks a run that needs it unless `--allow-stale`. That is the designed
-behaviour. Restoring the feed needs a new public endpoint or an authenticated
-one — a decision, not a fix.
+| | Old | New |
+|---|---|---|
+| Route | `/Backpage.aspx/getTotalReturnIndexString` | `/BackPage/getTotalReturnIndexString` |
+| Body | `{"cinfo": "{'name':...}"}` | **unchanged** |
+| Response | `{"d": "<json string>"}` | bare JSON array |
+
+The method name and request body never changed — only the route and the response
+envelope. `parse_niftyindices_tri_json` accepts both envelopes, so a fixture recorded
+before the change still works. Verified live: 4877 rows, 2007-01-02 to 2026-09-07.
+
+**Two things kept from the diagnosis.** `NiftyEndpointMoved` still fires if an HTML body
+ever comes back from that endpoint again, naming the redirect instead of reporting bad
+JSON. And the live test skips on that exception specifically, so a genuine parser
+regression (a plain `ValueError`) still fails.
+
+**The lesson worth keeping:** an HTML body from a JSON endpoint is a different *answer*,
+not malformed JSON. Reporting it as a parse error made it look transient and retryable,
+which sent the investigation toward the parser rather than the URL.
 
 ## Manual one-shot refresh (optional)
 

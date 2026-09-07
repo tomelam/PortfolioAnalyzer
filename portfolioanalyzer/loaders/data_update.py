@@ -81,7 +81,13 @@ LBMA_GOLD_PM_URL = "https://prices.lbma.org.uk/json/gold_pm.json"
 # POSTs the date range to getTotalReturnIndexString from inside the page. The
 # response is a ``{"d": "<json-array-string>"}`` envelope.
 NIFTY_HIST_PAGE = "https://www.niftyindices.com/reports/historical-data"
-NIFTY_TRI_ENDPOINT = "https://www.niftyindices.com/Backpage.aspx/getTotalReturnIndexString"
+# Route-based API since 2026 (found 2026-09-07). The old WebForms page method
+# "/Backpage.aspx/getTotalReturnIndexString" now redirects to the Sitefinity CMS
+# login and lands on the homepage, i.e. HTTP 200 with ~93 KB of HTML. The method
+# NAME and the request body are unchanged; only the route and the response
+# envelope moved. Confirmed against the call site in the site's own
+# liveindexsa.niftyindices.com/assets/js/IISLComponet.js bundle.
+NIFTY_TRI_ENDPOINT = "https://www.niftyindices.com/BackPage/getTotalReturnIndexString"
 # Real browser User-Agent presented by the stealth Chromium context.
 _NIFTY_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -153,10 +159,21 @@ def parse_niftyindices_tri_json(text: str) -> pd.DataFrame:
             f"First 120 chars: {stripped[:120]!r}"
         )
 
-    envelope = json.loads(text)
-    if "d" not in envelope:
-        raise ValueError("niftyindices response missing 'd' envelope key")
-    records = json.loads(envelope["d"])
+    payload = json.loads(text)
+    # The route-based API returns a BARE ARRAY. The old page method wrapped it in
+    # {"d": "<json string>"}. Both are accepted so a fixture recorded before the
+    # change keeps working and the switch is not a flag day.
+    if isinstance(payload, list):
+        records = payload
+    elif isinstance(payload, dict) and "d" in payload:
+        inner = payload["d"]
+        records = json.loads(inner) if isinstance(inner, str) else inner
+    else:
+        raise ValueError(
+            f"unexpected niftyindices payload: expected a list of records or a "
+            f"{{'d': ...}} envelope, got {type(payload).__name__} with keys "
+            f"{sorted(payload)[:6] if isinstance(payload, dict) else 'n/a'}"
+        )
     if not records:
         raise ValueError("niftyindices response contained zero records")
     df = pd.DataFrame(records)
