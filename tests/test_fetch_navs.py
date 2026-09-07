@@ -1,3 +1,5 @@
+import json
+
 import pandas as pd
 import pytest
 
@@ -24,6 +26,10 @@ def test_fetch_navs_of_mutual_fund(mocker):
 
     mock_response = mock_get.return_value
     mock_response.json.return_value = mock_response_data
+    # `.text` too: the loader now parses the body text through webgrab rather
+    # than calling response.json(), so a double that stubs only .json() leaves
+    # .text as a MagicMock and json.loads() rejects it.
+    mock_response.text = json.dumps(mock_response_data)
     mock_response.status_code = 200
 
     nav_data = fetch_navs_of_mutual_fund("https://mock.url")

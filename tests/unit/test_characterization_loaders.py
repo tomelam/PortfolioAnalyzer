@@ -224,10 +224,15 @@ class TestFetchNavs:
     def test_parses_a_good_response(self, monkeypatch):
         import requests
 
+        import json as _json
+        body = {"data": [{"date": "04-09-2026", "nav": "10.5"},
+                         {"date": "03-09-2026", "nav": "10.4"}]}
+
         class R:
+            status_code = 200
+            text = _json.dumps(body)
             def raise_for_status(self): pass
-            def json(self): return {"data": [{"date": "04-09-2026", "nav": "10.5"},
-                                             {"date": "03-09-2026", "nav": "10.4"}]}
+            def json(self): return body
 
         monkeypatch.setattr(requests, "get", lambda *a, **k: R())
         df = mutual_fund.fetch_navs("http://x")
@@ -246,26 +251,53 @@ class TestFetchNavs:
         with pytest.raises(RuntimeError, match="after 3 retries"):
             mutual_fund.fetch_navs("http://x", retries=3)
 
-    def test_DEFECT_default_is_ten_attempts_with_no_pause_between_them(self, monkeypatch):
-        """DEFECT, pinned deliberately. Ten immediate retries with NO backoff is a
-        burst -- exactly what gets a client blocked. Fixing this MUST break this
-        test; that visible failure is the point."""
-        import time as _time
+    def test_the_default_is_three_attempts_that_pause_between_tries(self, monkeypatch):
+        """FIXED 2026-09-07. This test previously pinned a DEFECT: ten attempts
+        in a tight loop with no pause. That is not resilience, it is a burst --
+        the traffic shape most likely to get a client rate-limited, turning one
+        unreachable host into ten immediate hits.
+
+        The characterization test that pinned the old behaviour asserted
+        `len(attempts) == 10` and `sleeps == []`, and fixing this broke it, which
+        was the point: a behaviour change must not be smuggled in under a
+        refactor."""
         import requests
 
         attempts = []
-        sleeps = []
 
         def boom(*a, **k):
             attempts.append(1)
             raise requests.RequestException("down")
 
         monkeypatch.setattr(requests, "get", boom)
-        monkeypatch.setattr(_time, "sleep", lambda s: sleeps.append(s))
-        with pytest.raises(RuntimeError):
-            mutual_fund.fetch_navs("http://x")
-        assert len(attempts) == 10, "default retries is 10"
-        assert sleeps == [], "no backoff between attempts today"
+        with pytest.raises(RuntimeError, match="after 3 retries"):
+            mutual_fund.fetch_navs("http://x", backoff=0)
+        assert len(attempts) == 3, "default is now three attempts, not ten"
+
+    def test_a_malformed_payload_is_not_retried(self, monkeypatch):
+        """Also fixed: an empty `data` key used to be retried like a network
+        error, so a fund returning a valid-but-empty history cost ten round
+        trips. A payload that parsed is an answer; asking again cannot change
+        it."""
+        import json as _json
+        import requests
+
+        calls = []
+
+        class Empty:
+            status_code = 200
+            text = _json.dumps({"status": "OK", "data": []})
+            def raise_for_status(self): pass
+            def json(self): return {"status": "OK", "data": []}
+
+        def counting(*a, **k):
+            calls.append(1)
+            return Empty()
+
+        monkeypatch.setattr(requests, "get", counting)
+        with pytest.raises(RuntimeError, match="missing or empty"):
+            mutual_fund.fetch_navs("http://x", retries=5, backoff=0)
+        assert len(calls) == 1, "a parsed answer must not be re-requested"
 
 
 # --------------------------------------------------------------------------

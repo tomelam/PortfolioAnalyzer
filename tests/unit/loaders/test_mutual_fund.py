@@ -50,7 +50,7 @@ def patch_requests(monkeypatch):
     def factory(responses):
         it = iter(responses)
 
-        def fake_get(url, timeout=None):
+        def fake_get(url, timeout=None, **kwargs):   # real requests.get takes headers etc.
             calls.append(url)
             r = next(it)
             if isinstance(r, Exception):
@@ -98,7 +98,7 @@ def test_retries_on_transient_failure(patch_requests) -> None:
             _mock_response(SAMPLE_RESPONSE),
         ]
     )
-    df = fetch_navs("https://api.mfapi.in/mf/999999", retries=5)
+    df = fetch_navs("https://api.mfapi.in/mf/999999", retries=5, backoff=0)
     assert len(df) == 3
     assert len(calls) == 3
 
@@ -106,10 +106,10 @@ def test_retries_on_transient_failure(patch_requests) -> None:
 def test_raises_after_exhausting_retries(patch_requests) -> None:
     patch_requests([requests.ConnectionError("nope")] * 4)
     with pytest.raises(RuntimeError, match="after 4 retries"):
-        fetch_navs("https://api.mfapi.in/mf/999999", retries=4)
+        fetch_navs("https://api.mfapi.in/mf/999999", retries=4, backoff=0)
 
 
 def test_raises_on_missing_data_key(patch_requests) -> None:
     patch_requests([_mock_response({"status": "OK", "data": []})] * 3)
     with pytest.raises(RuntimeError):
-        fetch_navs("https://api.mfapi.in/mf/999999", retries=3)
+        fetch_navs("https://api.mfapi.in/mf/999999", retries=3, backoff=0)
