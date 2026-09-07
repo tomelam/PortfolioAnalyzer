@@ -49,15 +49,14 @@ Sources
 from __future__ import annotations
 
 import datetime as dt
-import importlib.util
 import io
 import json
 import os
-import random
 from collections.abc import Callable
 from dataclasses import dataclass
 
 import pandas as pd
+from webgrab import browser as wg_browser
 from webgrab import http
 
 from portfolioanalyzer.loaders.benchmark import load_timeseries_csv
@@ -238,62 +237,56 @@ def _niftyindices_body(index_name: str, start: str, end: str) -> str:
 
 
 def _playwright_available() -> bool:
-    """True if the optional ``browser`` extra (playwright + stealth) is installed."""
-    return (
-        importlib.util.find_spec("playwright") is not None
-        and importlib.util.find_spec("playwright_stealth") is not None
-    )
+    """True if the optional ``browser`` extra (playwright + stealth) is installed.
+
+    Delegates to ``webgrab.browser.available()``. This was the third copy of the
+    same find_spec pair in this repo (the others in ``loaders/vro.py`` and, by
+    import, the probe scripts).
+    """
+    return wg_browser.available()
 
 
 def _fetch_niftyindices_browser(
     index_name: str, start: str, end: str, *, timeout: int = 30, headless: bool = True
 ) -> pd.DataFrame:  # pragma: no cover - requires a real browser + network
-    """Drive a stealth Chromium to fetch the TRI, mirroring the proven
-    ``mysore-spa-intelligence-engine`` scraper.
+    """Drive a stealth Chromium to fetch the TRI.
 
     Presents an authentic fingerprint (stealth hides ``navigator.webdriver``;
-    real UA, ``en-IN`` locale, ``Asia/Kolkata`` timezone, 1920×1080 viewport)
+    real UA, ``en-IN`` locale, ``Asia/Kolkata`` timezone, 1920x1080 viewport)
     and makes a *single* human-paced hit: navigate the historical-data page to
     mint session cookies / clear any JS challenge, pause briefly, then issue
     the TRI POST from inside the page so the same-origin request carries the
     cookies automatically.
-    """
-    from playwright.sync_api import sync_playwright
-    from playwright_stealth import Stealth
 
+    Both halves are now ``webgrab.browser``: ``session()`` for the stealth
+    launch and settle, and ``fetch_js()`` for the in-page POST. That JS was
+    hand-written in three places in this repo -- here, in ``loaders/vro.py``,
+    and across six ``scripts/probe_*.py`` -- and the shared version JSON-encodes
+    the URL, headers and body rather than interpolating them, while keeping the
+    non-OK check this copy already had.
+    """
     body = _niftyindices_body(index_name, start, end)
-    with Stealth().use_sync(sync_playwright()) as p:
-        browser = p.chromium.launch(headless=headless)
-        try:
-            context = browser.new_context(
-                user_agent=_NIFTY_UA,
-                viewport={"width": 1920, "height": 1080},
-                locale="en-IN",
-                timezone_id="Asia/Kolkata",
+    with wg_browser.session(
+        NIFTY_HIST_PAGE,
+        headless=headless,
+        timeout=timeout * 1000,
+        settle=(1.5, 3.5),            # human-ish pause, as before
+        user_agent=_NIFTY_UA,
+        locale="en-IN",
+        timezone="Asia/Kolkata",
+    ) as page:
+        text = page.evaluate(
+            wg_browser.fetch_js(
+                NIFTY_TRI_ENDPOINT,
+                method="POST",
+                body=body,
+                headers={
+                    "Content-Type": "application/json; charset=UTF-8",
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Accept": "application/json, text/javascript, */*; q=0.01",
+                },
             )
-            page = context.new_page()
-            page.goto(
-                NIFTY_HIST_PAGE, wait_until="domcontentloaded", timeout=timeout * 1000
-            )
-            page.wait_for_timeout(random.randint(1500, 3500))  # human-ish pause
-            text = page.evaluate(
-                """async ([url, body]) => {
-                    const r = await fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json; charset=UTF-8',
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json, text/javascript, */*; q=0.01',
-                        },
-                        body,
-                    });
-                    if (!r.ok) throw new Error('TRI POST HTTP ' + r.status);
-                    return await r.text();
-                }""",
-                [NIFTY_TRI_ENDPOINT, body],
-            )
-        finally:
-            browser.close()
+        )
     return parse_niftyindices_tri_json(text)
 
 

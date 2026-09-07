@@ -37,15 +37,14 @@ the fetch needs a browser + network.
 from __future__ import annotations
 
 import csv
-import importlib.util
 import json
-import random
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import pandas as pd
 from pandas.tseries.offsets import DateOffset
+from webgrab import browser as wg_browser
 
 from portfolioanalyzer import metrics
 
@@ -75,16 +74,14 @@ VRO_RISK_FREE_ANNUAL = 0.059
 
 # In-page fetch used inside the (Cloudflare-cleared) page so same-origin session
 # cookies ride along. Returns the raw response text; raises on non-2xx.
-_FETCH_JS = """async (url) => {
-    const r = await fetch(url, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json, text/javascript, */*; q=0.01',
-        },
-    });
-    if (!r.ok) throw new Error('VRO HTTP ' + r.status + ' for ' + url);
-    return await r.text();
-}"""
+# In-page fetch JS comes from webgrab.browser.fetch_js, which JSON-encodes the
+# URL, headers and body rather than interpolating them, and throws inside the page
+# on a non-OK status. That last part is load-bearing here: a fetch that ignores
+# r.ok hands back Cloudflare's challenge page as if it were fund data.
+_VRO_XHR_HEADERS = {
+    "X-Requested-With": "XMLHttpRequest",
+    "Accept": "application/json, text/javascript, */*; q=0.01",
+}
 
 # __file__ is .../portfolioanalyzer/loaders/vro.py; data/ is at the repo root, two
 # levels above the package dir, i.e. parents[2] from here.
@@ -358,11 +355,13 @@ def fetch_benchmark_tri(
 
 
 def browser_extra_available() -> bool:
-    """True if the optional ``browser`` extra (playwright + stealth) is installed."""
-    return (
-        importlib.util.find_spec("playwright") is not None
-        and importlib.util.find_spec("playwright_stealth") is not None
-    )
+    """True if the optional ``browser`` extra (playwright + stealth) is installed.
+
+    Delegates to ``webgrab.browser.available()`` so there is one implementation
+    of the check; ``webgrab.browser.require_available()`` raises a message naming
+    the install steps, including that the Chromium download is separate.
+    """
+    return wg_browser.available()
 
 
 @dataclass(frozen=True)
@@ -381,20 +380,6 @@ class VROMetrics:
 
 # In-page XHR with a hard abort, used for the Cloudflare-sensitive /funds/ route
 # (a plain in-page fetch there can hang behind the challenge with no timeout).
-_RISK_XHR_JS = """async (url) => {
-    const c = new AbortController();
-    const t = setTimeout(() => c.abort(), 20000);
-    try {
-        const r = await fetch(url, {
-            headers: {'X-Requested-With': 'XMLHttpRequest'},
-            signal: c.signal,
-        });
-        if (!r.ok) throw new Error('VRO risk HTTP ' + r.status);
-        return await r.text();
-    } finally { clearTimeout(t); }
-}"""
-
-
 @contextmanager
 def _vro_session(
     plan_id: str, slug: str, *, timeout: int = 45, headless: bool = True
@@ -404,36 +389,35 @@ def _vro_session(
     Yields the Playwright ``page`` sitting on the fund's overview page (cookies
     minted). Clearing Cloudflare is the expensive step, so callers chain every
     VRO request for a fund through a single session.
-    """
-    from playwright.sync_api import sync_playwright
-    from playwright_stealth import Stealth
 
-    with Stealth().use_sync(sync_playwright()) as p:
-        browser = p.chromium.launch(headless=headless)
-        try:
-            context = browser.new_context(
-                user_agent=VRO_UA,
-                viewport={"width": 1920, "height": 1080},
-                locale="en-IN",
-                timezone_id="Asia/Kolkata",
-            )
-            page = context.new_page()
-            page.goto(
-                vro_page_url(plan_id, slug),
-                wait_until="domcontentloaded",
-                timeout=timeout * 1000,
-            )
-            page.wait_for_timeout(random.randint(3000, 5000))  # let Cloudflare settle
-            yield page
-        finally:
-            browser.close()
+    The stealth setup -- launch, context with a desktop UA / 1920x1080 /
+    en-IN / Asia-Kolkata, and a randomised settle -- is
+    ``webgrab.browser.session``. It was duplicated here, in data_update's
+    niftyindices fetcher, and in six probe scripts; that duplication was the
+    argument for extracting it.
+    """
+    with wg_browser.session(
+        vro_page_url(plan_id, slug),
+        headless=headless,
+        timeout=timeout * 1000,
+        settle=(3.0, 5.0),
+        user_agent=VRO_UA,
+        locale="en-IN",
+        timezone="Asia/Kolkata",
+    ) as page:
+        yield page
 
 
 def _fetch_returns_texts(page, plan_id: str, periods: tuple[str, ...]) -> dict[str, str]:
     # pragma: no cover - requires a real browser + network
     """Raw ``peer-comparison-returns`` JSON per period via same-origin XHR (the
     /api/ routes are Cloudflare-exempt, so a plain in-page fetch suffices)."""
-    return {period: page.evaluate(_FETCH_JS, vro_returns_api(plan_id, period)) for period in periods}
+    return {
+        period: page.evaluate(
+            wg_browser.fetch_js(vro_returns_api(plan_id, period),
+                                headers=_VRO_XHR_HEADERS))
+        for period in periods
+    }
 
 
 def _fetch_risk_fragment(page, *, timeout: int = 45) -> str:
@@ -470,7 +454,7 @@ def _fetch_risk_fragment(page, *, timeout: int = 45) -> str:
         body = page.content()
         if "Just a moment" not in body and "challenge" not in body.lower():
             break
-    return page.evaluate(_RISK_XHR_JS, url)
+    return page.evaluate(wg_browser.fetch_js(url, headers=_VRO_XHR_HEADERS, timeout_ms=20000))
 
 
 def fetch_vro_metrics(
