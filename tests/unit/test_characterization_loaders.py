@@ -127,7 +127,11 @@ class TestAssessFreshness:
         src, target = _make_source(tmp_path, monkeypatch)
         target.write_text("date,rate\n2026-07-01,1.0\n")          # reverted, old
         du._update_stamp(src.name, fetched_at=du._now_iso(), last_date="2026-09-07")
-        a = du.assess_freshness(src, today="2026-09-07")
+        # `today` is derived from the real clock, not hardcoded: the stamp is
+        # written with the real _now_iso(), so a fixed date makes this test pass
+        # or fail depending on the day it runs and on the UTC offset.
+        today = pd.Timestamp.today().normalize()
+        a = du.assess_freshness(src, today=today)
         assert a["fetched_today"] is True          # the stamp claims success today
         assert a["stamp_honoured"] is False        # but the file does not back it up
         assert a["current"] is False               # so it is NOT certified
@@ -143,11 +147,14 @@ class TestEnsureSourceCurrent:
         src, target = _make_source(tmp_path, monkeypatch, day_gated=True, fetch=exploding)
         target.write_text("date,rate\n2026-07-01,1.0\n")
 
-        res = du.ensure_source_current(src.name, today="2026-09-07")
+        today = pd.Timestamp.today().normalize()
+        res = du.ensure_source_current(src.name, today=today)
         assert res["status"] == "stale"
         stamp = du.read_stamp(src.name)
         assert stamp.get("attempted_at"), "a raising fetch must still record the attempt"
-        assert pd.Timestamp(stamp["attempted_at"]).date() == pd.Timestamp("2026-09-07").date()
+        # Compare through _is_today, which does the UTC->local conversion; a raw
+        # .date() comparison here is the very bug this suite now covers.
+        assert du._is_today(stamp["attempted_at"], today)
         assert "fetched_at" not in stamp, "a failed fetch must not claim success"
 
     def test_a_day_gated_source_already_attempted_today_is_not_retried(
@@ -161,9 +168,13 @@ class TestEnsureSourceCurrent:
         src, target = _make_source(tmp_path, monkeypatch, day_gated=True, fetch=counting)
         target.write_text("date,rate\n2026-07-01,1.0\n")
 
-        du.ensure_source_current(src.name, today="2026-09-07")
+        # Real clock, for the same reason as above: the attempt is stamped with
+        # the real _now_iso(), so `today` must come from the same clock or the
+        # gate looks broken on any day but one.
+        today = pd.Timestamp.today().normalize()
+        du.ensure_source_current(src.name, today=today)
         assert len(calls) == 1
-        res = du.ensure_source_current(src.name, today="2026-09-07")
+        res = du.ensure_source_current(src.name, today=today)
         assert len(calls) == 1, "the host must not be contacted a second time today"
         assert res["status"] == "stale"
         assert "once per day" in res["message"]

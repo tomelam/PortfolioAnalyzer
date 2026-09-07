@@ -651,3 +651,60 @@ def test_read_stamp_exposes_provenance(tmp_path, monkeypatch):
     assert st["last_date"] == "2026-05-01"
     assert st["fetched_at"].startswith("2026-06-17")
     assert du.read_stamp("missing") == {}
+
+
+class TestIsTodayAcrossTimezones:
+    """_now_iso() stamps UTC; _is_today() compared against a LOCAL date.
+
+    Found 2026-09-08 at 00:10 IST, moments after a successful refresh reported
+    4/4 sources updated: every source read back as fetched_today=False, because
+    the stamp said 2026-09-07T18:38 UTC while "today" locally was 2026-09-08.
+
+    Two consequences, the second worse than the first:
+
+      The freshness gate blocks a run immediately after a successful refresh,
+      because `current` requires (not behind) or (fetched_today and honoured).
+
+      THE DAY-GATE IS DEFEATED. ensure_source_current suppresses a second
+      attempt on a day-gated host using attempted_today, computed the same way.
+      For the 5.5 hours between 00:00 and 05:30 IST -- exactly when an overnight
+      run fires -- niftyindices, documented here as holding IP blocks against the
+      source, could be contacted repeatedly.
+
+    The tz is injectable so these tests do not depend on the machine's zone."""
+
+    IST = "Asia/Kolkata"
+
+    def test_a_utc_stamp_just_before_local_midnight_rollover_is_today(self):
+        # 18:38 UTC == 00:08 IST the NEXT local day. The stamp is "today" in IST.
+        assert du._is_today("2026-09-07T18:38:55+00:00",
+                            pd.Timestamp("2026-09-08"), tz=self.IST) is True
+
+    def test_a_stamp_from_a_genuinely_earlier_local_day_is_not_today(self):
+        # 12:00 UTC on the 6th == 17:30 IST on the 6th, two local days earlier.
+        assert du._is_today("2026-09-06T12:00:00+00:00",
+                            pd.Timestamp("2026-09-08"), tz=self.IST) is False
+
+    def test_the_local_day_boundary_is_respected(self):
+        # 18:29 UTC == 23:59 IST the same local day -> not "today" on the 8th.
+        assert du._is_today("2026-09-07T18:29:00+00:00",
+                            pd.Timestamp("2026-09-08"), tz=self.IST) is False
+        # 18:30 UTC == 00:00 IST on the 8th -> is "today".
+        assert du._is_today("2026-09-07T18:30:00+00:00",
+                            pd.Timestamp("2026-09-08"), tz=self.IST) is True
+
+    def test_a_naive_legacy_stamp_is_read_as_utc(self):
+        assert du._is_today("2026-09-07T18:38:55",
+                            pd.Timestamp("2026-09-08"), tz=self.IST) is True
+
+    def test_absent_or_unparseable_stamps_are_not_today(self):
+        for bad in (None, "", "not a timestamp"):
+            assert du._is_today(bad, pd.Timestamp("2026-09-08"), tz=self.IST) is False
+
+    def test_a_utc_machine_is_unaffected(self):
+        """The fix must not break the zone where the old code was accidentally
+        right."""
+        assert du._is_today("2026-09-07T18:38:55+00:00",
+                            pd.Timestamp("2026-09-07"), tz="UTC") is True
+        assert du._is_today("2026-09-07T18:38:55+00:00",
+                            pd.Timestamp("2026-09-08"), tz="UTC") is False

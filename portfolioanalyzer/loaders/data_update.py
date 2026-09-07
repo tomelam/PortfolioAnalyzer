@@ -516,14 +516,44 @@ def _update_stamp(name: str, **fields) -> None:
         json.dump(stamps, f, indent=2, sort_keys=True)
 
 
-def _is_today(iso: str | None, today: pd.Timestamp) -> bool:
-    """True if ISO timestamp ``iso`` falls on ``today`` (date comparison)."""
+def _local_tz():
+    """The machine's local zone, resolved at call time rather than import."""
+    return dt.datetime.now().astimezone().tzinfo
+
+
+def _is_today(iso: str | None, today: pd.Timestamp, tz=None) -> bool:
+    """True if ISO timestamp ``iso`` falls on ``today`` in the LOCAL day.
+
+    The conversion is the whole point. ``_now_iso`` stamps UTC, while ``today``
+    comes from ``pd.Timestamp.today()``, which is local -- so comparing the two
+    directly was wrong by the UTC offset. In IST (+05:30) that made every stamp
+    written between 00:00 and 05:30 local read as "not today", and it was found
+    at 00:10 IST when a refresh that had just reported 4/4 sources updated read
+    back as fetched_today=False for all four.
+
+    That is not only a cosmetic freshness problem: ``ensure_source_current``
+    suppresses a second attempt on a day-gated host using ``attempted_today``,
+    computed here. For those 5.5 hours the day-gate did nothing, so niftyindices
+    -- documented as holding IP blocks against the source -- could be contacted
+    repeatedly by exactly the overnight run the gate exists to protect it from.
+
+    A naive stamp is read as UTC, which is what the older stamps are. ``tz`` is
+    injectable so the tests do not depend on the machine's zone.
+    """
     if not iso:
         return False
     try:
-        return pd.Timestamp(iso).date() == today.date()
+        ts = pd.Timestamp(iso)
     except (ValueError, TypeError):
         return False
+    if ts is pd.NaT:
+        return False
+    try:
+        ts = ts.tz_localize("UTC") if ts.tzinfo is None else ts
+        ts = ts.tz_convert(tz or _local_tz())
+    except (TypeError, ValueError):
+        return False
+    return ts.date() == today.date()
 
 
 # --- update orchestration --------------------------------------------------
