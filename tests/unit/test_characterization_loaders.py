@@ -310,12 +310,24 @@ class TestScss:
         assert not df.empty
         assert "interest" in df.columns
 
-    def test_DEFECT_any_failure_returns_an_empty_frame_instead_of_raising(self, tmp_path):
-        """DEFECT, pinned deliberately. This is the one place in the project that
-        hides a failure: a missing fixture, a dead network or a broken parser all
-        return an empty DataFrame, which flows downstream as 'no SCSS rates' --
-        indistinguishable from a fund that genuinely has none. The project's own
-        CLAUDE.md says fail loud. Fixing this MUST break this test."""
-        df = scss.load_scss_interest_rates(replay_from=str(tmp_path))   # no fixture there
-        assert df.empty
-        assert list(df.columns) == ["interest"]
+    def test_a_failure_now_raises_instead_of_returning_an_empty_frame(self, tmp_path):
+        """FIXED 2026-09-07. This test previously pinned a DEFECT: any failure --
+        a dead network, a broken parser, a missing fixture -- was swallowed and
+        an empty DataFrame returned.
+
+        It was the only place in this project that hid a failure, against its own
+        fail-loud rule. But the decisive argument is that the degradation was
+        illusory: the single caller passes the result straight into
+        calculate_variable_bond_cumulative_gain(rates, rates.index.min(), ...),
+        and an empty frame's index.min() is nan. The swallowed error produced a
+        nonsensical result several frames from its cause, indistinguishable from
+        a fund that genuinely has no SCSS rates."""
+        with pytest.raises(RuntimeError, match="unreadable"):
+            scss.load_scss_interest_rates(replay_from=str(tmp_path))   # no fixture there
+
+    def test_a_page_that_parses_to_zero_rows_also_raises(self, tmp_path):
+        """A shape change is not an empty dataset. Returning zero rows here sends
+        a NaN start date into the bond calculator."""
+        (tmp_path / "scss_nsi.html").write_text("<html><body>redesigned</body></html>")
+        with pytest.raises(RuntimeError, match="zero rows"):
+            scss.load_scss_interest_rates(replay_from=str(tmp_path))

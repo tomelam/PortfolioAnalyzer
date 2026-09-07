@@ -17,9 +17,9 @@ from __future__ import annotations
 import os
 
 import pandas as pd
-import requests
 import urllib3
 from bs4 import BeautifulSoup
+from webgrab import http
 
 from portfolioanalyzer.utils import info
 
@@ -29,13 +29,19 @@ SCSS_URL = (
 )
 
 
-def fetch_scss_html(url: str, verify_ssl: bool = False) -> str:
-    """Fetch the SCSS-rate page. Disables SSL warnings (the page uses a
-    self-signed-ish chain)."""
+def fetch_scss_html(url: str, verify_ssl: bool = False, timeout: int = 30) -> str:
+    """Fetch the SCSS-rate page through the shared ``webgrab`` client.
+
+    SSL verification is off by default because nsiindia.gov.in presents a broken
+    chain; the warning is silenced rather than printed on every run.
+
+    This previously passed **no timeout at all**, so an unresponsive server hung
+    the whole analysis indefinitely rather than failing. It now has one, plus
+    retry with backoff on transient failures, and raises
+    ``webgrab.http.FetchError`` where it used to raise ``requests`` exceptions.
+    """
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    response = requests.get(url, verify=verify_ssl)
-    response.raise_for_status()
-    return response.text
+    return http.get(url, timeout=timeout, verify=verify_ssl)
 
 
 def _find_target_table(soup: BeautifulSoup):
@@ -116,23 +122,43 @@ def load_scss_interest_rates(replay_from=None, save_replay=None) -> pd.DataFrame
 
     Network by default. With ``replay_from`` set, the HTML is read from
     ``<replay_from>/scss_nsi.html`` instead of nsiindia.gov.in; with
-    ``save_replay`` set, the fetched HTML is written there for later
-    replay. On any failure (network down, parser breakage, missing
-    fixture), returns an empty DataFrame — matches the prior
-    swallow-and-log behavior so a missing SCSS feed doesn't crash an
-    otherwise-valid portfolio run.
+    ``save_replay`` set, the fetched HTML is written there for later replay.
+
+    RAISES ON FAILURE. Until 2026-09-07 this caught bare ``Exception`` and
+    returned an empty DataFrame, on the reasoning that a missing SCSS feed should
+    not crash an otherwise-valid portfolio run. It was the only place in this
+    project that hid a failure, and it contradicted the fail-loud rule in
+    CLAUDE.md -- but the deeper problem is that the degradation was illusory. The
+    single caller feeds this straight into
+    ``calculate_variable_bond_cumulative_gain(rates, rates.index.min(), ...)``,
+    and an empty frame's ``index.min()`` is ``nan``. So the swallowed error did
+    not produce a graceful result; it produced a nonsensical one, several frames
+    away from the cause, and indistinguishable from a fund that genuinely has no
+    SCSS rates.
+
+    A caller that truly wants to proceed without SCSS should catch this
+    explicitly and say in its output that the sleeve is missing and why.
     """
-    try:
-        if replay_from is not None:
-            with open(os.path.join(replay_from, "scss_nsi.html"), encoding="utf-8") as f:
+    if replay_from is not None:
+        path = os.path.join(replay_from, "scss_nsi.html")
+        try:
+            with open(path, encoding="utf-8") as f:
                 html = f.read()
-        else:
-            html = fetch_scss_html(SCSS_URL)
-        if save_replay is not None:
-            os.makedirs(save_replay, exist_ok=True)
-            with open(os.path.join(save_replay, "scss_nsi.html"), "w", encoding="utf-8") as f:
-                f.write(html)
-        return parse_scss_html(html)
-    except Exception as e:
-        info(f"Error fetching SCSS rates: {e}")
-        return pd.DataFrame(columns=["interest"])
+        except OSError as e:
+            raise RuntimeError(f"SCSS replay fixture unreadable at {path}: {e}") from e
+    else:
+        html = fetch_scss_html(SCSS_URL)
+
+    if save_replay is not None:
+        os.makedirs(save_replay, exist_ok=True)
+        with open(os.path.join(save_replay, "scss_nsi.html"), "w", encoding="utf-8") as f:
+            f.write(html)
+
+    rates = parse_scss_html(html)
+    if rates.empty:
+        raise RuntimeError(
+            f"SCSS rate table parsed to zero rows from {'the replay fixture' if replay_from else SCSS_URL}. "
+            f"The page shape has probably changed; an empty frame would reach the bond "
+            f"calculator as a NaN start date rather than as an error."
+        )
+    return rates

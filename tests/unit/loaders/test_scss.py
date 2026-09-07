@@ -18,6 +18,7 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 import requests
+from webgrab import http
 
 from portfolioanalyzer.loaders.scss import (
     fetch_scss_html,
@@ -70,6 +71,9 @@ def test_load_via_mocked_fetch(monkeypatch) -> None:
     def fake_get(url, **kwargs):
         resp = MagicMock(spec=requests.Response)
         resp.text = SAMPLE_HTML
+        # webgrab inspects the status directly so it can decline to retry a
+        # definite answer; a MagicMock attribute is not an int.
+        resp.status_code = 200
         resp.raise_for_status.return_value = None
         return resp
 
@@ -81,9 +85,12 @@ def test_load_via_mocked_fetch(monkeypatch) -> None:
 
 
 def test_fetch_propagates_network_error(monkeypatch) -> None:
+    """Still loud, but as webgrab's FetchError rather than the raw requests
+    exception: every fetcher in this project now fails the same way, and the
+    message names the URL and how many attempts were made."""
     def fake_get(url, **kwargs):
         raise requests.ConnectionError("network unreachable")
 
     monkeypatch.setattr(requests, "get", fake_get)
-    with pytest.raises(requests.ConnectionError):
-        fetch_scss_html("https://example.com")
+    with pytest.raises(http.FetchError, match="example.com"):
+        fetch_scss_html("https://example.com", timeout=1)
