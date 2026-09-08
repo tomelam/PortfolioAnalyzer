@@ -79,14 +79,6 @@ Treat README/QUICKSTART prose as **unverified until checked against the code**. 
 *(branch/merge discipline itself is in `~/.claude/CLAUDE.md`)*
 The full suite here means the network tier too: `pytest -m "not network or network"`, which includes the live niftyindices and VRO browser tests. All green is the gate.
 
-### Commit messages
-End every commit message with the Co-Authored-By trailer naming **whichever model made the
-change** — the harness supplies the real line. Never hard-code a version: this said
-`Claude Sonnet 4.6` until 2026-09-08 while the last 20 commits had all used Opus 5.
-```
-Co-Authored-By: Claude <model> <noreply@anthropic.com>
-```
-
 ---
 
 ## Process preferences
