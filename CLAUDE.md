@@ -30,6 +30,31 @@ Price each asset using the most open, free, and fair market, in that market's **
 ### No yfinance
 Do not propose `yfinance` (or similar unofficial Yahoo Finance scrapers) as a dependency. It wraps an undocumented endpoint that breaks without warning. Prefer a documented public API (FRED, LBMA, an exchange's own feed), a static CSV the user refreshes manually, or a paid feed. If yfinance is the only path to a feature, surface that as a trade-off and ask before committing.
 
+### Bumping webgrab
+
+`webgrab` is the shared fetching library behind every loader here, installed from GitHub
+and **pinned to a tag** — never a bare branch URL. An unpinned `git+` dependency tracks
+HEAD, so two installs on different days get different fetching code while every other
+runtime dependency here is pinned exactly and there is no lock file. It moved five times
+in one evening on 2026-09-07.
+
+To bump it:
+
+1. In `~/Projects/webgrab`: get its own suite green (`make test`), then tag —
+   `git tag -a vX.Y.Z -m "…"` — and `git push origin vX.Y.Z`.
+2. **Check the tag resolves over anonymous HTTPS**, which is what pip uses:
+   `git ls-remote https://github.com/tomelam/webgrab.git vX.Y.Z`. Pushing over the SSH
+   remote and reading it back over SSH proves nothing about a fresh installer.
+3. Update the pin in `pyproject.toml`, reinstall, and run **the full suite including the
+   network tier** — the fetchers are the whole point of the dependency, and only the
+   network tier exercises them.
+4. Commit the pin bump on its own, saying which webgrab commits it takes.
+
+Two tests hold this: `test_non_pypi_dependencies_are_pinned_to_a_ref` fails any `git+`
+dependency with no `@ref`, and `test_readme_names_every_runtime_dependency_not_exempted`
+fails if the README's install section stops naming a declared dependency. Both were
+verified by breaking them (2026-09-08).
+
 ### Self-documenting outputs
 Output artifacts should carry their own run context/provenance — embed it durably in the file (PNG `tEXt` metadata, header comment, clearly-labeled block), not only in transient stdout. Freshness/provenance chatter belongs on **stderr** so stdout stays clean for the report/CSV. Keep additions additive; don't break existing schemas.
 
