@@ -74,9 +74,17 @@ This repository contains the Portfolio Analyzer application. It fetches historic
    pip install -e ".[dev]"     # + test/lint tooling (pytest, ruff, mypy, …)
    ```
    This installs the pinned runtime stack (pandas, numpy, requests, toml,
-   urllib3, beautifulsoup4, statsmodels, matplotlib, …) **and** puts the
+   urllib3, beautifulsoup4, statsmodels, matplotlib, webgrab, …) **and** puts the
    `portfolio-analyzer` / `portfolio-analyzer-update` console scripts on
-   `PATH`. The auto-updater's niftyindices fetch needs a stealth browser —
+   `PATH`.
+
+   > **`webgrab` is the one dependency not on PyPI.** It is the shared
+   > web-fetching library every loader here goes through, installed straight from
+   > GitHub and pinned to a tag:
+   > `webgrab @ git+https://github.com/tomelam/webgrab.git@v0.1.0`. So `pip
+   > install` needs **`git` on your `PATH` and network access to github.com** —
+   > it is not served from a PyPI mirror or an offline wheelhouse. Nothing extra
+   > to run: `pip install -e .` fetches it for you. The auto-updater's niftyindices fetch needs a stealth browser —
    add it (and the Chromium binary) only if you want live benchmark refresh:
    ```bash
    pip install -e ".[browser]" && playwright install chromium

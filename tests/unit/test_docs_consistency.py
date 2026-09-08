@@ -9,6 +9,7 @@ own sources of truth:
 * CLI flags  → ``main.build_parser()`` (the real argparse option set)
 * config keys → the ``config.get("…")`` calls in ``main.build_settings``
 * data files → the real loaders (``loaders.benchmark`` / ``loaders.risk_free``)
+* runtime dependencies → ``[project.dependencies]`` in ``pyproject.toml``
 
 They run fully offline. They intentionally do **not** execute install/network
 snippets (that would test pip and niftyindices, not the docs), and they can't
@@ -259,3 +260,62 @@ def test_example_portfolios_validate(port_path):
     """
     assert PORT_FILES, "no example portfolios found under examples/port/"
     load_portfolio_details(str(port_path))
+
+
+# --- dependencies ----------------------------------------------------------
+
+_DEP_NAME_RE = re.compile(r"^\s*([A-Za-z0-9._-]+)")
+
+
+def _declared_dependencies() -> set[str]:
+    """Distribution names from [project.dependencies], normalised like pip does."""
+    data = tomllib.loads(_read(ROOT / "pyproject.toml"))
+    out = set()
+    for spec in data.get("project", {}).get("dependencies", []):
+        m = _DEP_NAME_RE.match(spec)
+        if m:
+            out.add(m.group(1).lower().replace("_", "-"))
+    return out
+
+
+# Pulled in for a specific extra or as a transitive pin, not part of the story the
+# install section tells. Each needs a reason, so the exemption cannot grow quietly.
+_UNDOCUMENTED_DEPS_OK = {
+    "pyparsing": "transitive pin for matplotlib's font parser; explained in pyproject",
+    "tabulate": "table formatting detail, not something an installer chooses",
+}
+
+
+def test_readme_names_every_runtime_dependency_not_exempted():
+    """The install section lists the runtime stack. A dependency missing from that
+    list is invisible to anyone reading the docs — which is how ``webgrab`` went
+    undocumented while being the one dependency that is NOT on PyPI and needs git
+    plus network access to install.
+    """
+    readme = _read(ROOT / "README.md").lower()
+    missing = sorted(
+        d for d in _declared_dependencies()
+        if d not in _UNDOCUMENTED_DEPS_OK and d not in readme
+    )
+    assert not missing, (
+        f"pyproject declares runtime dependencies the README never names: "
+        f"{missing}. Add them to the install section, or record why they are "
+        f"deliberately unlisted in _UNDOCUMENTED_DEPS_OK."
+    )
+
+
+def test_non_pypi_dependencies_are_pinned_to_a_ref():
+    """A ``git+`` dependency without ``@<ref>`` tracks that branch's HEAD, so two
+    installs on different days can get different code — in a project that pins
+    every PyPI dependency exactly and has no lock file. webgrab was unpinned until
+    2026-09-08.
+    """
+    data = tomllib.loads(_read(ROOT / "pyproject.toml"))
+    floating = [
+        spec for spec in data.get("project", {}).get("dependencies", [])
+        if "git+" in spec and "@" not in spec.split("git+", 1)[1]
+    ]
+    assert not floating, (
+        f"git dependencies with no pinned ref: {floating}. Pin to a tag or a "
+        f"commit, e.g. '...webgrab.git@v0.1.0'."
+    )

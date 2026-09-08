@@ -24,7 +24,10 @@ dependencies = [
     # our pytest filterwarnings. Pin to the last 3.1.x (no such warnings).
     "pyparsing==3.1.4",
     "tabulate",
-    "webgrab @ git+https://github.com/tomelam/webgrab.git",
+    # Pinned to a tag, not a branch. Every other runtime dep here is pinned exactly;
+    # an unpinned git+https tracks webgrab's HEAD, so two installs on different days
+    # could get different fetching code. Bump deliberately, run the network tier.
+    "webgrab @ git+https://github.com/tomelam/webgrab.git@v0.1.0",
 ]
 
 [project.scripts]
