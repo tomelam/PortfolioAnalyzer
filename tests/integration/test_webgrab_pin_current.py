@@ -17,6 +17,11 @@ This test is the watcher, and it is deliberately quiet:
 
 Network tier, so it never blocks offline work; it lands at the merge gate, which is
 when the full suite runs anyway.
+
+It **fails** rather than skips when github.com cannot be reached. Ignoring HEAD
+movement suppresses a false signal; skipping an unreachable remote would suppress a
+true one -- "this gate did not run" -- and a skip reads as green in the summary line.
+Fail loud: a check that examined nothing must say so.
 """
 
 from __future__ import annotations
@@ -59,7 +64,18 @@ def _remote_tags(repo: str = REPO) -> list[str]:
         capture_output=True, text=True, timeout=60,
     )
     if proc.returncode != 0:
-        pytest.skip(f"cannot reach {repo}: {proc.stderr.strip()[:160]}")
+        # FAIL, do not skip. You are in the network tier because you asked to be;
+        # an unreachable remote means this gate did not run, and "528 passed, 1
+        # skipped" is indistinguishable from green to whoever is merging. Worse,
+        # if only github.com is blocked (proxy, DNS, rate limit) the other network
+        # tests still pass and the suite reads fully green while the pin question
+        # went unanswered -- a check that reports fine for the wrong reason.
+        pytest.fail(
+            f"could not reach {repo}, so the webgrab pin was NOT checked.\n"
+            f"  git said: {proc.stderr.strip()[:200]}\n"
+            "This is not a stale pin - it is an un-run check. Restore network "
+            "access and re-run; do not merge on the strength of this suite."
+        )
     return [line.rsplit("/", 1)[-1] for line in proc.stdout.splitlines() if line.strip()]
 
 
