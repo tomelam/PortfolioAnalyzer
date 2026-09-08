@@ -391,6 +391,16 @@ or how trustworthy its output is; bottom items are hygiene/cleanup.
 
 #### E. Quality gates
 
+- [ ] **Standing: keep the `webgrab` pin current** (opened 2026-09-08). `pyproject.toml`
+  pins `webgrab @ …@v0.1.0`; webgrab is under active development and will move past it.
+  This item never closes — it is the visible half of the nudge. The mechanical half is
+  `tests/integration/test_webgrab_pin_current.py`, a network-tier test that fails only
+  when webgrab publishes a **newer tag** (not on every HEAD commit, which would be noise)
+  and clears itself once the pin is bumped. When it fires, follow "Bumping webgrab" in
+  `CLAUDE.md` — tag, verify over anonymous HTTPS, bump, run the full suite *including* the
+  network tier, commit alone.
+
+
 - [x] **Re-enabled SIM ruff family** (2026-06-17, cycle 6). 4 findings
   autofixed (`--unsafe-fixes` for `with`-block merging, ternary
   conversion, dict-keys iteration, isinstance-merge); 3 manual fixes

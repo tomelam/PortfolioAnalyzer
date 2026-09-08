@@ -50,10 +50,13 @@ To bump it:
    network tier exercises them.
 4. Commit the pin bump on its own, saying which webgrab commits it takes.
 
-Two tests hold this: `test_non_pypi_dependencies_are_pinned_to_a_ref` fails any `git+`
-dependency with no `@ref`, and `test_readme_names_every_runtime_dependency_not_exempted`
-fails if the README's install section stops naming a declared dependency. Both were
-verified by breaking them (2026-09-08).
+Three tests hold this, all verified by breaking them (2026-09-08):
+`test_non_pypi_dependencies_are_pinned_to_a_ref` fails any `git+` dependency with no
+`@ref`; `test_readme_names_every_runtime_dependency_not_exempted` fails if the README's
+install section stops naming a declared dependency; and
+`tests/integration/test_webgrab_pin_current.py` (network tier) fails when webgrab
+publishes a **newer tag** — the nudge to run this ritual. It ignores HEAD movement, which
+is constant, and clears itself once the pin is bumped.
 
 ### Self-documenting outputs
 Output artifacts should carry their own run context/provenance — embed it durably in the file (PNG `tEXt` metadata, header comment, clearly-labeled block), not only in transient stdout. Freshness/provenance chatter belongs on **stderr** so stdout stays clean for the report/CSV. Keep additions additive; don't break existing schemas.
