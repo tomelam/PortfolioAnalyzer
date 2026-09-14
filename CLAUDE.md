@@ -40,7 +40,7 @@ in one evening on 2026-09-07.
 
 To bump it:
 
-1. In `~/Projects/webgrab`: get its own suite green (`make test`), then tag —
+1. In `~/Projects/software/webgrab`: get its own suite green (`make test`), then tag —
    `git tag -a vX.Y.Z -m "…"` — and `git push origin vX.Y.Z`.
 2. **Check the tag resolves over anonymous HTTPS**, which is what pip uses:
    `git ls-remote https://github.com/tomelam/webgrab.git vX.Y.Z`. Pushing over the SSH
