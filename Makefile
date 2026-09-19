@@ -16,8 +16,16 @@
 #
 # See docs/OUTPUTS.md for the rationale behind the "preserve by default" policy.
 #
+#   make test      — the offline suite (528 tests, ~27 s). A git pre-commit hook runs
+#                    this target, so it is the one to keep green.
+#   make test-network — the full suite including the live niftyindices and VRO
+#                    browser tests. CLAUDE.md § "The merge gate, concretely" makes
+#                    this the gate before a merge, not before every commit.
+#
 # Knobs:
 #   PA       — portfolio-analyzer console entry point (default ./venv/bin/portfolio-analyzer)
+#   PY       — interpreter for the tests (default ./venv/bin/python, the same one
+#              ./pa runs on, so the suite validates the interpreter the code uses)
 #   PORT_DIR — portfolio TOMLs to sweep (default examples/port)
 #   ARGS     — extra args passed through to portfolio-analyzer
 #              e.g. ARGS="--metrics-method monthly --lookback 5Y"
@@ -28,6 +36,7 @@
 #   make outputs/port-everything.png       # just one portfolio
 
 PA       ?= ./venv/bin/portfolio-analyzer
+PY       ?= ./venv/bin/python
 PORT_DIR ?= examples/port
 REPORT   ?= reports/portfolio_metrics.csv
 CONFIG   ?= tests/fixtures/golden_master_config.toml
@@ -42,7 +51,19 @@ ARGS     ?=
 PORTFOLIOS := $(wildcard $(PORT_DIR)/*.toml)
 PNGS       := $(patsubst $(PORT_DIR)/%.toml,outputs/%.png,$(PORTFOLIOS))
 
-.PHONY: all summary rerender clean distclean help
+.PHONY: all summary rerender clean distclean help test test-network
+
+## test — the offline suite, on the interpreter ./pa itself runs on.
+## pyproject.toml sets testpaths = ["tests"] and leaves `network` deselected, so
+## this needs no path or marker argument. Named `test` because that is the target a
+## git pre-commit hook looks for; without it these 528 tests were reachable only by
+## knowing the incantation, and a suite nothing can run is a suite nobody runs.
+test:
+	$(PY) -m pytest -q
+
+## test-network — everything, live calls included. The pre-merge gate.
+test-network:
+	$(PY) -m pytest -q -m "not network or network"
 
 help:
 	@echo "PortfolioAnalyzer Makefile targets:"
@@ -51,6 +72,8 @@ help:
 	@echo "  make summary   — one combined CSV at $(REPORT)"
 	@echo "  make clean     — remove $(REPORT) only (outputs/ is preserved)"
 	@echo "  make distclean — remove outputs/ wholesale (asks for confirmation)"
+	@echo "  make test      — the offline suite (what the git pre-commit runs)"
+	@echo "  make test-network — the full suite, live calls included (pre-merge gate)"
 	@echo "  make outputs/<name>.png  — render just one"
 	@echo
 	@echo "Knobs: PA=$(PA)  PORT_DIR=$(PORT_DIR)  ARGS=$(ARGS)"
