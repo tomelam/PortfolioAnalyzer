@@ -6,7 +6,7 @@ in-repo wrappers, temp files, stall protocol) and `~/Projects/meta/pipeline-conv
 
 ## Entry point
 
-Run via the in-repo wrapper: `./pa <args>` (executes `venv/bin/python main.py`). The package is `portfolioanalyzer/`; it can also be invoked as `python -m portfolioanalyzer.main`. See `docs/QUICKSTART.md` and `docs/ARCHITECTURE.md`.
+Run via the in-repo wrapper: `./pa <args>` (executes `.venv/bin/python main.py`). The package is `portfolioanalyzer/`; it can also be invoked as `python -m portfolioanalyzer.main`. See `docs/QUICKSTART.md` and `docs/ARCHITECTURE.md`.
 
 ---
 

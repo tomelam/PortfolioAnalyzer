@@ -13,9 +13,9 @@ the agreement is auditable by eye — for two families:
 
 Run from anywhere with the ``browser`` extra installed::
 
-    ./venv/bin/python scripts/fetch_vro_metrics.py
-    ./venv/bin/python scripts/fetch_vro_metrics.py --json outputs/vro_metrics.json
-    ./venv/bin/python scripts/fetch_vro_metrics.py --periods 1Y,3Y,5Y,10Y
+    ./.venv/bin/python scripts/fetch_vro_metrics.py
+    ./.venv/bin/python scripts/fetch_vro_metrics.py --json outputs/vro_metrics.json
+    ./.venv/bin/python scripts/fetch_vro_metrics.py --periods 1Y,3Y,5Y,10Y
 """
 
 from __future__ import annotations

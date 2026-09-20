@@ -157,7 +157,7 @@ via RBI's open search endpoint (`SearchResults.aspx`), then parse each
 tranche(s). No IBJA paid API or stealth browser needed. Refresh on demand:
 
 ```bash
-./venv/bin/python -m portfolioanalyzer.loaders.sgb_redemptions
+./.venv/bin/python -m portfolioanalyzer.loaders.sgb_redemptions
 ```
 
 Enumeration walks **every page** of the search (RBI returns 14 hits/page via an
@@ -245,8 +245,8 @@ run already refreshes what it needs — but it is handy to warm the local CSVs
 ahead of time (e.g. before an offline session):
 
 ```bash
-./venv/bin/portfolio-analyzer-update
-./venv/bin/portfolio-analyzer-update --dry-run   # list the sources, contact none
+./.venv/bin/portfolio-analyzer-update
+./.venv/bin/portfolio-analyzer-update --dry-run   # list the sources, contact none
 ```
 
 It exits non-zero only if *every* source failed (so one flaky feed doesn't fail

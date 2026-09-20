@@ -13,17 +13,18 @@ For architecture and design, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 git clone git@github.com:tomelam/PortfolioAnalyzer.git
 cd PortfolioAnalyzer
 
-python3.12 -m venv venv
-./venv/bin/python -m pip install -e ".[dev]"
+asdf install                                        # if 3.12.9 is not installed yet
+"$(asdf where python)/bin/python3" -m venv .venv    # the version .tool-versions pins
+./.venv/bin/python -m pip install -e ".[dev]"
 ```
 
 The editable install puts a `portfolio-analyzer` console entry point
-into `./venv/bin/`. All examples below use `./venv/bin/portfolio-analyzer`
+into `./.venv/bin/`. All examples below use `./.venv/bin/portfolio-analyzer`
 so they work without an activated virtualenv. If you activate the venv
-(`source venv/bin/activate`), you can shorten that to just
+(`source .venv/bin/activate`), you can shorten that to just
 `portfolio-analyzer`.
 
-> The old `./venv/bin/portfolio-analyzer …` form still works for back-compat,
+> The old `./.venv/bin/portfolio-analyzer …` form still works for back-compat,
 > but the entry-point form is preferred — shorter, no interpreter path.
 
 ---
@@ -31,7 +32,7 @@ so they work without an activated virtualenv. If you activate the venv
 ## Run one portfolio (the most common case)
 
 ```bash
-./venv/bin/portfolio-analyzer examples/port/port-1.toml
+./.venv/bin/portfolio-analyzer examples/port/port-1.toml
 ```
 
 That prints metrics to the terminal **and** opens a matplotlib window
@@ -42,13 +43,13 @@ Common variations:
 
 ```bash
 # Use monthly metrics instead of the default daily.
-./venv/bin/portfolio-analyzer --metrics-method monthly examples/port/port-1.toml
+./.venv/bin/portfolio-analyzer --metrics-method monthly examples/port/port-1.toml
 
 # Last 5 years only.
-./venv/bin/portfolio-analyzer --lookback 5Y examples/port/port-1.toml
+./.venv/bin/portfolio-analyzer --lookback 5Y examples/port/port-1.toml
 
 # Save the plot as PNG (no window pops up) and dump metrics as CSV.
-./venv/bin/portfolio-analyzer \
+./.venv/bin/portfolio-analyzer \
     --disable-plot-display --output-snapshot --output-csv \
     --output-dir outputs/port-1 \
     examples/port/port-1.toml
@@ -90,13 +91,13 @@ outputs/port-1/port-1.csv    ← the metrics as one CSV row
 ### See the familiar plot window + printed metrics
 
 ```bash
-./venv/bin/portfolio-analyzer examples/port/port-everything.toml
+./.venv/bin/portfolio-analyzer examples/port/port-everything.toml
 ```
 
 ### Save plot + CSV without opening any window
 
 ```bash
-./venv/bin/portfolio-analyzer \
+./.venv/bin/portfolio-analyzer \
     --disable-plot-display --output-snapshot --output-csv \
     --output-dir outputs/port-everything \
     examples/port/port-everything.toml
@@ -106,7 +107,7 @@ outputs/port-1/port-1.csv    ← the metrics as one CSV row
 
 ```bash
 for p in port-1 port-mf-ppf-gold; do
-    ./venv/bin/portfolio-analyzer \
+    ./.venv/bin/portfolio-analyzer \
         --disable-plot-display --output-snapshot \
         --output-dir outputs/$p \
         examples/port/$p.toml
@@ -132,10 +133,10 @@ preserved by default** — `make clean` does **not** delete it; only
 The `examples/port/` directory has tiny single-asset TOMLs for sanity checks:
 
 ```bash
-./venv/bin/portfolio-analyzer examples/port/port-ppf.toml
-./venv/bin/portfolio-analyzer examples/port/port-scss.toml
-./venv/bin/portfolio-analyzer examples/port/port-sgb.toml
-./venv/bin/portfolio-analyzer examples/port/port-gold.toml
+./.venv/bin/portfolio-analyzer examples/port/port-ppf.toml
+./.venv/bin/portfolio-analyzer examples/port/port-scss.toml
+./.venv/bin/portfolio-analyzer examples/port/port-sgb.toml
+./.venv/bin/portfolio-analyzer examples/port/port-gold.toml
 ```
 
 Or all of them in one go via `scripts/single-asset-type.sh`.
@@ -148,7 +149,7 @@ unreachable). For an unattended run that must never block on that, add
 `--allow-stale` (it proceeds with a warning naming the degraded metrics):
 
 ```bash
-./venv/bin/portfolio-analyzer --allow-stale --disable-plot-display \
+./.venv/bin/portfolio-analyzer --allow-stale --disable-plot-display \
     --output-snapshot --output-csv \
     --output-dir outputs/port-1 \
     examples/port/port-1.toml
@@ -258,6 +259,6 @@ KANBAN.md                  ← what's planned / done / in flight
   dict form. Migrate to one or more `[[sgb]]` entries (see schema above).
 - **"unknown tranche"** — the `tranche_id` doesn't exist in
   `data/funds/sgb_tranches.csv`. Currently only Feb 2020+ tranches are
-  registered. Use `./venv/bin/python -c "from sgb_tranches import
+  registered. Use `./.venv/bin/python -c "from sgb_tranches import
   list_tranches; print(list_tranches()[['tranche_id','issue_date']]
   .to_string(index=False))"` to see all valid IDs.

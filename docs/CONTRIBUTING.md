@@ -66,7 +66,7 @@ before the `v0.1-salvage` tag.
 ## Running the app
 
 ```bash
-./venv/bin/python main.py \
+./.venv/bin/python main.py \
   --config tests/fixtures/golden_master_config.toml \
   --metrics-method monthly \
   --lookback 5Y \

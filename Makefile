@@ -23,8 +23,8 @@
 #                    this the gate before a merge, not before every commit.
 #
 # Knobs:
-#   PA       — portfolio-analyzer console entry point (default ./venv/bin/portfolio-analyzer)
-#   PY       — interpreter for the tests (default ./venv/bin/python, the same one
+#   PA       — portfolio-analyzer console entry point (default ./.venv/bin/portfolio-analyzer)
+#   PY       — interpreter for the tests (default ./.venv/bin/python, the same one
 #              ./pa runs on, so the suite validates the interpreter the code uses)
 #   PORT_DIR — portfolio TOMLs to sweep (default examples/port)
 #   ARGS     — extra args passed through to portfolio-analyzer
@@ -35,8 +35,8 @@
 #   make ARGS="--lookback 5Y" all          # all trimmed to last 5 years
 #   make outputs/port-everything.png       # just one portfolio
 
-PA       ?= ./venv/bin/portfolio-analyzer
-PY       ?= ./venv/bin/python
+PA       ?= ./.venv/bin/portfolio-analyzer
+PY       ?= ./.venv/bin/python
 PORT_DIR ?= examples/port
 REPORT   ?= reports/portfolio_metrics.csv
 CONFIG   ?= tests/fixtures/golden_master_config.toml

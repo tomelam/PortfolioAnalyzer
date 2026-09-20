@@ -8,7 +8,7 @@ set -u
 
 cd "$(dirname "$0")/.."
 
-PA="./venv/bin/portfolio-analyzer"
+PA="./.venv/bin/portfolio-analyzer"
 HEADLESS=""
 if [[ "${1:-}" == "-H" || "${1:-}" == "--headless" ]]; then
     HEADLESS="--disable-plot-display"

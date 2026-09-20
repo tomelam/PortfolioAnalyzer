@@ -58,16 +58,16 @@ This repository contains the Portfolio Analyzer application. It fetches historic
    git clone https://github.com/tomelam/PortfolioAnalyzer.git
    cd PortfolioAnalyzer
    ```
-2. **Create and activate a virtual environment (recommended):**
+2. **Create the virtual environment.** `.tool-versions` pins the interpreter
+   (asdf python 3.12.9); build `.venv` from exactly that, so the pin and the
+   environment cannot disagree:
    ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   asdf install                       # once, if that version is not installed
+   "$(asdf where python)/bin/python3" -m venv .venv
    ```
-   If you're using `asdf` to manage Python versions, run:
-   ```bash
-   asdf install
-   asdf reshim python
-   ```
+   Activation is optional — every command below names `./.venv/bin/…` by path.
+   If you do activate: `source .venv/bin/activate` (Windows:
+   `.venv\Scripts\activate`).
 3. **Install the package (editable) with its dependencies:**
    ```bash
    pip install -e .            # runtime deps + the portfolio-analyzer* console scripts
@@ -93,7 +93,7 @@ This repository contains the Portfolio Analyzer application. It fetches historic
    You don't need to keep the venv activated to use the tool — the `./pa`
    wrapper (see [Usage](#usage)) runs the analyzer with the bundled venv
    directly. For other commands, prefix with the venv interpreter, e.g.
-   `./venv/bin/python -m pytest`.
+   `./.venv/bin/python -m pytest`.
 
 ---
 
@@ -114,14 +114,14 @@ an activated venv the equivalent console command is `portfolio-analyzer …`.
 ### `./pa` — run without activating the venv
 
 The repo ships a tiny `pa` wrapper that runs the analyzer with the bundled
-venv — no `source venv/bin/activate`, no `PATH` changes, nothing touched
+venv — no `source .venv/bin/activate`, no `PATH` changes, nothing touched
 outside the project directory. It `cd`s into the project root itself, so it
 works from anywhere and in-repo paths resolve:
 ```bash
 ./pa examples/port/port-1.toml --max-drawdown-threshold 10 --allow-stale
 ./pa --help
 ```
-It just `exec`s `venv/bin/python -m portfolioanalyzer.main "$@"`, so editing the code takes effect
+It just `exec`s `.venv/bin/python -m portfolioanalyzer.main "$@"`, so editing the code takes effect
 immediately. Paths you pass are resolved from the project root; use an absolute
 path for a portfolio/config file that lives elsewhere.
 The `--max-drawdown-threshold` option (shortcut `-dt`) sets the percentage drawdown that is considered significant to count in the "Drawdowns" statistic. By default, the threshold is set to `5` (5%).
@@ -343,8 +343,8 @@ the marker matrix and golden-regeneration recipe.
 Run from the **project root**, using the venv interpreter (no activation
 needed):
 ```bash
-./venv/bin/python -m pytest                # unit + golden + non-network integration
-./venv/bin/python -m pytest -m network     # live FRED + niftyindices + e2e smoke
+./.venv/bin/python -m pytest                # unit + golden + non-network integration
+./.venv/bin/python -m pytest -m network     # live FRED + niftyindices + e2e smoke
 ```
 
 The niftyindices live test needs the optional `browser` extra

@@ -57,6 +57,14 @@ browser = [
     "playwright-stealth",
 ]
 
+[tool.hatch.metadata]
+# The webgrab dependency above is a direct reference (git+https). hatchling refuses
+# those unless this is set, so `pip install -e .` -- the install this project's README
+# and QUICKSTART both document -- failed outright. Not noticed until 2026-09-20 because
+# the venv was built on 2026-06-17, three days before the setuptools->hatchling move
+# and before the webgrab pin was added, and nothing reinstalled in between.
+allow-direct-references = true
+
 [tool.hatch.build.targets.wheel]
 # Stage-3 (2026-06-20): migrated setuptools -> hatchling to drop the visible
 # *.egg-info/ dir from the project root. The flat package (incl. its loaders/

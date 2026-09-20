@@ -19,16 +19,16 @@ activation needed):
 cd /Users/tom/Projects/PortfolioAnalyzer
 
 # Default — unit + golden tiers; fast and network-free.
-./venv/bin/python -m pytest
+./.venv/bin/python -m pytest
 
 # Just the goldens.
-./venv/bin/python -m pytest -m golden tests/integration/
+./.venv/bin/python -m pytest -m golden tests/integration/
 
 # The live-network tier only (live FRED + niftyindices fetch + full e2e run).
-./venv/bin/python -m pytest -m network
+./.venv/bin/python -m pytest -m network
 
 # Everything, including the network tier.
-./venv/bin/python -m pytest -m ""
+./.venv/bin/python -m pytest -m ""
 ```
 
 The default `addopts` in `pyproject.toml` is `-m 'not network'`, so CI
@@ -39,8 +39,8 @@ fetching from mfapi.in / nsiindia.gov.in.
 The `network` tier hits live services and is non-deterministic (throttling,
 outages), so it is excluded by default — run it on demand with the
 `-m network` command above. Its `test_fetch_niftyindices_tri_live` needs the
-optional `browser` extra (`./venv/bin/python -m pip install '.[browser]' &&
-./venv/bin/python -m playwright install chromium`); without it that one test
+optional `browser` extra (`./.venv/bin/python -m pip install '.[browser]' &&
+./.venv/bin/python -m playwright install chromium`); without it that one test
 skips with a clear reason rather than failing.
 
 ## Unit tests
@@ -58,7 +58,7 @@ Pure-function tests under `tests/unit/`. Notable files:
 Run a single test:
 
 ```bash
-./venv/bin/python -m pytest tests/unit/test_metrics.py::test_sharpe_exactly_one -v
+./.venv/bin/python -m pytest tests/unit/test_metrics.py::test_sharpe_exactly_one -v
 ```
 
 ## Golden-master tests
@@ -101,7 +101,7 @@ re-capture the goldens offline from those fixtures:
 
 ```bash
 # 1. Refresh replay fixtures from the network (once).
-./venv/bin/python main.py \
+./.venv/bin/python main.py \
   --config tests/fixtures/golden_master_config.toml \
   --quiet --disable-plot-display --output-dir /tmp/cap --output-csv \
   --metrics-method daily --lookback 5Y --as-of 2026-06-13 \
@@ -111,7 +111,7 @@ re-capture the goldens offline from those fixtures:
 # 2. Re-capture goldens for each portfolio × method (offline via replay).
 for p in port-1 port-mf-ppf-gold port-everything; do
   for m in daily monthly; do
-    ./venv/bin/python main.py \
+    ./.venv/bin/python main.py \
       --config tests/fixtures/golden_master_config.toml \
       --quiet --disable-plot-display \
       --output-dir tests/golden/$p/$m \
@@ -124,7 +124,7 @@ for p in port-1 port-mf-ppf-gold port-everything; do
   done
 done
 
-./venv/bin/python -m pytest -m golden tests/integration/ -v
+./.venv/bin/python -m pytest -m golden tests/integration/ -v
 ```
 
 Inspect `tests/golden/$p/$m/$p.csv` to confirm the new numbers are what you
@@ -154,7 +154,7 @@ CI gates at `--cov-fail-under=85` (`.github/workflows/ci.yml`, `pytest
 **TOTAL: 89%**. Reproduce with:
 
 ```bash
-./venv/bin/python -m pytest --cov=. --cov-report=term-missing
+./.venv/bin/python -m pytest --cov=. --cov-report=term-missing
 ```
 
 Notable modules:

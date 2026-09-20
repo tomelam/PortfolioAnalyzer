@@ -13,10 +13,10 @@ set -u
 
 cd "$(dirname "$0")/.."
 
-PA="${PA:-./venv/bin/portfolio-analyzer}"
+PA="${PA:-./.venv/bin/portfolio-analyzer}"
 CONFIG="${CONFIG:-tests/fixtures/golden_master_config.toml}"  # bypass staleness gate by default; override when data is fresh
 if [[ ! -x "$PA" ]]; then
-    echo "❌ $PA not found. Run:  python3.12 -m venv venv && ./venv/bin/python -m pip install -e \".[dev]\"" >&2
+    echo "❌ $PA not found. Run:  python3.12 -m venv .venv && ./.venv/bin/python -m pip install -e \".[dev]\"" >&2
     exit 1
 fi
 

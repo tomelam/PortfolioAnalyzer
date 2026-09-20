@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 
 PORT_DIR="examples/port"
 OUT_DIR="plots"
-PA="${PA:-./venv/bin/portfolio-analyzer}"
+PA="${PA:-./.venv/bin/portfolio-analyzer}"
 CONFIG="${CONFIG:-tests/fixtures/golden_master_config.toml}"  # bypass staleness gate by default
 
 mkdir -p "$OUT_DIR"

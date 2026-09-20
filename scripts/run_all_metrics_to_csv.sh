@@ -13,7 +13,7 @@ cd "$(dirname "$0")/.."
 
 PORT_DIR="examples/port"
 OUTPUT="reports/portfolio_metrics.csv"
-PA="${PA:-./venv/bin/portfolio-analyzer}"
+PA="${PA:-./.venv/bin/portfolio-analyzer}"
 CONFIG="${CONFIG:-tests/fixtures/golden_master_config.toml}"  # bypass staleness gate by default
 
 while [[ $# -gt 0 ]]; do

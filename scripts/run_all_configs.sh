@@ -9,7 +9,7 @@ for f in examples/config/*.toml; do
     # Optional: clean outputs directory
     rm -f outputs/*
 
-    ./venv/bin/portfolio-analyzer examples/port/port-hdfc-midcap.toml --config "$f"
+    ./.venv/bin/portfolio-analyzer examples/port/port-hdfc-midcap.toml --config "$f"
 
     echo ""
     echo "🕵️  Inspect output files (e.g., in outputs/), then press Enter to continue..."

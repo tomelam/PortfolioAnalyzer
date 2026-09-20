@@ -53,7 +53,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-VENV_PYTHON = REPO_ROOT / "venv" / "bin" / "python"
+VENV_PYTHON = REPO_ROOT / ".venv" / "bin" / "python"
 GOLDEN_CONFIG = REPO_ROOT / "tests" / "fixtures" / "golden_master_config.toml"
 REPLAY_DIR = REPO_ROOT / "tests" / "golden" / "replay"
 

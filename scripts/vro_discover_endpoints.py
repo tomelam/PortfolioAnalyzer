@@ -17,10 +17,10 @@ risk-ratio endpoint can be identified by eye.
 
 Run with the ``browser`` extra installed::
 
-    ./venv/bin/python scripts/vro_discover_endpoints.py
-    ./venv/bin/python scripts/vro_discover_endpoints.py --plan-id 15841 \\
+    ./.venv/bin/python scripts/vro_discover_endpoints.py
+    ./.venv/bin/python scripts/vro_discover_endpoints.py --plan-id 15841 \\
         --slug icici-prudential-bluechip-fund-direct-plan --headed
-    ./venv/bin/python scripts/vro_discover_endpoints.py --dump-dir outputs/vro_api
+    ./.venv/bin/python scripts/vro_discover_endpoints.py --dump-dir outputs/vro_api
 
 Nothing here is imported by the test suite; it is an investigative tool. Once
 the risk-ratio endpoint is identified, capture its body as

@@ -12,7 +12,7 @@ rate before summing. After the fix each coupon is back to well under 1% of
 current capital. This script prints the per-coupon load so the fix can be
 re-verified by eye; it is not run by CI.
 
-    venv/bin/python scripts/sgb_coupon_load_check.py
+    .venv/bin/python scripts/sgb_coupon_load_check.py
 """
 from __future__ import annotations
 

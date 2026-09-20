@@ -119,7 +119,7 @@ def _console_script_names() -> set[str]:
 # --- invocation form -------------------------------------------------------
 
 def test_docs_invoke_pa_wrapper_not_bare_console_script():
-    """Runnable doc examples must use ``./pa`` (or ``./venv/bin/<script>``), never
+    """Runnable doc examples must use ``./pa`` (or ``./.venv/bin/<script>``), never
     the bare console script — which only resolves with an activated venv. ``./pa``
     is the one canonical entry point; this guards against the bare form creeping
     back into the examples (it passed review once before).
@@ -135,7 +135,7 @@ def test_docs_invoke_pa_wrapper_not_bare_console_script():
     assert not offenders, (
         "Runnable doc examples invoke the bare console script (needs an activated "
         f"venv) instead of the canonical ./pa wrapper: {offenders}. "
-        "Use './pa …' or './venv/bin/<script> …'."
+        "Use './pa …' or './.venv/bin/<script> …'."
     )
 
 
